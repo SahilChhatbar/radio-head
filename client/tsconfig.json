@@ -20,6 +20,7 @@
     ],
    "baseUrl": ".",                         
     "paths": {
+      "@/*": ["*"],
       "@/app/*": ["app/*"],
       "@/components/*": ["components/*"],
       "@/hooks/*": ["hooks/*"],

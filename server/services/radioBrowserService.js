@@ -1,51 +1,176 @@
-import axios from 'axios';
+const axios = require('axios');
 
-// Create a dedicated Axios instance for the Radio Browser API.
-// This is useful for setting a base URL and other default configurations.
-const radioApi = axios.create({
-  baseURL: 'https://de1.radiobrowser.info/json',
-  timeout: 10000, // 10-second timeout
+// Radio Browser API server list - we'll use multiple servers for failover
+const RADIO_BROWSER_SERVERS = [
+  'https://de1.api.radio-browser.info',
+  'https://nl1.api.radio-browser.info',
+  'https://at1.api.radio-browser.info'
+];
+
+// Create axios instance with retry logic
+const createRadioApi = (baseURL) => axios.create({
+  baseURL: `${baseURL}/json`,
+  timeout: 10000,
+  headers: {
+    'User-Agent': 'RadioHead/1.0'
+  }
 });
 
+// Get working server (with failover)
+const getWorkingServer = async () => {
+  for (const server of RADIO_BROWSER_SERVERS) {
+    try {
+      const api = createRadioApi(server);
+      await api.get('/countries');
+      return server;
+    } catch (error) {
+      console.warn(`Server ${server} is not responding, trying next...`);
+      continue;
+    }
+  }
+  throw new Error('All Radio Browser servers are unavailable');
+};
+
+// Cached working server
+let cachedServer = null;
+
+const getApi = async () => {
+  if (!cachedServer) {
+    cachedServer = await getWorkingServer();
+  }
+  return createRadioApi(cachedServer);
+};
+
 /**
- * Fetches a list of radio stations from the Radio Browser API.
- * @param {object} params - Optional parameters to filter the stations (e.g., { countryCode: 'US', tag: 'rock' }).
- * @returns {Promise<Array<object>>} A promise that resolves to an array of station objects.
- * @throws Will throw an error if the network request fails.
+ * Fetches radio stations with optional filters
+ * @param {Object} params - Optional parameters to filter the stations
+ * @returns {Promise<Array>} A promise that resolves to an array of station objects
  */
-export const getRadioStations = async (params = {}) => {
-  // Build the search path based on provided parameters
-  const path = '/stations/search';
-  const queryParams = new URLSearchParams();
-
-  if (params.countryCode) {
-    queryParams.append('countrycode', params.countryCode);
-  }
-  if (params.tag) {
-    queryParams.append('tag', params.tag);
-  }
-  if (params.name) {
-    queryParams.append('name', params.name);
-  }
-  queryParams.append('limit', (params.limit || 100).toString()); // Default limit to 100
-  queryParams.append('hidebroken', 'true'); // Hide stations that are known to be broken
-
+const getRadioStations = async (params = {}) => {
   try {
-    const response = await radioApi.get(`${path}?${queryParams.toString()}`);
+    const api = await getApi();
+    const queryParams = new URLSearchParams();
+
+    // Add parameters
+    if (params.countrycode) queryParams.append('countrycode', params.countrycode);
+    if (params.tag) queryParams.append('tag', params.tag);
+    if (params.name) queryParams.append('name', params.name);
+    if (params.language) queryParams.append('language', params.language);
+    if (params.order) queryParams.append('order', params.order);
+    if (params.reverse) queryParams.append('reverse', 'true');
+    
+    queryParams.append('limit', (params.limit || 50).toString());
+    queryParams.append('offset', (params.offset || 0).toString());
+    queryParams.append('hidebroken', 'true');
+
+    const response = await api.get(`/stations/search?${queryParams.toString()}`);
     return response.data;
   } catch (error) {
-    // Provide more detailed error logging
-    if (axios.isAxiosError(error)) {
-      console.error(`Axios error fetching radio stations: ${error.message}`);
-      if (error.response) {
-        console.error('Status:', error.response.status);
-        console.error('Data:', error.response.data);
-      }
-    } else {
-      console.error('An unexpected error occurred:', error);
+    // Reset cached server on error and retry once
+    if (cachedServer) {
+      cachedServer = null;
+      return getRadioStations(params);
     }
-
-    // Re-throw the error so the calling component can handle it
-    throw new Error('Failed to fetch radio stations.');
+    
+    console.error('Error fetching radio stations:', error);
+    throw new Error('Failed to fetch radio stations');
   }
+};
+
+/**
+ * Search stations by name
+ * @param {string} query - Search query
+ * @param {number} limit - Number of results to return
+ * @returns {Promise<Array>} A promise that resolves to an array of station objects
+ */
+const searchStationsByName = async (query, limit = 20) => {
+  return getRadioStations({
+    name: query,
+    limit,
+    order: 'clickcount',
+    reverse: true
+  });
+};
+
+/**
+ * Get stations by country
+ * @param {string} countryCode - Country code
+ * @param {number} limit - Number of results to return
+ * @returns {Promise<Array>} A promise that resolves to an array of station objects
+ */
+const getStationsByCountry = async (countryCode, limit = 50) => {
+  return getRadioStations({
+    countrycode: countryCode.toLowerCase(),
+    limit,
+    order: 'clickcount',
+    reverse: true
+  });
+};
+
+/**
+ * Get stations by tag
+ * @param {string} tag - Tag name
+ * @param {number} limit - Number of results to return
+ * @returns {Promise<Array>} A promise that resolves to an array of station objects
+ */
+const getStationsByTag = async (tag, limit = 50) => {
+  return getRadioStations({
+    tag,
+    limit,
+    order: 'clickcount',
+    reverse: true
+  });
+};
+
+/**
+ * Get popular stations
+ * @param {number} limit - Number of results to return
+ * @returns {Promise<Array>} A promise that resolves to an array of station objects
+ */
+const getPopularStations = async (limit = 50) => {
+  return getRadioStations({
+    limit,
+    order: 'clickcount',
+    reverse: true
+  });
+};
+
+/**
+ * Get countries list
+ * @returns {Promise<Array>} A promise that resolves to an array of country objects
+ */
+const getCountries = async () => {
+  try {
+    const api = await getApi();
+    const response = await api.get('/countries');
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching countries:', error);
+    throw new Error('Failed to fetch countries');
+  }
+};
+
+/**
+ * Get tags list
+ * @returns {Promise<Array>} A promise that resolves to an array of tag objects
+ */
+const getTags = async () => {
+  try {
+    const api = await getApi();
+    const response = await api.get('/tags');
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching tags:', error);
+    throw new Error('Failed to fetch tags');
+  }
+};
+
+module.exports = {
+  getRadioStations,
+  searchStationsByName,
+  getStationsByCountry,
+  getStationsByTag,
+  getPopularStations,
+  getCountries,
+  getTags
 };

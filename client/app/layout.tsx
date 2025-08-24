@@ -5,6 +5,7 @@ import { Theme } from "@radix-ui/themes";
 import "./globals.css";
 import React, { Suspense } from "react";
 import Loader from "@/components/Loader";
+import Providers from "@/providers";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -48,17 +49,19 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${bungee.variable} ${roboto.variable} antialiased`}
       >
-        <Theme
-          appearance="dark"
-          accentColor="blue"
-          radius="medium"
-          panelBackground="solid"
-          scaling="100%"
-        >
-          <div className="min-h-screen flex flex-col bg-main-gradient">
-            <Suspense fallback={<Loader />}>{children}</Suspense>
-          </div>
-        </Theme>
+        <Providers>
+          <Theme
+            appearance="dark"
+            accentColor="blue"
+            radius="medium"
+            panelBackground="solid"
+            scaling="100%"
+          >
+            <div className="min-h-screen flex flex-col bg-main-gradient">
+              <Suspense fallback={<Loader />}>{children}</Suspense>
+            </div>
+          </Theme>
+        </Providers>
       </body>
     </html>
   );

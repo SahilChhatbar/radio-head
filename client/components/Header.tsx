@@ -1,6 +1,9 @@
+"use client";
+
 import React from "react";
 import { Button, Flex, Container, Text } from "@radix-ui/themes";
 import Logo from "./Logo";
+import { useRadioStore } from "@/store/useRadiostore"; 
 
 interface LogoProps {
   size?: "sm" | "md" | "lg" | "xl";
@@ -19,18 +22,16 @@ interface HeaderProps {
   };
 }
 
-const DEFAULT_RADIO_STATION = {
-  frequency: "FM 101.5",
-  tagline: "ROCK CLASSICS",
-};
-
 const Header: React.FC<HeaderProps> = ({
   className = "",
   showSignIn = true,
   logoProps = {},
-  radioStation = DEFAULT_RADIO_STATION,
 }) => {
-  const displayText = `${radioStation.frequency} • ${radioStation.tagline}`;
+  const currentStation = useRadioStore((state) => state.currentStation);
+
+  const displayText = currentStation
+    ? currentStation.name
+    : "no station playing";
 
   return (
     <header className={`p-3 ${className}`}>
@@ -51,6 +52,7 @@ const Header: React.FC<HeaderProps> = ({
               <Text
                 size="2"
                 className="text-red-400 font-mono font-medium tracking-wider [text-shadow:0_0_8px_rgb(248_113_113_/_0.8),_0_0_16px_rgb(248_113_113_/_0.4)] scrolling-text"
+                title={displayText} 
               >
                 {displayText}
               </Text>

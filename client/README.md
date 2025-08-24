@@ -75,7 +75,7 @@ radiohead/
 26th jul 2025: fixed the loader component render, made updates in home page so that while the main content loads, the loader component will be shown
 
 10th aug 2025: define folder structure for server.
-**Use Zustand*
 
+24th aug 2025: Radio Browser API integration, defined store using zustand. 
 ## Contributing
 [Guidelines for contributing]

@@ -103,50 +103,6 @@ export default async function Home() {
           </Container>
         </Section>
       </Flex>
-      <footer className="border-t border-slate-800/50 bg-slate-950/80 backdrop-blur-sm">
-        <Container size="4" className="py-8">
-          <Flex
-            direction={{ initial: "column", sm: "row" }}
-            gap="6"
-            align="center"
-            justify="between"
-          >
-            <Flex gap="6" wrap="wrap" align="center" justify="center">
-              {footerContent.links.map((link, index) =>
-                link.href ? (
-                  <Link key={index} href={link.href}>
-                    <Text
-                      size="2"
-                      className="text-slate-400 hover:text-blue-300 transition-colors cursor-pointer"
-                    >
-                      {link.label}
-                    </Text>
-                  </Link>
-                ) : (
-                  <Text
-                    key={index}
-                    onClick={link.onClick}
-                    size="2"
-                    className="text-slate-400 hover:text-blue-300 transition-colors cursor-pointer"
-                  >
-                    {link.label}
-                  </Text>
-                )
-              )}
-            </Flex>
-            <Text size="2" className="text-slate-500">
-              {footerContent.credits.text}{" "}
-              <Link
-                href={footerContent.credits.authorUrl}
-                target="_blank"
-                className="text-[#ff914d]"
-              >
-                {footerContent.credits.authorName}
-              </Link>
-            </Text>
-          </Flex>
-        </Container>
-      </footer>
     </div>
   );
 }

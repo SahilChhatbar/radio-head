@@ -6,6 +6,7 @@ import { SkipBack, SkipForward, Play, Pause, Volume2, VolumeX } from "lucide-rea
 import { usePopularStations } from "@/hooks/useRadio";
 import { useRadioStore } from "@/store/useRadiostore";
 import ReactHowler from 'react-howler';
+import Loader from "./Loader";
 
 interface StationGaugeProps {
   limit?: number;
@@ -126,7 +127,6 @@ export default function StationGauge({ limit = 50 }: StationGaugeProps) {
 
   // current station display info
   const getCurrentStationDisplay = () => {
-    if (isLoading) return "Loading...";
     if (error) return "Error loading";
     if (stations.length === 0) return "No stations";
     
@@ -134,14 +134,9 @@ export default function StationGauge({ limit = 50 }: StationGaugeProps) {
     return station?.name || "Unknown Station";
   };
 
+  // Show loader component while stations are loading
   if (isLoading) {
-    return (
-      <div className="flex flex-col items-center gap-4 p-8">
-        <div className="w-112 aspect-square flex items-center justify-center">
-          <Text size="4" className="text-[#ff914d]">Loading stations...</Text>
-        </div>
-      </div>
-    );
+    return <Loader variant="spinner" />;
   }
 
   if (error) {
@@ -180,10 +175,11 @@ export default function StationGauge({ limit = 50 }: StationGaugeProps) {
       )}
 
       {/* Gauge Display */}
-      <div className="w-112 aspect-square">
+      <div className="w-82 aspect-square" style={{ position: "relative" }}>
         <svg
           viewBox={`0 0 ${VIEWBOX_SIZE} ${VIEWBOX_SIZE}`}
           className="w-full h-full"
+          style={{ position: "relative" }}
         >
           <circle
             cx={CENTER}
@@ -226,20 +222,56 @@ export default function StationGauge({ limit = 50 }: StationGaugeProps) {
               strokeLinecap="round"
             />
           </g>
+          {/* Station Info */}
+          <foreignObject
+            x={CENTER + 30}
+            y={CENTER + 100}
+            width={Math.min(220, VIEWBOX_SIZE * 0.32)}
+            height={88}
+          >
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                width: "100%",
+                height: "100%",
+                pointerEvents: "auto",
+                padding: "6px",
+                boxSizing: "border-box",
+              }}
+            >
+              <span
+                style={{
+                  color: "#ff914d",
+                  fontFamily: "monospace",
+                  fontWeight: 500,
+                  fontSize: "0.95rem",
+                  background: "rgba(30,30,30,0.85)",
+                  borderRadius: "8px",
+                  padding: "6px 10px",
+                  width: "100%",
+                  overflow: "hidden",
+                  textOverflow: "clip",
+                  whiteSpace: "normal", // allow wrapping to next line
+                  wordBreak: "break-word",
+                  overflowWrap: "anywhere",
+                  display: "block",
+                  lineHeight: 1.1,
+                  textAlign: "center",
+                }}
+                title={getCurrentStationDisplay()}
+              >
+                {(() => {
+                  const s = getCurrentStationDisplay() || "";
+                  const chunk = 18; // insert soft break every `chunk` chars so long names can break earlier
+                  return s.length > chunk ? s.replace(new RegExp(`(.{${chunk}})`, 'g'), '$1​') : s;
+                })()}
+              </span>
+            </div>
+          </foreignObject>
         </svg>
       </div>
-
-      {/* Station Info */}
-      <Box className="min-h-16 flex items-center justify-center px-4">
-        <Text
-          size="4"
-          className="text-[#ff914d] font-mono font-medium text-center max-w-80 truncate"
-          title={getCurrentStationDisplay()}
-        >
-          {getCurrentStationDisplay()}
-        </Text>
-      </Box>
-
       {/* Player Error Display */}
       {playerError && (
         <Text size="2" className="text-red-400 text-center max-w-80">

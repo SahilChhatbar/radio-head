@@ -6,6 +6,7 @@ import "./globals.css";
 import React, { Suspense } from "react";
 import Loader from "@/components/Loader";
 import Providers from "@/providers";
+import GlobalPlayer from "@/components/GlobalPlayer";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -58,7 +59,12 @@ export default function RootLayout({
             scaling="100%"
           >
             <div className="min-h-screen flex flex-col bg-main-gradient">
-              <Suspense fallback={<Loader />}>{children}</Suspense>
+              <Suspense fallback={<Loader />}>
+                <div className="flex-1 pb-20"> {/* Add bottom padding for player */}
+                  {children}
+                </div>
+              </Suspense>
+              <GlobalPlayer />
             </div>
           </Theme>
         </Providers>

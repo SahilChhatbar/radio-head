@@ -1,11 +1,9 @@
 "use client";
 
 import React, { useEffect, useRef } from "react";
-import { Button, Flex, Text, Box } from "@radix-ui/themes";
-import { SkipBack, SkipForward, Play, Pause, Volume2, VolumeX } from "lucide-react";
+import { Flex, Text } from "@radix-ui/themes";
 import { usePopularStations } from "@/hooks/useRadio";
 import { useRadioStore } from "@/store/useRadiostore";
-import ReactHowler from 'react-howler';
 import Loader from "./Loader";
 
 interface StationGaugeProps {
@@ -34,23 +32,15 @@ export default function StationGauge({ limit = 50 }: StationGaugeProps) {
   const {
     stations,
     currentStationIndex,
-    currentStation,
+    showPlayer,
     isPlaying,
-    volume,
-    isMuted,
-    isLoading: playerLoading,
-    error: playerError,
+    currentStation,
     setStations,
-    setCurrentStationIndex,
     nextStation,
     previousStation,
     play,
     stop,
-    togglePlayPause,
-    toggleMute,
-    setVolume,
-    setError,
-    setIsLoading,
+    setShowPlayer,
   } = useRadioStore();
 
   useEffect(() => {
@@ -101,30 +91,6 @@ export default function StationGauge({ limit = 50 }: StationGaugeProps) {
     return { visible: false };
   });
 
-  const handleNextStation = () => {
-    nextStation();
-    if (isPlaying && stations[currentStationIndex + 1] || stations[0]) {
-      const nextStationData = stations[currentStationIndex + 1] || stations[0];
-      play(nextStationData);
-    }
-  };
-
-  const handlePreviousStation = () => {
-    previousStation();
-    const prevIndex = currentStationIndex === 0 ? stations.length - 1 : currentStationIndex - 1;
-    if (isPlaying && stations[prevIndex]) {
-      play(stations[prevIndex]);
-    }
-  };
-
-  const handlePlayPause = () => {
-    if (currentStation) {
-      togglePlayPause();
-    } else if (stations.length > 0) {
-      play(stations[currentStationIndex]);
-    }
-  };
-
   // current station display info
   const getCurrentStationDisplay = () => {
     if (error) return "Error loading";
@@ -132,6 +98,39 @@ export default function StationGauge({ limit = 50 }: StationGaugeProps) {
     
     const station = stations[currentStationIndex];
     return station?.name || "Unknown Station";
+  };
+
+  // Handle gauge click to toggle play/stop
+  const handleGaugeClick = () => {
+    if (stations.length > 0) {
+      if (showPlayer && currentStation && isPlaying) {
+        // If currently playing, stop and hide player
+        stop();
+        setShowPlayer(false);
+      } else {
+        // Start playing
+        play(stations[currentStationIndex]);
+      }
+    }
+  };
+
+  // Handle station navigation with left/right keys when gauge is focused
+  const handleKeyDown = (event: React.KeyboardEvent) => {
+    switch (event.code) {
+      case 'ArrowLeft':
+        event.preventDefault();
+        previousStation();
+        break;
+      case 'ArrowRight':
+        event.preventDefault();
+        nextStation();
+        break;
+      case 'Enter':
+      case 'Space':
+        event.preventDefault();
+        handleGaugeClick();
+        break;
+    }
   };
 
   // Show loader component while stations are loading
@@ -151,31 +150,17 @@ export default function StationGauge({ limit = 50 }: StationGaugeProps) {
 
   return (
     <div className="flex flex-col items-center gap-4 p-8 bg-transparent">
-      {/* Howler Player */}
-      {currentStation && (
-        <ReactHowler
-          src={currentStation.url_resolved || currentStation.url}
-          playing={isPlaying}
-          volume={isMuted ? 0 : volume}
-          onLoad={() => setIsLoading(false)}
-          onLoadError={(id, error) => {
-            console.error('Howler load error:', error);
-            setError('Failed to load station');
-            setIsLoading(false);
-          }}
-          onPlayError={(id, error) => {
-            console.error('Howler play error:', error);
-            setError('Failed to play station');
-            setIsLoading(false);
-          }}
-          onPlay={() => setError(null)}
-          format={['mp3', 'aac', 'ogg', 'wav']}
-          html5={true}
-        />
-      )}
-
       {/* Gauge Display */}
-      <div className="w-82 aspect-square" style={{ position: "relative" }}>
+      <div 
+        className="w-82 aspect-square cursor-pointer transition-transform hover:scale-105 focus:outline-none rounded-full" 
+        style={{ position: "relative" }}
+        onClick={handleGaugeClick}
+        onKeyDown={handleKeyDown}
+        tabIndex={0}
+        role="button"
+        aria-label={`Radio gauge. Current station: ${getCurrentStationDisplay()}. Use left/right arrows to change station, Enter or Space to toggle play.`}
+        title="Click to toggle play • Use ←→ keys to change station • Enter/Space to toggle"
+      >
         <svg
           viewBox={`0 0 ${VIEWBOX_SIZE} ${VIEWBOX_SIZE}`}
           className="w-full h-full"
@@ -253,7 +238,7 @@ export default function StationGauge({ limit = 50 }: StationGaugeProps) {
                   width: "100%",
                   overflow: "hidden",
                   textOverflow: "clip",
-                  whiteSpace: "normal", // allow wrapping to next line
+                  whiteSpace: "normal",
                   wordBreak: "break-word",
                   overflowWrap: "anywhere",
                   display: "block",
@@ -264,7 +249,7 @@ export default function StationGauge({ limit = 50 }: StationGaugeProps) {
               >
                 {(() => {
                   const s = getCurrentStationDisplay() || "";
-                  const chunk = 18; // insert soft break every `chunk` chars so long names can break earlier
+                  const chunk = 18;
                   return s.length > chunk ? s.replace(new RegExp(`(.{${chunk}})`, 'g'), '$1​') : s;
                 })()}
               </span>
@@ -272,77 +257,13 @@ export default function StationGauge({ limit = 50 }: StationGaugeProps) {
           </foreignObject>
         </svg>
       </div>
-      {/* Player Error Display */}
-      {playerError && (
-        <Text size="2" className="text-red-400 text-center max-w-80">
-          {playerError}
+
+      {/* Station Count & Instructions */}
+      <Flex direction="column" align="center" gap="2">
+        <Text size="2" className="text-slate-500">
+          {stations.length} stations availabe
         </Text>
-      )}
-
-      {/* Controls */}
-      <Flex gap="4" justify="center" align="center" wrap="wrap">
-        <Button
-          onClick={handlePreviousStation}
-          disabled={stations.length === 0}
-          title="Previous Station"
-        >
-          <SkipBack size={20} />
-        </Button>
-        
-        <Button
-          onClick={handlePlayPause}
-          disabled={stations.length === 0 || playerLoading}
-          title={isPlaying ? "Pause" : "Play"}
-        >
-          {playerLoading ? (
-            <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" />
-          ) : isPlaying ? (
-            <Pause size={20} />
-          ) : (
-            <Play size={20} />
-          )}
-        </Button>
-        
-        <Button
-          onClick={handleNextStation}
-          disabled={stations.length === 0}
-          title="Next Station"
-        >
-          <SkipForward size={20} />
-        </Button>
-        
-        <Button
-          onClick={toggleMute}
-          disabled={!currentStation}
-          title={isMuted ? "Unmute" : "Mute"}
-        >
-          {isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}
-        </Button>
       </Flex>
-
-      {/* Volume Control */}
-      {currentStation && (
-        <Flex gap="2" align="center" className="w-full max-w-48">
-          <Text size="1" className="text-[#ff914d]">Vol:</Text>
-          <input
-            type="range"
-            min="0"
-            max="1"
-            step="0.05"
-            value={volume}
-            onChange={(e) => setVolume(parseFloat(e.target.value))}
-            className="flex-1 accent-[#ff914d]"
-          />
-          <Text size="1" className="text-[#ff914d] min-w-8">
-            {Math.round(volume * 100)}%
-          </Text>
-        </Flex>
-      )}
-
-      {/* Station Count */}
-      <Text size="1" className="text-slate-500">
-        Station {currentStationIndex + 1} of {stations.length}
-      </Text>
     </div>
   );
 }

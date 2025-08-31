@@ -77,5 +77,7 @@ radiohead/
 10th aug 2025: define folder structure for server.
 
 24th aug 2025: Radio Browser API integration, defined store using zustand. 
+
+30th & 31st aug 2025: Created global sticky player like in spotify, UI enhancements. 
 ## Contributing
 [Guidelines for contributing]

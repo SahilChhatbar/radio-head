@@ -1,6 +1,7 @@
+"use client";
+
 import React from "react";
 import {
-  Button,
   Container,
   Flex,
   Heading,
@@ -10,60 +11,30 @@ import {
 } from "@radix-ui/themes";
 import Header from "@/components/Header";
 import StationSelector from "@/components/StationSelector";
-import Link from "next/link";
+import { useRadioStore } from "@/store/useRadiostore";
 
-// --- Helper function to create a delay ---
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-
-interface FooterLink {
-  label: string;
-  href?: string;
-  onClick?: () => void;
-}
-
-interface HeroContent {
-  title: string;
-  subtitle: string;
-}
-
-interface FooterContent {
-  links: FooterLink[];
-  credits: {
-    text: string;
-    authorName: string;
-    authorUrl: string;
-  };
-}
-
-const DEFAULT_HERO_CONTENT: HeroContent = {
+const DEFAULT_HERO_CONTENT = {
   title: "Welcome to RadioHead",
   subtitle:
     "Your ultimate radio streaming experience. Discover, listen, and enjoy music from around the world with crystal-clear quality.",
 };
 
-const DEFAULT_FOOTER_CONTENT: FooterContent = {
-  links: [
-    { label: "About", href: "/about" },
-    { label: "Features", href: "/features" },
-    { label: "Contact", href: "/contact" },
-  ],
-  credits: {
-    text: "Made with ❤️ by",
-    authorName: "Sahil",
-    authorUrl: "https://sahil-chhatbar.vercel.app/",
-  },
-};
+export default function Home() {
+  const { showPlayer, isPlaying, currentStation } = useRadioStore();
 
-// --- The component is an async function ---
-export default async function Home() {
-  // This await call will pause the rendering on the server
-  await sleep(2000); 
+  const getStatusText = () => {
+    if (showPlayer && currentStation) {
+      return isPlaying
+        ? ""
+        : "PAUSED - Click gauge again to stop";
+    }
+    return "Click the radio gauge to start listening →";
+  };
 
   const heroContent = DEFAULT_HERO_CONTENT;
-  const footerContent = DEFAULT_FOOTER_CONTENT;
 
   return (
-    <div>
+    <div className="flex flex-col min-h-screen">
       <Header />
       <Flex direction="column" className="flex-1">
         <Section className="flex-1 flex items-center justify-center py-20 relative">
@@ -85,16 +56,14 @@ export default async function Home() {
                     {heroContent.subtitle}
                   </Text>
                 </Flex>
-                <Flex
-                  gap="4"
-                  align="center"
-                  direction={{ initial: "column", sm: "row" }}
-                  className="mt-6"
+                <Text
+                  size="3"
+                  className="mt-4 transition-colors duration-300 text-[#ff914d]"
                 >
-                  <Button size="4">Browse Stations</Button>
-                  <Button size="4">Start Listening</Button>
-                </Flex>
+                  {getStatusText()}
+                </Text>
               </Flex>
+
               {/* Right: Station Selector */}
               <Box className="flex-1 flex justify-center md:justify-end w-full">
                 <StationSelector />

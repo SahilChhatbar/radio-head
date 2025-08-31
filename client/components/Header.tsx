@@ -54,7 +54,7 @@ const Header: React.FC<HeaderProps> = ({
                 className="text-red-400 font-mono font-medium tracking-wider [text-shadow:0_0_8px_rgb(248_113_113_/_0.8),_0_0_16px_rgb(248_113_113_/_0.4)] scrolling-text"
                 title={displayText} 
               >
-                {displayText}
+              NOW PLAYING - {displayText}
               </Text>
             </Container>
           </Flex>

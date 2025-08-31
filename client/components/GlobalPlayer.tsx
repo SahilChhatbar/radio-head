@@ -1,11 +1,12 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React from "react";
 import { Button, Flex, Text, Box, Container } from "@radix-ui/themes";
 import { SkipBack, SkipForward, Play, Pause, Volume2, VolumeX, Radio } from "lucide-react";
 import { useRadioStore } from "@/store/useRadiostore";
 import * as Slider from "@radix-ui/react-slider";
 import ReactHowler from 'react-howler';
+import { useHotkeys } from 'react-hotkeys-hook';
 
 const GlobalPlayer: React.FC = () => {
   const {
@@ -28,97 +29,84 @@ const GlobalPlayer: React.FC = () => {
     setIsLoading,
   } = useRadioStore();
 
-  const handleNextStation = () => {
+  const handleNextStation = React.useCallback(() => {
     nextStation();
-    if (isPlaying && stations[currentStationIndex + 1] || stations[0]) {
+    if (isPlaying && (stations[currentStationIndex + 1] || stations[0])) {
       const nextStationData = stations[currentStationIndex + 1] || stations[0];
       play(nextStationData);
     }
-  };
+  }, [nextStation, isPlaying, stations, currentStationIndex, play]);
 
-  const handlePreviousStation = () => {
+  const handlePreviousStation = React.useCallback(() => {
     previousStation();
     const prevIndex = currentStationIndex === 0 ? stations.length - 1 : currentStationIndex - 1;
     if (isPlaying && stations[prevIndex]) {
       play(stations[prevIndex]);
     }
-  };
+  }, [previousStation, currentStationIndex, stations, isPlaying, play]);
 
-  const handlePlayPause = () => {
+  const handlePlayPause = React.useCallback(() => {
     if (currentStation) {
       togglePlayPause();
     } else if (stations.length > 0) {
       play(stations[currentStationIndex]);
     }
+  }, [currentStation, togglePlayPause, stations, currentStationIndex, play]);
+
+  // Desktop detection — only enable hotkeys on non-touch devices
+  const isDesktop = typeof window !== 'undefined' && !('ontouchstart' in window);
+
+  // Helper to ignore events from input-like elements (so typing isn't intercepted)
+  const ignoreIfFormElement = (event: KeyboardEvent) => {
+    const target = event.target as Element | null;
+    if (!target) return true;
+    const tag = target.tagName;
+    return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (target as HTMLElement).isContentEditable;
   };
 
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.target instanceof HTMLInputElement || 
-          event.target instanceof HTMLTextAreaElement ||
-          event.target instanceof HTMLSelectElement) {
-        return;
-      }
+  useHotkeys('space', (event: KeyboardEvent) => {
+    if (ignoreIfFormElement(event)) return;
+    event.preventDefault();
+    handlePlayPause();
+  }, { enabled: isDesktop }, [handlePlayPause]);
 
-      switch (event.code) {
-        case 'Space':
-          event.preventDefault();
-          handlePlayPause();
-          break;
-        case 'ArrowLeft':
-          event.preventDefault();
-          handlePreviousStation();
-          break;
-        case 'ArrowRight':
-          event.preventDefault();
-          handleNextStation();
-          break;
+  useHotkeys('left', (event: KeyboardEvent) => {
+    if (ignoreIfFormElement(event)) return;
+    event.preventDefault();
+    handlePreviousStation();
+  }, { enabled: isDesktop }, [handlePreviousStation]);
 
-        case 'ArrowUp': {
-          event.preventDefault();
-          // If muted, unmute first so visual/Howler state matches
-          if (isMuted) {
-            toggleMute(); // unmute
-          }
-          const newVol = Math.min(1, Math.round((volume + 0.1) * 100) / 100);
-          setVolume(newVol);
-          break;
-        }
+  useHotkeys('right', (event: KeyboardEvent) => {
+    if (ignoreIfFormElement(event)) return;
+    event.preventDefault();
+    handleNextStation();
+  }, { enabled: isDesktop }, [handleNextStation]);
 
-        case 'ArrowDown': {
-          event.preventDefault();
-          const newVol = Math.max(0, Math.round((volume - 0.1) * 100) / 100);
-          setVolume(newVol);
-          // auto-mute when reaching exactly 0
-          if (newVol === 0 && !isMuted) {
-            toggleMute();
-          }
-          break;
-        }
-
-        case 'KeyM':
-          event.preventDefault();
-          toggleMute();
-          break;
-      }
-    };
-
-    // Only add event listener on desktop (non-touch devices)
-    if (typeof window !== 'undefined' && !('ontouchstart' in window)) {
-      document.addEventListener('keydown', handleKeyDown);
-      return () => {
-        document.removeEventListener('keydown', handleKeyDown);
-      };
+  useHotkeys('up', (event: KeyboardEvent) => {
+    if (ignoreIfFormElement(event)) return;
+    event.preventDefault();
+    if (isMuted) {
+      toggleMute(); 
     }
-  }, [
-    handlePlayPause,
-    handleNextStation,
-    handlePreviousStation,
-    volume,
-    setVolume,
-    toggleMute,
-    isMuted,
-  ]);
+    const newVol = Math.min(1, Math.round((volume + 0.1) * 100) / 100);
+    setVolume(newVol);
+  }, { enabled: isDesktop }, [isMuted, toggleMute, volume, setVolume]);
+
+  useHotkeys('down', (event: KeyboardEvent) => {
+    if (ignoreIfFormElement(event)) return;
+    event.preventDefault();
+    const newVol = Math.max(0, Math.round((volume - 0.1) * 100) / 100);
+    setVolume(newVol);
+    if (newVol === 0 && !isMuted) {
+      toggleMute();
+    }
+  }, { enabled: isDesktop }, [volume, setVolume, isMuted, toggleMute]);
+
+  useHotkeys('m', (event: KeyboardEvent) => {
+    if (ignoreIfFormElement(event)) return;
+    event.preventDefault();
+    toggleMute();
+  }, { enabled: isDesktop }, [toggleMute]);
 
   if (!showPlayer || stations.length === 0) {
     return null;
@@ -148,7 +136,6 @@ const GlobalPlayer: React.FC = () => {
           html5={true}
         />
       )}
-
       {/* Fixed Bottom Player */}
       <Box className="fixed bottom-0 left-0 right-0 z-50 border-t border-gray-700/50 backdrop-blur-md bg-[#0c1521]/95">
         <Container size="4" className="py-3">
@@ -167,7 +154,6 @@ const GlobalPlayer: React.FC = () => {
                 </Text>
               </Flex>
             </Flex>
-
             {/* Center: Playback Controls */}
             <Flex align="center" gap="2" className="flex-shrink-0">
               <Button
@@ -179,7 +165,7 @@ const GlobalPlayer: React.FC = () => {
               >
                 <SkipBack size={18} />
               </Button>
-              
+
               <Button
                 size="3"
                 onClick={handlePlayPause}
@@ -195,7 +181,7 @@ const GlobalPlayer: React.FC = () => {
                   <Play size={20} />
                 )}
               </Button>
-              
+
               <Button
                 size="2"
                 onClick={handleNextStation}
@@ -206,7 +192,6 @@ const GlobalPlayer: React.FC = () => {
                 <SkipForward size={18} />
               </Button>
             </Flex>
-
             {/* Right: Volume & Station Counter */}
             <Flex align="center" gap="3" className="flex-1 justify-end min-w-0">
               {/* Volume Control */}
@@ -230,13 +215,7 @@ const GlobalPlayer: React.FC = () => {
                     value={[isMuted ? 0 : volume]}
                     onValueChange={(val) => {
                       const newVolume = Math.round(val[0] * 100) / 100;
-
-                      // First, update the volume value in store (so UI updates)
                       setVolume(newVolume);
-
-                      // Then ensure mute state matches the new volume:
-                      // - If slider reached 0 and we're not muted yet, auto-mute.
-                      // - If slider moved above 0 while muted, auto-unmute.
                       if (newVolume === 0 && !isMuted) {
                         toggleMute();
                       } else if (newVolume > 0 && isMuted) {
@@ -259,7 +238,6 @@ const GlobalPlayer: React.FC = () => {
                   {Math.round(volume * 100)}%
                 </Text>
               </Flex>
-
               {/* Station Counter & Keyboard Shortcuts */}
               <Flex align="center" gap="3" className="hidden sm:flex">
                 <Text size="1" className="text-slate-500">
@@ -268,7 +246,6 @@ const GlobalPlayer: React.FC = () => {
               </Flex>
             </Flex>
           </Flex>
-
           {/* Error Message */}
           {playerError && (
             <Box className="mt-2">

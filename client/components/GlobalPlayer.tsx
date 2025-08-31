@@ -73,14 +73,29 @@ const GlobalPlayer: React.FC = () => {
           event.preventDefault();
           handleNextStation();
           break;
-        case 'ArrowUp':
+
+        case 'ArrowUp': {
           event.preventDefault();
-          setVolume(Math.min(1, volume + 0.1));
+          // If muted, unmute first so visual/Howler state matches
+          if (isMuted) {
+            toggleMute(); // unmute
+          }
+          const newVol = Math.min(1, Math.round((volume + 0.1) * 100) / 100);
+          setVolume(newVol);
           break;
-        case 'ArrowDown':
+        }
+
+        case 'ArrowDown': {
           event.preventDefault();
-          setVolume(Math.max(0, volume - 0.1));
+          const newVol = Math.max(0, Math.round((volume - 0.1) * 100) / 100);
+          setVolume(newVol);
+          // auto-mute when reaching exactly 0
+          if (newVol === 0 && !isMuted) {
+            toggleMute();
+          }
           break;
+        }
+
         case 'KeyM':
           event.preventDefault();
           toggleMute();
@@ -95,7 +110,15 @@ const GlobalPlayer: React.FC = () => {
         document.removeEventListener('keydown', handleKeyDown);
       };
     }
-  }, [handlePlayPause, handleNextStation, handlePreviousStation, volume, setVolume, toggleMute]);
+  }, [
+    handlePlayPause,
+    handleNextStation,
+    handlePreviousStation,
+    volume,
+    setVolume,
+    toggleMute,
+    isMuted,
+  ]);
 
   if (!showPlayer || stations.length === 0) {
     return null;
@@ -196,28 +219,41 @@ const GlobalPlayer: React.FC = () => {
                   title={isMuted ? "Unmute" : "Mute"}
                   className="hover:bg-[#ff914d]/10"
                 >
-                  {isMuted || volume==0 ? <VolumeX size={20} color="#ff914d"/> : <Volume2 size={20} color="#ff914d"/>}
+                  {isMuted || volume === 0 ? <VolumeX size={20} color="#ff914d"/> : <Volume2 size={20} color="#ff914d"/>}
                 </Button>
                 <div className="w-20 hidden md:block">
                   <Slider.Root
-  className="relative flex items-center w-full h-5 select-none"
-  min={0}
-  max={1}
-  step={0.05}
-  value={[isMuted ? 0 : volume]}
-  onValueChange={(val) => setVolume(val[0])}
->
-  <Slider.Track className="relative w-full h-1 rounded-lg bg-gray-600">
-    <Slider.Range
-      className="absolute h-full rounded-lg"
-      style={{
-        background: `linear-gradient(to right, #ff914d 0%, #ff914d ${(isMuted ? 0 : volume) * 100}%, #374151 ${(isMuted ? 0 : volume) * 100}%, #374151 100%)`
-      }}
-    />
-  </Slider.Track>
-  <Slider.Thumb className="block w-4 h-4 bg-white rounded-full shadow focus:outline-none" />
-</Slider.Root>
+                    className="relative flex items-center w-full h-5 select-none"
+                    min={0}
+                    max={1}
+                    step={0.05}
+                    value={[isMuted ? 0 : volume]}
+                    onValueChange={(val) => {
+                      const newVolume = Math.round(val[0] * 100) / 100;
 
+                      // First, update the volume value in store (so UI updates)
+                      setVolume(newVolume);
+
+                      // Then ensure mute state matches the new volume:
+                      // - If slider reached 0 and we're not muted yet, auto-mute.
+                      // - If slider moved above 0 while muted, auto-unmute.
+                      if (newVolume === 0 && !isMuted) {
+                        toggleMute();
+                      } else if (newVolume > 0 && isMuted) {
+                        toggleMute();
+                      }
+                    }}
+                  >
+                    <Slider.Track className="relative w-full h-1 rounded-lg bg-gray-600">
+                      <Slider.Range
+                        className="absolute h-full rounded-lg"
+                        style={{
+                          background: `linear-gradient(to right, #ff914d 0%, #ff914d ${(isMuted ? 0 : volume) * 100}%, #374151 ${(isMuted ? 0 : volume) * 100}%, #374151 100%)`
+                        }}
+                      />
+                    </Slider.Track>
+                    <Slider.Thumb className="block w-4 h-4 bg-white rounded-full shadow focus:outline-none" />
+                  </Slider.Root>
                 </div>
                 <Text size="1" className="text-[#ff914d] min-w-8 hidden lg:block">
                   {Math.round(volume * 100)}%

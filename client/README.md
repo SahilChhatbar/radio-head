@@ -81,7 +81,7 @@ radiohead/
 30th & 31st aug 2025: Created global sticky player like in spotify, UI enhancements. 
 
 6th aug 2025: Audio visualizer integration
-*Make the audio format and unplayable handling better
+*Make the audio format and unplayable handling better, maybe use hls and a better library for audio player
 ## Contributing
 
 

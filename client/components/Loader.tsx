@@ -25,7 +25,7 @@ const LoadingScreen: React.FC<LoaderProps> = ({ variant = "default" }) => {
                     width={120} 
                     height={120} 
                     alt="radiohead" 
-                    className="object-contain"
+                    className="object-contain animate-bounce"
                   />
                 </div>
               </div>

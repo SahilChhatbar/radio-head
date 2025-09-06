@@ -3,137 +3,450 @@ const {
   getRadioStations, 
   searchStationsByName, 
   getStationsByCountry, 
-  getStationsByTag 
+  getStationsByTag,
+  getPopularStations,
+  getCountries,
+  getTags,
+  recordStationClick,
+  refreshServerCache,
+  getServerInfo,
+  healthCheck
 } = require('../services/radioBrowserService');
 
 const router = express.Router();
 
-// Get all stations with optional filters
-router.get('/stations', async (req, res) => {
+// Request logging middleware
+router.use((req, res, next) => {
+  const start = Date.now();
+  const originalSend = res.send;
+  
+  res.send = function(data) {
+    const duration = Date.now() - start;
+    console.log(`${req.method} ${req.path} - ${res.statusCode} (${duration}ms)`);
+    originalSend.call(this, data);
+  };
+  
+  next();
+});
+
+// Utility function for standardized error responses
+const handleError = (res, error, context = 'Operation') => {
+  console.error(`❌ ${context} failed:`, error);
+  
+  const statusCode = error.message.includes('Invalid') || error.message.includes('must be') ? 400 : 500;
+  const isClientError = statusCode === 400;
+  
+  res.status(statusCode).json({
+    success: false,
+    message: isClientError ? error.message : `${context} failed`,
+    error: isClientError ? error.message : 'Internal server error',
+    timestamp: new Date().toISOString(),
+    ...(process.env.NODE_ENV === 'development' && { stack: error.stack })
+  });
+};
+
+// Utility function for standardized success responses
+const sendSuccess = (res, data, message = 'Success', meta = {}) => {
+  res.json({
+    success: true,
+    message,
+    data,
+    count: Array.isArray(data) ? data.length : 1,
+    timestamp: new Date().toISOString(),
+    ...meta
+  });
+};
+
+// Input validation middleware
+const validatePagination = (req, res, next) => {
+  const { limit, offset } = req.query;
+  
+  if (limit !== undefined) {
+    const parsedLimit = parseInt(limit);
+    if (isNaN(parsedLimit) || parsedLimit < 1 || parsedLimit > 1000) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid limit parameter',
+        error: 'Limit must be a number between 1 and 1000'
+      });
+    }
+  }
+  
+  if (offset !== undefined) {
+    const parsedOffset = parseInt(offset);
+    if (isNaN(parsedOffset) || parsedOffset < 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid offset parameter', 
+        error: 'Offset must be a non-negative number'
+      });
+    }
+  }
+  
+  next();
+};
+
+// Rate limiting helper (basic implementation)
+const createRateLimiter = (maxRequests = 100, windowMs = 60000) => {
+  const requests = new Map();
+  
+  return (req, res, next) => {
+    const clientIP = req.ip || req.connection.remoteAddress || 'unknown';
+    const now = Date.now();
+    const windowStart = now - windowMs;
+    
+    // Clean old entries
+    if (requests.has(clientIP)) {
+      const clientRequests = requests.get(clientIP).filter(time => time > windowStart);
+      requests.set(clientIP, clientRequests);
+    }
+    
+    const clientRequests = requests.get(clientIP) || [];
+    
+    if (clientRequests.length >= maxRequests) {
+      return res.status(429).json({
+        success: false,
+        message: 'Too many requests',
+        error: `Rate limit exceeded. Max ${maxRequests} requests per minute.`,
+        retryAfter: Math.ceil((clientRequests[0] + windowMs - now) / 1000)
+      });
+    }
+    
+    clientRequests.push(now);
+    requests.set(clientIP, clientRequests);
+    
+    next();
+  };
+};
+
+// Apply rate limiting to all routes
+router.use(createRateLimiter(200, 60000)); // 200 requests per minute
+
+// GET /api/radio/stations - Get all stations with optional filters
+router.get('/stations', validatePagination, async (req, res) => {
   try {
-    const { limit = 50, offset = 0, countrycode, tag, name, language } = req.query;
+    const { limit = 50, offset = 0, countrycode, tag, name, language, order, reverse } = req.query;
     
     const params = {
       limit: parseInt(limit),
       offset: parseInt(offset),
-      countrycode: countrycode,
-      tag: tag,
-      name: name,
-      language: language,
+      ...(countrycode && { countrycode }),
+      ...(tag && { tag }),
+      ...(name && { name }),
+      ...(language && { language }),
+      ...(order && { order }),
+      ...(reverse !== undefined && { reverse: reverse === 'true' })
     };
 
     const stations = await getRadioStations(params);
-    res.json({
-      success: true,
-      data: stations,
-      count: stations.length
+    
+    sendSuccess(res, stations, 'Stations fetched successfully', {
+      pagination: {
+        limit: params.limit,
+        offset: params.offset,
+        hasMore: stations.length === params.limit
+      },
+      filters: {
+        countrycode,
+        tag,
+        name,
+        language,
+        order,
+        reverse: params.reverse
+      }
     });
   } catch (error) {
-    console.error('Error fetching radio stations:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Failed to fetch radio stations',
-      error: error instanceof Error ? error.message : 'Unknown error'
-    });
+    handleError(res, error, 'Fetch stations');
   }
 });
 
-// Search stations by name
+// GET /api/radio/search - Search stations by name
 router.get('/search', async (req, res) => {
   try {
     const { q, limit = 20 } = req.query;
     
+    // Validate search query
     if (!q || typeof q !== 'string') {
       return res.status(400).json({
         success: false,
-        message: 'Search query is required'
+        message: 'Search query is required',
+        error: 'Query parameter "q" must be a non-empty string'
       });
     }
 
-    const stations = await searchStationsByName(q, parseInt(limit));
-    res.json({
-      success: true,
-      data: stations,
-      count: stations.length
+    if (q.trim().length < 2) {
+      return res.status(400).json({
+        success: false,
+        message: 'Search query too short',
+        error: 'Query must be at least 2 characters long'
+      });
+    }
+
+    const stations = await searchStationsByName(q.trim(), parseInt(limit));
+    
+    sendSuccess(res, stations, 'Search completed successfully', {
+      query: q.trim(),
+      resultsCount: stations.length
     });
   } catch (error) {
-    console.error('Error searching radio stations:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Failed to search radio stations',
-      error: error instanceof Error ? error.message : 'Unknown error'
-    });
+    handleError(res, error, 'Search stations');
   }
 });
 
-// Get stations by country
-router.get('/country/:countryCode', async (req, res) => {
+// GET /api/radio/country/:countryCode - Get stations by country
+router.get('/country/:countryCode', validatePagination, async (req, res) => {
   try {
     const { countryCode } = req.params;
     const { limit = 50 } = req.query;
 
+    // Validate country code
+    if (!countryCode || !/^[a-zA-Z]{2}$/.test(countryCode)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid country code',
+        error: 'Country code must be a valid 2-letter ISO country code'
+      });
+    }
+
     const stations = await getStationsByCountry(countryCode, parseInt(limit));
-    res.json({
-      success: true,
-      data: stations,
-      count: stations.length
+    
+    sendSuccess(res, stations, `Stations fetched for country: ${countryCode.toUpperCase()}`, {
+      country: countryCode.toUpperCase(),
+      stationsFound: stations.length
     });
   } catch (error) {
-    console.error('Error fetching stations by country:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Failed to fetch stations by country',
-      error: error instanceof Error ? error.message : 'Unknown error'
-    });
+    handleError(res, error, 'Fetch stations by country');
   }
 });
 
-// Get stations by tag
-router.get('/tag/:tagName', async (req, res) => {
+// GET /api/radio/tag/:tagName - Get stations by tag
+router.get('/tag/:tagName', validatePagination, async (req, res) => {
   try {
     const { tagName } = req.params;
     const { limit = 50 } = req.query;
 
-    const stations = await getStationsByTag(tagName, parseInt(limit));
-    res.json({
-      success: true,
-      data: stations,
-      count: stations.length
+    // Validate tag name
+    if (!tagName || typeof tagName !== 'string' || tagName.trim().length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid tag name',
+        error: 'Tag name must be a non-empty string'
+      });
+    }
+
+    const stations = await getStationsByTag(tagName.trim(), parseInt(limit));
+    
+    sendSuccess(res, stations, `Stations fetched for tag: ${tagName}`, {
+      tag: tagName.trim(),
+      stationsFound: stations.length
     });
   } catch (error) {
-    console.error('Error fetching stations by tag:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Failed to fetch stations by tag',
-      error: error instanceof Error ? error.message : 'Unknown error'
+    handleError(res, error, 'Fetch stations by tag');
+  }
+});
+
+// GET /api/radio/popular - Get popular stations (most clicked)
+router.get('/popular', validatePagination, async (req, res) => {
+  try {
+    const { limit = 50 } = req.query;
+
+    const stations = await getPopularStations(parseInt(limit));
+    
+    sendSuccess(res, stations, 'Popular stations fetched successfully', {
+      sortedBy: 'click count (descending)',
+      stationsFound: stations.length
+    });
+  } catch (error) {
+    handleError(res, error, 'Fetch popular stations');
+  }
+});
+
+// GET /api/radio/countries - Get list of all countries
+router.get('/countries', async (req, res) => {
+  try {
+    const countries = await getCountries();
+    
+    sendSuccess(res, countries, 'Countries fetched successfully', {
+      totalCountries: countries.length
+    });
+  } catch (error) {
+    handleError(res, error, 'Fetch countries');
+  }
+});
+
+// GET /api/radio/tags - Get list of all tags
+router.get('/tags', async (req, res) => {
+  try {
+    const { limit = 100 } = req.query;
+    
+    const tags = await getTags(parseInt(limit));
+    
+    sendSuccess(res, tags, 'Tags fetched successfully', {
+      totalTags: tags.length,
+      limited: limit < tags.length
+    });
+  } catch (error) {
+    handleError(res, error, 'Fetch tags');
+  }
+});
+
+// POST /api/radio/click/:stationUuid - Record station click (important for API ecosystem)
+router.post('/click/:stationUuid', async (req, res) => {
+  try {
+    const { stationUuid } = req.params;
+    
+    // Validate station UUID
+    if (!stationUuid || typeof stationUuid !== 'string') {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid station UUID',
+        error: 'Station UUID must be a non-empty string'
+      });
+    }
+
+    const success = await recordStationClick(stationUuid);
+    
+    if (success) {
+      sendSuccess(res, { clicked: true }, 'Station click recorded successfully', {
+        stationUuid,
+        note: 'This helps mark the station as popular in the Radio Browser network'
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        message: 'Failed to record station click',
+        error: 'Click recording failed but this does not affect playback'
+      });
+    }
+  } catch (error) {
+    handleError(res, error, 'Record station click');
+  }
+});
+
+// GET /api/radio/health - Enhanced health check with server info
+router.get('/health', async (req, res) => {
+  try {
+    const healthStatus = await healthCheck();
+    const serverInfo = getServerInfo();
+    
+    res.json({
+      success: true,
+      message: 'Service health check completed',
+      health: healthStatus,
+      serverInfo: {
+        currentServer: serverInfo.currentServer,
+        cacheAge: serverInfo.cacheAge,
+        availableServers: serverInfo.availableServers,
+        lastRefresh: serverInfo.cacheAge ? new Date(Date.now() - serverInfo.cacheAge).toISOString() : null
+      },
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(503).json({
+      success: false,
+      message: 'Service health check failed',
+      error: error.message,
+      timestamp: new Date().toISOString()
     });
   }
 });
 
-// Get popular stations
-router.get('/popular', async (req, res) => {
+// GET /api/radio/server-info - Detailed server information (admin endpoint)
+router.get('/server-info', async (req, res) => {
   try {
-    const { limit = 50 } = req.query;
-
-    const stations = await getRadioStations({
-      limit: parseInt(limit),
-      order: 'clickcount',
-      reverse: true
-    });
-
-    res.json({
-      success: true,
-      data: stations,
-      count: stations.length
-    });
+    const serverInfo = getServerInfo();
+    
+    sendSuccess(res, serverInfo, 'Server information retrieved successfully');
   } catch (error) {
-    console.error('Error fetching popular stations:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Failed to fetch popular stations',
-      error: error instanceof Error ? error.message : 'Unknown error'
-    });
+    handleError(res, error, 'Get server info');
   }
+});
+
+// POST /api/radio/refresh-cache - Force server cache refresh (admin endpoint)
+router.post('/refresh-cache', async (req, res) => {
+  try {
+    const newServer = await refreshServerCache();
+    
+    sendSuccess(res, { 
+      newServer,
+      refreshedAt: new Date().toISOString()
+    }, 'Server cache refreshed successfully');
+  } catch (error) {
+    handleError(res, error, 'Refresh server cache');
+  }
+});
+
+// GET /api/radio/stats - Basic statistics endpoint
+router.get('/stats', async (req, res) => {
+  try {
+    // Get some basic stats by making sample requests
+    const [popularStations, countries] = await Promise.all([
+      getPopularStations(1),
+      getCountries()
+    ]);
+    
+    const serverInfo = getServerInfo();
+    
+    const stats = {
+      service: {
+        status: 'operational',
+        uptime: process.uptime(),
+        version: '2.0.0'
+      },
+      servers: {
+        current: serverInfo.currentServer,
+        available: serverInfo.availableServers,
+        cacheAge: serverInfo.cacheAge
+      },
+      data: {
+        countriesAvailable: countries.length,
+        sampleStationsFetched: popularStations.length > 0
+      },
+      performance: {
+        averageResponseTime: serverInfo.healthStats?.reduce((acc, stat) => 
+          acc + (stat.responseTime || 0), 0) / (serverInfo.healthStats?.length || 1) || 0
+      }
+    };
+    
+    sendSuccess(res, stats, 'Service statistics retrieved successfully');
+  } catch (error) {
+    handleError(res, error, 'Get service statistics');
+  }
+});
+
+// Error handler for unmatched routes within radio API
+router.use((req, res, next) => {
+  res.status(404).json({
+    success: false,
+    message: 'Endpoint not found',
+    error: `The endpoint ${req.method} ${req.originalUrl} does not exist`,
+    availableEndpoints: [
+      'GET /api/radio/stations',
+      'GET /api/radio/search',
+      'GET /api/radio/country/:countryCode',
+      'GET /api/radio/tag/:tagName',
+      'GET /api/radio/popular',
+      'GET /api/radio/countries',
+      'GET /api/radio/tags',
+      'POST /api/radio/click/:stationUuid',
+      'GET /api/radio/health',
+      'GET /api/radio/server-info',
+      'POST /api/radio/refresh-cache',
+      'GET /api/radio/stats'
+    ],
+    timestamp: new Date().toISOString()
+  });
+});
+
+// Global error handler for this router
+router.use((error, req, res, next) => {
+  console.error('🚨 Unhandled route error:', error);
+  
+  if (res.headersSent) {
+    return next(error);
+  }
+  
+  handleError(res, error, 'Request processing');
 });
 
 module.exports = router;

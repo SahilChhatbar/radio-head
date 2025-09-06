@@ -1,4 +1,6 @@
-import React, { useRef, useEffect, useState, useCallback } from "react";
+// AudioVisualizer.tsx
+"use client";
+import React, { useRef, useEffect, useCallback, useState } from "react";
 
 interface AudioVisualizerProps {
   audioElement: HTMLMediaElement | null;
@@ -8,294 +10,357 @@ interface AudioVisualizerProps {
   barSpacing?: number;
   maxHeight?: number;
   minHeight?: number;
+  sensitivity?: number;
+  decay?: number; // 0..1, larger = slower decay
 }
 
 const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
   audioElement,
   className = "",
-  barCount = 24,
-  barWidth = 3,
-  barSpacing = 2,
-  maxHeight = 32,
-  minHeight = 4,
+  barCount = 8,
+  barWidth = 2,
+  barSpacing = 3,
+  maxHeight = 24,
+  minHeight = 2,
+  sensitivity = 1.0,
+  decay = 0.88,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const animationRef = useRef<number | null>(null);
-  const audioCtxRef = useRef<AudioContext | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
-  const sourceRef = useRef<MediaElementAudioSourceNode | null>(null);
-  const dataArrayRef = useRef<Uint8Array | null>(null);
+  const sourceRef = useRef<AudioNode | null>(null); // may be MediaElementAudioSourceNode or MediaStreamSource
   const attachedElementRef = useRef<HTMLMediaElement | null>(null);
+  const dataRef = useRef<Uint8Array | null>(null);
+  const animRef = useRef<number | null>(null);
+  const prevAmpsRef = useRef<number[]>(Array(barCount).fill(0));
+  const [error, setError] = useState<string | null>(null);
 
-  const [isActive, setIsActive] = useState(false);
-
-  const attachToElement = useCallback(
-    (el: HTMLMediaElement | null) => {
-      if (!el) return;
-
-      try {
-        if (!el.crossOrigin) {
-          // @ts-ignore
-          el.crossOrigin = "anonymous";
-        }
-      } catch {}
-
-      const AudioCtx = (window.AudioContext ||
-        (window as any).webkitAudioContext) as typeof AudioContext;
-      if (!audioCtxRef.current) {
-        audioCtxRef.current = new AudioCtx();
-      }
-
-      if (attachedElementRef.current === el && analyserRef.current) {
-        return;
-      }
-
-      if (sourceRef.current) {
-        try {
-          sourceRef.current.disconnect();
-        } catch {}
-        sourceRef.current = null;
-      }
-
-      if (!analyserRef.current) {
-        const analyser = audioCtxRef.current.createAnalyser();
-        analyser.fftSize = 256;
-        analyser.smoothingTimeConstant = 0.8;
-        analyser.minDecibels = -90;
-        analyser.maxDecibels = -10;
-        analyserRef.current = analyser;
-      }
-
-      try {
-        const source = audioCtxRef.current.createMediaElementSource(el);
-        source.connect(analyserRef.current!);
-        sourceRef.current = source;
-        dataArrayRef.current = new Uint8Array(
-          analyserRef.current.frequencyBinCount
-        );
-        attachedElementRef.current = el;
-        setIsActive(true);
-      } catch (err) {
-        console.warn("AudioVisualizer: could not create source node", err);
-        setIsActive(false);
-      }
-    },
-    []
-  );
-
-    const animate = useCallback(() => {
-    const analyser = analyserRef.current;
-    const dataArray = dataArrayRef.current;
-    const canvas = canvasRef.current;
-
-    if (!analyser || !dataArray || !canvas) {
-      return;
-    }
-
-    const audioCtx = audioCtxRef.current;
-    if (!audioCtx || audioCtx.state !== "running") {
-      animationRef.current = requestAnimationFrame(animate);
-      return;
-    }
-
-    analyser.getByteFrequencyData(dataArray);
-
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    const dpr = window.devicePixelRatio || 1;
-    const logicalWidth = canvas.clientWidth;
-    const logicalHeight = canvas.clientHeight;
-    const totalBarWidth = barWidth + barSpacing;
-    const totalWidth = barCount * totalBarWidth - barSpacing;
-    const startX = (logicalWidth - totalWidth) / 2;
-
-    for (let i = 0; i < barCount; i++) {
-      const dataIndex = Math.floor((i / barCount) * dataArray.length);
-      const amplitude = dataArray[dataIndex] / 255;
-      const smoothed = Math.pow(amplitude, 0.7);
-      const barHeight =
-        Math.max(minHeight, minHeight + (maxHeight - minHeight) * smoothed) |
-        0;
-      const x = startX + i * totalBarWidth;
-      const y = logicalHeight - barHeight;
-      const gradient = ctx.createLinearGradient(
-        x * dpr,
-        y * dpr,
-        x * dpr,
-        logicalHeight * dpr
-      );
-      gradient.addColorStop(0, "#FF914D");
-      gradient.addColorStop(0.6, "#FF914D");
-      gradient.addColorStop(1, "rgba(255, 145, 77, 0.6)");
-      ctx.fillStyle = gradient;
-      ctx.fillRect(x, y, barWidth, barHeight);
-    }
-
-    animationRef.current = requestAnimationFrame(animate);
-  }, [barCount, barWidth, barSpacing, maxHeight, minHeight]);
-
-  const resizeCanvas = useCallback(() => {
+  const setupCanvas = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const dpr = window.devicePixelRatio || 1;
-    const logicalWidth = barCount * (barWidth + barSpacing) - barSpacing + 20;
-    const logicalHeight = maxHeight + 8;
 
-    canvas.style.width = `${logicalWidth}px`;
-    canvas.style.height = `${logicalHeight}px`;
+    const parent = canvas.parentElement;
+    const baseWidth = barCount * (barWidth + barSpacing) + 20;
+    const width = Math.max(parent?.clientWidth ?? baseWidth, baseWidth);
+    const height = maxHeight + 8;
 
-    canvas.width = Math.round(logicalWidth * dpr);
-    canvas.height = Math.round(logicalHeight * dpr);
+    canvas.style.width = `${width}px`;
+    canvas.style.height = `${height}px`;
+    canvas.width = Math.round(width * dpr);
+    canvas.height = Math.round(height * dpr);
 
     const ctx = canvas.getContext("2d");
-    if (ctx) {
-      ctx.setTransform(1, 0, 0, 1, 0, 0);
-      ctx.scale(dpr, dpr); 
-    }
+    if (ctx) ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   }, [barCount, barWidth, barSpacing, maxHeight]);
 
-  useEffect(() => {
-    if (audioElement) {
-      attachToElement(audioElement);
-    } else {
+  const ensureAnalyser = useCallback(async () => {
+    if (!analyserRef.current) {
+      const AudioCtor = (window as any).AudioContext || (window as any).webkitAudioContext;
+      if (!AudioCtor) {
+        setError("Web Audio API not supported");
+        console.warn("AudioVisualizer: Web Audio API not supported");
+        return;
+      }
+      if (!audioContextRef.current) {
+        audioContextRef.current = new AudioCtor();
+        console.log("AudioVisualizer: created AudioContext");
+      }
+      const audioCtx = audioContextRef.current!;
+      const analyser = audioCtx.createAnalyser();
+      const fftRequested = Math.max(64, Math.pow(2, Math.ceil(Math.log2(barCount * 2))));
+      analyser.fftSize = Math.min(2048, Math.max(64, fftRequested));
+      analyser.smoothingTimeConstant = 0.85;
+      analyser.minDecibels = -90;
+      analyser.maxDecibels = -10;
+      analyserRef.current = analyser;
+      dataRef.current = new Uint8Array(analyser.frequencyBinCount);
+    }
+  }, [barCount]);
+
+  const computeBarAmps = useCallback((raw: Uint8Array) => {
+    const bins = raw.length;
+    const result: number[] = new Array(barCount).fill(0);
+    const binsPerBar = Math.max(1, Math.floor(bins / barCount));
+    for (let i = 0; i < barCount; i++) {
+      const start = i * binsPerBar;
+      const end = Math.min(start + binsPerBar, bins);
+      let sum = 0;
+      for (let j = start; j < end; j++) sum += raw[j];
+      const avg = sum / (end - start || 1);
+      result[i] = (avg / 255) * sensitivity;
+    }
+    return result;
+  }, [barCount, sensitivity]);
+
+  // fallback: try captureStream -> createMediaStreamSource
+  const tryCaptureStreamSource = useCallback((el: HTMLMediaElement | null) => {
+    if (!el || !audioContextRef.current || !analyserRef.current) return false;
+    try {
+      const captureFn = (el as any).captureStream || (el as any).mozCaptureStream;
+      if (!captureFn) {
+        console.warn("AudioVisualizer: captureStream not available on element");
+        return false;
+      }
+      const stream: MediaStream = captureFn.call(el);
+      if (!stream) {
+        console.warn("AudioVisualizer: captureStream returned null");
+        return false;
+      }
+      const audioCtx = audioContextRef.current!;
+      try {
+        const msSource = audioCtx.createMediaStreamSource(stream);
+        sourceRef.current = msSource;
+        // connect to analyser (do NOT connect analyser -> destination)
+        try {
+          msSource.connect(analyserRef.current!);
+        } catch (e) {
+          console.warn("AudioVisualizer: msSource.connect threw", e);
+        }
+        attachedElementRef.current = el;
+        console.log("AudioVisualizer: attached via captureStream fallback");
+        return true;
+      } catch (e) {
+        console.warn("AudioVisualizer: createMediaStreamSource failed", e);
+        return false;
+      }
+    } catch (e) {
+      console.warn("AudioVisualizer: captureStream error", e);
+      return false;
+    }
+  }, []);
+
+  // Attach strategy: try createMediaElementSource, then fallback to captureStream.
+  // Also probes analyser shortly after attaching; if data is silent, attempt captureStream fallback.
+  const attachSource = useCallback(async (el: HTMLMediaElement | null) => {
+    if (!el) return;
+    try {
+      await ensureAnalyser();
+      const audioCtx = audioContextRef.current!;
+      if (!audioCtx || !analyserRef.current) return;
+
+      // If already attached to same element, skip
+      if (attachedElementRef.current === el) return;
+
+      // Disconnect prior source
       if (sourceRef.current) {
         try {
           sourceRef.current.disconnect();
         } catch {}
         sourceRef.current = null;
       }
-      attachedElementRef.current = null;
-      setIsActive(false);
-    }
-  }, [audioElement, attachToElement]);
 
-  useEffect(() => {
-    const el = attachedElementRef.current;
-    if (!el) return;
-
-    const onPlay = async () => {
+      // try createMediaElementSource
+      let usedCreate = false;
       try {
-        const ctx = audioCtxRef.current;
-        if (ctx && ctx.state === "suspended") {
-          await ctx.resume();
+        // createMediaElementSource can throw if previously created for same element/context
+        const mes = audioCtx.createMediaElementSource(el);
+        sourceRef.current = mes;
+        try {
+          // CRITICAL FIX: Connect to both analyser AND destination to maintain audio output
+          mes.connect(analyserRef.current);
+          mes.connect(audioCtx.destination);
+        } catch (e) {
+          console.warn("AudioVisualizer: mes.connect threw", e);
         }
-      } catch {}
-      if (analyserRef.current && dataArrayRef.current) {
-        if (!animationRef.current) {
-          animationRef.current = requestAnimationFrame(animate);
-        }
+        attachedElementRef.current = el;
+        usedCreate = true;
+        console.log("AudioVisualizer: attached via createMediaElementSource with destination routing");
+      } catch (err: any) {
+        console.warn("AudioVisualizer: createMediaElementSource failed:", err?.message ?? err);
+        // fallthrough to captureStream attempt below
       }
-    };
 
-    const onPause = () => {
-      if (animationRef.current) {
-        cancelAnimationFrame(animationRef.current);
-        animationRef.current = null;
+      // ensure context resumed (user gesture may be needed)
+      if (audioCtx.state === "suspended") {
+        try {
+          await audioCtx.resume();
+          console.log("AudioVisualizer: resumed AudioContext");
+        } catch (e) {
+          console.warn("AudioVisualizer: resume failed", e);
+        }
       }
-      const canvas = canvasRef.current;
-      if (canvas) {
-        const ctx = canvas.getContext("2d");
-        if (ctx) {
-          ctx.clearRect(0, 0, canvas.width, canvas.height);
-          const logicalWidth = canvas.clientWidth;
-          const totalBarWidth = barWidth + barSpacing;
-          const totalWidth = barCount * totalBarWidth - barSpacing;
-          const startX = (logicalWidth - totalWidth) / 2;
-          for (let i = 0; i < barCount; i++) {
-            const x = startX + i * totalBarWidth;
-            const y = canvas.clientHeight - minHeight;
-            ctx.fillStyle = "rgba(255, 145, 77, 0.3)";
-            ctx.fillRect(x, y, barWidth, minHeight);
+
+      // brief probe: if we used createMediaElementSource, check analyser for audio energy.
+      // If near-silent after short delay, try captureStream fallback.
+      const probe = async () => {
+        const data = dataRef.current;
+        const analyser = analyserRef.current;
+        if (!data || !analyser) return;
+        // sample a few frames
+        const samples = 3;
+        let total = 0;
+        for (let s = 0; s < samples; s++) {
+          analyser.getByteFrequencyData(data);
+          let sum = 0;
+          for (let i = 0; i < data.length; i++) sum += data[i];
+          total += sum;
+          // small delay between samples
+          await new Promise((r) => setTimeout(r, 80));
+        }
+        const avg = total / samples;
+        const threshold = data.length * 2; // empirical: low threshold => probably silent
+        if (avg < threshold) {
+          console.warn("AudioVisualizer: probe indicates low audio energy (avg)", avg, "-> trying captureStream fallback");
+          // attempt fallback
+          if (tryCaptureStreamSource(el)) {
+            return;
+          } else {
+            console.warn("AudioVisualizer: captureStream fallback failed");
           }
+        } else {
+          // good: we have audio energy
+          // nothing to do
+        }
+      };
+
+      // run probe only if we used createMediaElementSource (otherwise captureStream already attached)
+      if (usedCreate) {
+        // run probe asynchronously but don't block
+        setTimeout(() => {
+          probe().catch((e) => console.warn("AudioVisualizer: probe error", e));
+        }, 220);
+      } else {
+        // if create failed, attempt captureStream immediately
+        if (!tryCaptureStreamSource(el)) {
+          console.warn("AudioVisualizer: both createMediaElementSource and captureStream failed — visualizer will show idle animation");
         }
       }
-    };
+      setError(null);
+    } catch (e) {
+      console.error("AudioVisualizer: attachSource error", e);
+      setError(e instanceof Error ? e.message : String(e));
+    }
+  }, [ensureAnalyser, tryCaptureStreamSource]);
 
-    el.addEventListener("play", onPlay);
-    el.addEventListener("pause", onPause);
-    el.addEventListener("ended", onPause);
+  const draw = useCallback(() => {
+    const canvas = canvasRef.current;
+    const ctx = canvas?.getContext("2d");
+    const analyser = analyserRef.current;
+    const data = dataRef.current;
+    const prev = prevAmpsRef.current;
 
-    if (!el.paused) {
-      onPlay();
-    } else {
-      onPause();
+    if (!canvas || !ctx) {
+      animRef.current = requestAnimationFrame(draw);
+      return;
     }
 
-    return () => {
-      el.removeEventListener("play", onPlay);
-      el.removeEventListener("pause", onPause);
-      el.removeEventListener("ended", onPause);
-    };
-  }, [animate, barCount, barWidth, barSpacing, maxHeight, minHeight]);
+    const styleWidth = parseFloat(canvas.style.width || `${canvas.width}px`);
+    const styleHeight = parseFloat(canvas.style.height || `${canvas.height}px`);
 
-  useEffect(() => {
-    resizeCanvas();
-    window.addEventListener("resize", resizeCanvas);
-    return () => {
-      window.removeEventListener("resize", resizeCanvas);
-    };
-  }, [resizeCanvas]);
+    ctx.clearRect(0, 0, styleWidth, styleHeight);
 
-  useEffect(() => {
-    return () => {
-      if (animationRef.current) {
-        cancelAnimationFrame(animationRef.current);
-        animationRef.current = null;
+    let amps: number[] = new Array(barCount).fill(0);
+    if (analyser && data) {
+      analyser.getByteFrequencyData(data);
+      amps = computeBarAmps(data);
+    } else {
+      const t = Date.now() / 800;
+      for (let i = 0; i < barCount; i++) {
+        amps[i] = 0.02 + 0.08 * Math.abs(Math.sin(t + i / 2));
       }
-      try {
+    }
+
+    const totalWidth = barCount * (barWidth + barSpacing) - barSpacing;
+    const startX = Math.max(0, (styleWidth - totalWidth) / 2);
+
+    for (let i = 0; i < barCount; i++) {
+      const target = Math.max(minHeight / maxHeight, amps[i]);
+      let p = prev[i] ?? 0;
+      if (target >= p) {
+        p = target;
+      } else {
+        p = p * decay + target * (1 - decay);
+      }
+      prev[i] = p;
+      const amp = Math.min(1, p);
+      const barH = Math.max(minHeight, amp * maxHeight);
+      const x = startX + i * (barWidth + barSpacing);
+      const y = styleHeight - barH;
+
+      const gradient = ctx.createLinearGradient(0, y, 0, styleHeight);
+      const active = amp > 0.03;
+      if (active) {
+        gradient.addColorStop(0, "#FF914D");
+        gradient.addColorStop(0.6, "#FF914D");
+        gradient.addColorStop(1, "rgba(255,145,77,0.6)");
+        ctx.shadowBlur = 6;
+        ctx.shadowColor = "rgba(255,145,77,0.25)";
+      } else {
+        gradient.addColorStop(0, "rgba(255,145,77,0.35)");
+        gradient.addColorStop(1, "rgba(255,145,77,0.12)");
+      }
+      ctx.fillStyle = gradient;
+      ctx.fillRect(Math.round(x), Math.round(y), barWidth, Math.round(barH));
+    }
+
+    animRef.current = requestAnimationFrame(draw);
+  }, [barCount, barWidth, barSpacing, maxHeight, minHeight, computeBarAmps, decay]);
+
+  // main effects
+  useEffect(() => {
+    setupCanvas();
+    if (!animRef.current) animRef.current = requestAnimationFrame(draw);
+    const onResize = () => setupCanvas();
+    window.addEventListener("resize", onResize);
+    return () => {
+      window.removeEventListener("resize", onResize);
+    };
+  }, [setupCanvas, draw]);
+
+  useEffect(() => {
+    (async () => {
+      if (audioElement) {
+        console.log("AudioVisualizer: audioElement changed - attaching");
+        await attachSource(audioElement);
+      } else {
+        console.log("AudioVisualizer: audioElement is null - detaching");
+        // detach existing source
         if (sourceRef.current) {
-          sourceRef.current.disconnect();
+          try { sourceRef.current.disconnect(); } catch {}
           sourceRef.current = null;
         }
-        if (analyserRef.current) {
-          analyserRef.current.disconnect();
-          analyserRef.current = null;
-        }
-        if (audioCtxRef.current) {
-          audioCtxRef.current.close().catch(() => {});
-          audioCtxRef.current = null;
-        }
-      } catch {}
+        attachedElementRef.current = null;
+      }
+    })();
+    // don't close audioContext here - keep ready
+  }, [audioElement, attachSource]);
+
+  useEffect(() => {
+    return () => {
+      if (animRef.current) {
+        cancelAnimationFrame(animRef.current);
+        animRef.current = null;
+      }
+      try { if (sourceRef.current) sourceRef.current.disconnect(); } catch {}
+      try { if (analyserRef.current) analyserRef.current.disconnect(); } catch {}
+      try { if (audioContextRef.current) audioContextRef.current.close().catch(()=>{}); } catch {}
+      audioContextRef.current = null;
+      analyserRef.current = null;
+      sourceRef.current = null;
+      dataRef.current = null;
     };
   }, []);
 
-  useEffect(() => {
-    if (!isActive && canvasRef.current) {
-      const canvas = canvasRef.current;
-      const ctx = canvas.getContext("2d");
-      if (ctx) {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        const logicalWidth = canvas.clientWidth;
-        const totalBarWidth = barWidth + barSpacing;
-        const totalWidth = barCount * totalBarWidth - barSpacing;
-        const startX = (logicalWidth - totalWidth) / 2;
-        for (let i = 0; i < barCount; i++) {
-          const x = startX + i * totalBarWidth;
-          const y = canvas.clientHeight - minHeight;
-          ctx.fillStyle = "rgba(255, 145, 77, 0.3)";
-          ctx.fillRect(x, y, barWidth, minHeight);
-        }
-      }
-    }
-  }, [isActive, barCount, barWidth, barSpacing, minHeight]);
-
-  const canvasWidth = barCount * (barWidth + barSpacing) - barSpacing + 20;
-  const canvasHeight = maxHeight + 8;
-
   return (
-    <div className={`flex items-center justify-center ${className}`}>
+    <div className={`flex items-center justify-center ${className}`} style={{ minWidth: 0 }}>
       <canvas
         ref={canvasRef}
-        width={Math.round(canvasWidth * (window.devicePixelRatio || 1))}
-        height={Math.round(canvasHeight * (window.devicePixelRatio || 1))}
-        className="block"
+        aria-hidden
         style={{
-          width: `${canvasWidth}px`,
-          height: `${canvasHeight}px`,
-          filter: "drop-shadow(0 1px 2px rgba(0, 0, 0, 0.3))",
+          display: "block",
+          width: "100%",
+          height: `${maxHeight + 12}px`, // Match the increased padding
+          minWidth: `${barCount * (barWidth + barSpacing) + 40}px`, // Ensure minimum width
+          maxWidth: `${barCount * (barWidth + barSpacing) + 80}px`, // Allow more space
+          filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.25))",
         }}
       />
+      {error && (
+        <div className="text-xs text-red-400 mt-1 opacity-70 ml-2" title={error}>
+          ⚠️ {error}
+        </div>
+      )}
     </div>
   );
 };

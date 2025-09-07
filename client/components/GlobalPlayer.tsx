@@ -9,12 +9,15 @@ import {
   Volume2,
   VolumeX,
   Radio,
+  Wifi,
+  WifiOff,
+  Clock,
 } from "lucide-react";
 import { useRadioStore } from "@/store/useRadiostore";
 import * as Slider from "@radix-ui/react-slider";
 import { useHotkeys } from "react-hotkeys-hook";
 import AudioVisualizer from "./AudioVisualizer";
-import { useAudioPlayer } from "@/hooks/useAudioPlayer";
+import { useEnhancedAudioPlayer } from "@/hooks/useAudioPlayer";
 
 const GlobalPlayer: React.FC = () => {
   const {
@@ -36,20 +39,23 @@ const GlobalPlayer: React.FC = () => {
     setIsPlaying,
   } = useRadioStore();
 
-  // Use our custom audio player hook
+  // Use our enhanced audio player hook
   const {
     audioRef,
     audioElement,
     isLoading: audioLoading,
     error: audioError,
+    streamType,
+    latency,
     play: playAudio,
     pause: pauseAudio,
     stop: stopAudio,
     setVolume: setAudioVolume,
     setMuted: setAudioMuted,
-  } = useAudioPlayer({
+  } = useEnhancedAudioPlayer({
     volume,
     muted: isMuted,
+    preferredLatency: 'low', // Optimize for low latency
     onPlay: () => {
       setIsPlaying(true);
       setError(null);
@@ -230,9 +236,31 @@ const GlobalPlayer: React.FC = () => {
     [toggleMute]
   );
 
+  // Get stream type display info
+  const getStreamTypeInfo = () => {
+    switch (streamType) {
+      case 'hls':
+        return { icon: <Wifi size={14} />, label: 'HLS', color: '#10B981' };
+      case 'tone':
+        return { icon: <Radio size={14} />, label: 'Enhanced', color: '#8B5CF6' };
+      case 'html5':
+        return { icon: <Radio size={14} />, label: 'Standard', color: '#6B7280' };
+      default:
+        return { icon: <WifiOff size={14} />, label: 'Unknown', color: '#6B7280' };
+    }
+  };
+
+  // Format latency display
+  const formatLatency = (latency: number) => {
+    if (latency < 1) return `${Math.round(latency * 1000)}ms`;
+    return `${latency.toFixed(1)}s`;
+  };
+
   if (!showPlayer || stations.length === 0) {
     return null;
   }
+
+  const streamInfo = getStreamTypeInfo();
 
   return (
     <>
@@ -248,61 +276,98 @@ const GlobalPlayer: React.FC = () => {
       <Box className="fixed bottom-0 left-0 right-0 z-50 border-t border-gray-700/50 backdrop-blur-md bg-[#0C1521]/95">
         <Container size="4" className="py-3">
           <Flex align="center" justify="between" gap="4">
-            {/* Left: Station Info */}
+            {/* Left: Station Info with Enhanced Details */}
             <Flex align="center" gap="3" className="flex-1 min-w-0">
-              <div className="w-12 h-12 bg-[#FF914D]/20 rounded-lg flex items-center justify-center flex-shrink-0">
+              <div className="w-12 h-12 bg-[#FF914D]/20 rounded-lg flex items-center justify-center flex-shrink-0 relative">
                 <Radio size={20} className="text-[#FF914D]" />
-              </div>
-              <Flex gap="1" align="center">
-                <Text
-                  size="3"
-                  weight="medium"
-                  className="text-foreground truncate"
+                {/* Stream type indicator */}
+                <div 
+                  className="absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center text-xs"
+                  style={{ backgroundColor: `${streamInfo.color}20`, color: streamInfo.color }}
+                  title={`Stream Type: ${streamInfo.label}`}
                 >
-                  {currentStation?.name || "No Station"} •
-                </Text>
-                <Text size="2" className="text-slate-400 truncate">
-                  {currentStation?.country || "Unknown"}
-                </Text>
+                  {streamInfo.icon}
+                </div>
+              </div>
+              
+              <Flex direction="column" gap="1" className="min-w-0 flex-1">
+                <Flex gap="2" align="center" className="min-w-0">
+                  <Text
+                    size="3"
+                    weight="medium"
+                    className="text-foreground truncate"
+                  >
+                    {currentStation?.name || "No Station"}
+                  </Text>
+                  <Text size="2" className="text-slate-400">
+                    •
+                  </Text>
+                  <Text size="2" className="text-slate-400 truncate">
+                    {currentStation?.country || "Unknown"}
+                  </Text>
+                </Flex>
+                
+                {/* Stream info row */}
+                <Flex gap="3" align="center" className="text-xs">
+                  <Flex gap="1" align="center" style={{ color: streamInfo.color }}>
+                    {streamInfo.icon}
+                    <span>{streamInfo.label}</span>
+                  </Flex>
+                  
+                  {latency > 0 && (
+                    <Flex gap="1" align="center" className="text-slate-500">
+                      <Clock size={12} />
+                      <span>{formatLatency(latency)}</span>
+                    </Flex>
+                  )}
+                  
+                  {currentStation?.bitrate && (
+                    <span className="text-slate-500">
+                      {currentStation.bitrate}kbps
+                    </span>
+                  )}
+                </Flex>
               </Flex>
             </Flex>
 
             {/* Center: Playback Controls */}
-            <Button
-              size="2"
-              onClick={handlePreviousStation}
-              disabled={stations.length === 0}
-              title="Previous Station"
-              className="hover:bg-[#FF914D]/10"
-            >
-              <SkipBack size={18} />
-            </Button>
+            <Flex align="center" gap="2">
+              <Button
+                size="2"
+                onClick={handlePreviousStation}
+                disabled={stations.length === 0}
+                title="Previous Station (← key)"
+                className="hover:bg-[#FF914D]/10"
+              >
+                <SkipBack size={18} />
+              </Button>
 
-            <Button
-              size="3"
-              onClick={handlePlayPause}
-              disabled={stations.length === 0 || audioLoading}
-              title={isPlaying ? "Pause" : "Play"}
-              className="w-12 h-12 rounded-full"
-            >
-              {audioLoading ? (
-                <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" />
-              ) : isPlaying ? (
-                <Pause size={20} />
-              ) : (
-                <Play size={20} />
-              )}
-            </Button>
+              <Button
+                size="3"
+                onClick={handlePlayPause}
+                disabled={stations.length === 0}
+                title={isPlaying ? "Pause (Space)" : "Play (Space)"}
+                className="w-12 h-12 rounded-full bg-[#FF914D] hover:bg-[#FF914D]/90 text-white"
+              >
+                {audioLoading ? (
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : isPlaying ? (
+                  <Pause size={20} />
+                ) : (
+                  <Play size={20} />
+                )}
+              </Button>
 
-            <Button
-              size="2"
-              onClick={handleNextStation}
-              disabled={stations.length === 0}
-              title="Next Station"
-              className="hover:bg-[#FF914D]/10"
-            >
-              <SkipForward size={18} />
-            </Button>
+              <Button
+                size="2"
+                onClick={handleNextStation}
+                disabled={stations.length === 0}
+                title="Next Station (→ key)"
+                className="hover:bg-[#FF914D]/10"
+              >
+                <SkipForward size={18} />
+              </Button>
+            </Flex>
 
             {/* Right: Volume & Visualizer */}
             <Flex align="center" gap="3" className="flex-shrink-0">
@@ -311,7 +376,7 @@ const GlobalPlayer: React.FC = () => {
                 size="2"
                 onClick={toggleMute}
                 disabled={!currentStation}
-                title={isMuted ? "Unmute" : "Mute"}
+                title={isMuted ? "Unmute (M key)" : "Mute (M key)"}
                 className="hover:bg-[#FF914D]/10"
               >
                 {isMuted || volume === 0 ? (
@@ -321,6 +386,7 @@ const GlobalPlayer: React.FC = () => {
                 )}
               </Button>
 
+              {/* Volume Slider - Hidden on small screens */}
               <div className="w-20 hidden md:block">
                 <Slider.Root
                   className="relative flex items-center w-full h-5 select-none"
@@ -337,43 +403,70 @@ const GlobalPlayer: React.FC = () => {
                       toggleMute();
                     }
                   }}
+                  title="Volume Control (↑↓ keys)"
                 >
-                  <Slider.Track className="relative w-full h-1 rounded-lg bg-gray-600">
-                    <Slider.Range
+                  <Slider.Track className="relative w-full h-1 rounded-lg">
+                   <Slider.Range
                       className="absolute h-full rounded-lg"
                       style={{
-                        background: `linear-gradient(to right, #FF914D 0%, #FF914D ${
-                          (isMuted ? 0 : volume) * 100
-                        }%, #374151 ${
-                          (isMuted ? 0 : volume) * 100
-                        }%, #374151 100%)`,
+                        background: `linear-gradient(to right, #FF914D 0%, #FF914D 100%)`,
                       }}
                     />
                   </Slider.Track>
-                  <Slider.Thumb className="block w-4 h-4 bg-white rounded-full shadow focus:outline-none" />
+                  <Slider.Thumb className="block w-4 h-4 bg-white rounded-full focus:outline-none " />
                 </Slider.Root>
               </div>
 
+              {/* Volume Percentage - Hidden on smaller screens */}
               <Text size="1" className="text-[#FF914D] min-w-8 hidden lg:block">
-                {Math.round(volume * 100)}%
+                {Math.round((isMuted ? 0 : volume) * 100)}%
               </Text>
-               <AudioVisualizer
-  audioElement={audioRef.current}
-  className="hidden lg:flex"
-  barCount={12} 
-  barWidth={6}
-  barSpacing={2}
-  maxHeight={40}
-  sensitivity={1}
-/>
+
+              {/* Audio Visualizer with enhanced audio element support */}
+              <AudioVisualizer
+                audioElement={audioRef.current}
+                className="hidden lg:flex"
+                barCount={12}
+                barWidth={6}
+                barSpacing={2}
+                maxHeight={40}
+                sensitivity={streamType === 'tone' ? 1.2 : 1.0} // Higher sensitivity for Tone.js
+              />
             </Flex>
           </Flex>
 
-          {/* Error Message */}
+          {/* Enhanced Error/Status Message */}
           {audioError && (
-            <Text size="1" className="text-red-400 text-center mt-2">
-              {audioError}
-            </Text>
+            <Flex align="center" gap="2" className="mt-2 p-2 bg-red-500/10 rounded border border-red-500/20">
+              <WifiOff size={16} className="text-red-400 flex-shrink-0" />
+              <Text size="2" className="text-red-400 flex-1">
+                {audioError}
+              </Text>
+              {streamType && (
+                <Text size="1" className="text-red-400/70">
+                  ({streamInfo.label} stream)
+                </Text>
+              )}
+            </Flex>
+          )}
+
+          {/* Loading Status */}
+          {audioLoading && !audioError && (
+            <Flex align="center" gap="2" className="mt-2">
+              <div className="w-4 h-4 border-2 border-[#FF914D] border-t-transparent rounded-full animate-spin flex-shrink-0" />
+              <Text size="2" className="text-slate-400">
+                Loading {streamInfo.label.toLowerCase()} stream...
+              </Text>
+            </Flex>
+          )}
+
+          {/* Stream Quality Indicator (Development only) */}
+          {process.env.NODE_ENV === 'development' && streamType && !audioError && !audioLoading && (
+            <Flex align="center" gap="3" className="mt-2 text-xs text-slate-500">
+              <span>Stream: {streamInfo.label}</span>
+              {latency > 0 && <span>Latency: {formatLatency(latency)}</span>}
+              {currentStation?.codec && <span>Codec: {currentStation.codec.toUpperCase()}</span>}
+            </Flex>
           )}
         </Container>
       </Box>

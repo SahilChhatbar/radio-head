@@ -2,7 +2,7 @@ import { useRef, useEffect, useCallback, useState } from "react";
 import { RadioStation } from "@/types/index";
 import * as Tone from "tone";
 import Hls from "hls.js";
-import { Howl, Howler } from "howler";
+import { Howl } from "howler";
 
 interface UseEnhancedAudioPlayerOptions {
   volume?: number;

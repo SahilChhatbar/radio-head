@@ -200,29 +200,11 @@ export default function StationGauge({ limit = 50 }: StationGaugeProps) {
 
   const stationInfo = getCurrentStationInfo();
 
-  // Get quality color for visual feedback
-  const getQualityColor = (quality: string | null) => {
-    switch (quality) {
-      case "excellent":
-        return "#10B981"; // green
-      case "good":
-        return "#3B82F6"; // blue
-      case "acceptable":
-        return "#F59E0B"; // yellow
-      case "poor":
-        return "#EF4444"; // red
-      default:
-        return "#ff914d"; // default orange
-    }
-  };
-
-  const qualityColor = getQualityColor(stationInfo.quality);
-
   return (
     <div className="flex flex-col items-center gap-4 p-8 bg-transparent">
       {/* Enhanced Gauge Display */}
       <div
-        className="w-82 aspect-square cursor-pointer transition-all duration-300 hover:scale-105 focus:outline-none rounded-full focus:ring-2 focus:ring-[#ff914d]/50"
+        className="w-82 aspect-square cursor-pointer transition-all duration-300 hover:scale-105 focus:outline-none rounded-full"
         style={{ position: "relative" }}
         onClick={handleGaugeClick}
         onKeyDown={handleKeyDown}
@@ -248,7 +230,7 @@ export default function StationGauge({ limit = 50 }: StationGaugeProps) {
             cy={CENTER}
             r={OUTER_R}
             fill="none"
-            stroke={qualityColor}
+            stroke="#ff914d"
             strokeWidth={3}
             strokeDasharray="10 5"
             opacity={0.8}
@@ -261,7 +243,7 @@ export default function StationGauge({ limit = 50 }: StationGaugeProps) {
               cy={CENTER}
               r={OUTER_R + 15}
               fill="none"
-              stroke={qualityColor}
+              stroke="#ff914d"
               strokeWidth={2}
               strokeDasharray={`${(stationInfo.score / 100) * 31.4159} 31.4159`}
               strokeLinecap="round"
@@ -279,7 +261,7 @@ export default function StationGauge({ limit = 50 }: StationGaugeProps) {
                 y1={y1}
                 x2={x2}
                 y2={y2}
-                stroke={qualityColor}
+                stroke="#ff914d"
                 strokeWidth={strokeWidth}
                 opacity={0.7}
               />
@@ -291,7 +273,7 @@ export default function StationGauge({ limit = 50 }: StationGaugeProps) {
             cx={CENTER}
             cy={CENTER}
             r={15}
-            fill={qualityColor}
+            fill="#ff914d"
             stroke="#333"
             strokeWidth={3}
           />
@@ -303,7 +285,7 @@ export default function StationGauge({ limit = 50 }: StationGaugeProps) {
               y1={CENTER}
               x2={CENTER}
               y2={CENTER - INNER_R + 30}
-              stroke={qualityColor}
+              stroke="#ff914d"
               strokeWidth={6}
               strokeLinecap="round"
               filter="drop-shadow(0 2px 4px rgba(0,0,0,0.3))"
@@ -334,13 +316,13 @@ export default function StationGauge({ limit = 50 }: StationGaugeProps) {
               {/* Station Name */}
               <span
                 style={{
-                  color: qualityColor,
+                  color: "#ff914d",
                   fontFamily: "var(--font-roboto), monospace",
                   fontWeight: 600,
                   fontSize: "0.95rem",
                   background: "rgba(30,30,30,0.9)",
                   borderRadius: "8px",
-                  border: `1px solid ${qualityColor}40`,
+                  border: `1px solid $"#ff914d"40`,
                   padding: "8px 12px",
                   width: "100%",
                   overflow: "hidden",
@@ -385,13 +367,13 @@ export default function StationGauge({ limit = 50 }: StationGaugeProps) {
                   {stationInfo.quality && (
                     <span
                       style={{
-                        backgroundColor: `${qualityColor}20`,
-                        color: qualityColor,
+                        backgroundColor: `$"#ff914d"20`,
+                        color: "#ff914d",
                         padding: "2px 6px",
                         borderRadius: "4px",
                         fontSize: "0.65rem",
                         fontWeight: 500,
-                        border: `1px solid ${qualityColor}40`,
+                        border: `1px solid $"#ff914d"40`,
                       }}
                     >
                       {stationInfo.quality.toUpperCase()}

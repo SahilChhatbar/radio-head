@@ -79,11 +79,10 @@ const Logo = ({
         width={imageSize.width}
         height={imageSize.height}
         priority={priority}
-        className="animate-pulse"
       />
       {showText && (
         <Flex direction="column" align="center" gap="0">
-          <Flex direction="column" align="center" gap="0" className="animate-pulse">
+          <Flex direction="column" align="center" gap="0">
             <Heading size={textSize} weight="bold">
               Radio
             </Heading>

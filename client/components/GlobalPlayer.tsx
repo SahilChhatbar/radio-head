@@ -41,8 +41,6 @@ const GlobalPlayer: React.FC = () => {
     setIsLoading,
     setIsPlaying,
   } = useRadioStore();
-
-  // Use our enhanced audio player hook with Howler support
   const {
     audioRef,
     audioElement,
@@ -52,7 +50,6 @@ const GlobalPlayer: React.FC = () => {
     latency,
     play: playAudio,
     pause: pauseAudio,
-    stop: stopAudio,
     setVolume: setAudioVolume,
     setMuted: setAudioMuted,
   } = useEnhancedAudioPlayer({
@@ -79,29 +76,24 @@ const GlobalPlayer: React.FC = () => {
     },
   });
 
-  // Sync volume changes
   React.useEffect(() => {
     setAudioVolume(volume);
   }, [volume, setAudioVolume]);
 
-  // Sync mute changes
   React.useEffect(() => {
     setAudioMuted(isMuted);
   }, [isMuted, setAudioMuted]);
 
-  // Update store loading state
   React.useEffect(() => {
     setIsLoading(audioLoading);
   }, [audioLoading, setIsLoading]);
 
-  // Update store error state
   React.useEffect(() => {
     if (audioError) {
       setError(audioError);
     }
   }, [audioError, setError]);
 
-  // Enhanced station switching with better error handling
   const handleNextStation = React.useCallback(async () => {
     try {
       nextStation();
@@ -155,7 +147,6 @@ const GlobalPlayer: React.FC = () => {
   const handlePlayPause = React.useCallback(async () => {
     try {
       if (!currentStation && stations.length > 0) {
-        // Start playing the current station
         const stationToPlay = stations[currentStationIndex];
         console.log(`▶️ Starting playback: ${stationToPlay.name}`);
         await playAudio(stationToPlay);
@@ -175,7 +166,6 @@ const GlobalPlayer: React.FC = () => {
       console.error("Failed to toggle playback:", error);
       setError("Playback failed - trying next station...");
 
-      // Auto-skip to next station on failure
       setTimeout(() => {
         if (stations.length > 1) {
           handleNextStation();
@@ -195,10 +185,8 @@ const GlobalPlayer: React.FC = () => {
     handleNextStation,
   ]);
 
-  // Handle store play action
   React.useEffect(() => {
     if (currentStation && isPlaying && streamType && !audioLoading) {
-      // Check if we need to start playback
       const needsPlayback =
         streamType === "howler" ||
         (streamType === "hls" && audioElement?.paused) ||
@@ -219,7 +207,6 @@ const GlobalPlayer: React.FC = () => {
     audioLoading,
   ]);
 
-  // Desktop detection for hotkeys
   const isDesktop =
     typeof window !== "undefined" && !("ontouchstart" in window);
 
@@ -235,7 +222,6 @@ const GlobalPlayer: React.FC = () => {
     );
   };
 
-  // Hotkey handlers
   useHotkeys(
     "space",
     (event: KeyboardEvent) => {
@@ -306,7 +292,6 @@ const GlobalPlayer: React.FC = () => {
     [toggleMute]
   );
 
-  // Get stream type display info with enhanced details
   const getStreamTypeInfo = () => {
     switch (streamType) {
       case "hls":
@@ -340,12 +325,10 @@ const GlobalPlayer: React.FC = () => {
     }
   };
 
-  // Get station quality info
   const stationQuality = currentStation
     ? getStationQualityInfo(currentStation)
     : null;
 
-  // Format latency display
   const formatLatency = (latency: number) => {
     if (latency < 1) return `${Math.round(latency * 1000)}ms`;
     return `${latency.toFixed(1)}s`;
@@ -368,8 +351,6 @@ const GlobalPlayer: React.FC = () => {
           style={{ display: "none" }}
         />
       )}
-
-      {/* Fixed Bottom Player */}
       <Box className="fixed bottom-0 left-0 right-0 z-50 border-t border-gray-700/50 backdrop-blur-md bg-[#0C1521]/95">
         <Container size="4" className="py-3">
           <Flex align="center" justify="between" gap="4">
@@ -377,7 +358,6 @@ const GlobalPlayer: React.FC = () => {
             <Flex align="center" gap="3" className="flex-1 min-w-0">
               <div className="w-12 h-12 bg-[#FF914D]/20 rounded-lg flex items-center justify-center flex-shrink-0 relative">
                 <Radio size={20} className="text-[#FF914D]" />
-
                 {/* Stream type indicator with quality badge */}
                 <div
                   className="absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center text-xs border border-current"
@@ -390,7 +370,6 @@ const GlobalPlayer: React.FC = () => {
                 >
                   {streamInfo.icon}
                 </div>
-
                 {/* Quality indicator */}
                 {stationQuality && (
                   <div
@@ -419,7 +398,6 @@ const GlobalPlayer: React.FC = () => {
                   </div>
                 )}
               </div>
-
               <Flex direction="column" gap="1" className="min-w-0 flex-1">
                 <Flex gap="2" align="center" className="min-w-0">
                   <Text
@@ -437,7 +415,6 @@ const GlobalPlayer: React.FC = () => {
                   </Text>
                 </Flex>
 
-                {/* Enhanced stream info row */}
                 <Flex gap="3" align="center" className="text-xs">
                   <Flex
                     gap="1"
@@ -489,7 +466,6 @@ const GlobalPlayer: React.FC = () => {
               </Flex>
             </Flex>
 
-            {/* Center: Playback Controls */}
             <Flex align="center" gap="2">
               <Button
                 size="2"
@@ -528,7 +504,6 @@ const GlobalPlayer: React.FC = () => {
               </Button>
             </Flex>
 
-            {/* Right: Volume & Visualizer */}
             <Flex align="center" gap="3" className="flex-shrink-0">
               <Button
                 variant="ghost"
@@ -544,8 +519,6 @@ const GlobalPlayer: React.FC = () => {
                   <Volume2 size={20} color="#FF914D" />
                 )}
               </Button>
-
-              {/* Volume Slider */}
               <div className="w-20 hidden md:block">
                 <Slider.Root
                   className="relative flex items-center w-full h-5 select-none"
@@ -575,13 +548,9 @@ const GlobalPlayer: React.FC = () => {
                   <Slider.Thumb className="block w-4 h-4 bg-white rounded-full focus:outline-none shadow-md" />
                 </Slider.Root>
               </div>
-
-              {/* Volume Percentage */}
               <Text size="1" className="text-[#FF914D] min-w-8 hidden lg:block">
                 {Math.round((isMuted ? 0 : volume) * 100)}%
               </Text>
-
-              {/* Enhanced Audio Visualizer */}
               <AudioVisualizer
                 audioElement={streamType === "hls" ? audioRef.current : null}
                 className="hidden lg:flex"
@@ -599,8 +568,6 @@ const GlobalPlayer: React.FC = () => {
               />
             </Flex>
           </Flex>
-
-          {/* Enhanced Error/Status Messages */}
           {audioError && (
             <Flex
               align="center"
@@ -631,8 +598,6 @@ const GlobalPlayer: React.FC = () => {
               )}
             </Flex>
           )}
-
-          {/* Loading Status with Progress Info */}
           {audioLoading && !audioError && (
             <Flex align="center" gap="2" className="mt-2">
               <div className="w-4 h-4 border-2 border-[#FF914D] border-t-transparent rounded-full animate-spin flex-shrink-0" />
@@ -649,8 +614,6 @@ const GlobalPlayer: React.FC = () => {
               </Flex>
             </Flex>
           )}
-
-          {/* Station Quality Warnings */}
           {stationQuality &&
             (stationQuality.warnings.length > 0 ||
               stationQuality.issues.length > 0) &&
@@ -676,8 +639,6 @@ const GlobalPlayer: React.FC = () => {
                 </Flex>
               </Flex>
             )}
-
-          {/* Development Info Panel */}
           {process.env.NODE_ENV === "development" &&
             streamType &&
             !audioError &&

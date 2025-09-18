@@ -36,7 +36,6 @@ interface UseEnhancedAudioPlayerReturn {
 
 type StreamType = "hls" | "tone" | "howler";
 
-// Audio format detection utilities
 const HLS_INDICATORS = [".m3u8", "hls", "apple", "manifest"];
 const HIGH_QUALITY_INDICATORS = ["320", "256", "flac", "wav"];
 const HOWLER_FORMATS = [
@@ -61,7 +60,6 @@ export const useEnhancedAudioPlayer = (
     null
   );
 
-  // Enhanced state
   const [isLoading, setIsLoading] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [duration, setDuration] = useState(0);
@@ -69,25 +67,20 @@ export const useEnhancedAudioPlayer = (
   const [error, setError] = useState<string | null>(null);
   const [streamType, setStreamType] = useState<StreamType | null>(null);
   const [latency, setLatency] = useState(0);
-
-  // Player instances
   const hlsRef = useRef<Hls | null>(null);
   const tonePlayerRef = useRef<Tone.Player | null>(null);
   const howlRef = useRef<Howl | null>(null);
   const currentStationRef = useRef<RadioStation | null>(null);
   const loadStartTimeRef = useRef<number>(0);
 
-  // Detect stream type from URL and codec
   const detectStreamType = useCallback((station: RadioStation): StreamType => {
     const url = (station.url_resolved || station.url).toLowerCase();
     const codec = station.codec?.toLowerCase() || "";
 
-    // Check for HLS streams
     if (HLS_INDICATORS.some((indicator) => url.includes(indicator))) {
       return "hls";
     }
 
-    // Check for high-quality streams that benefit from Web Audio API (Tone.js)
     if (
       HIGH_QUALITY_INDICATORS.some((indicator) => url.includes(indicator)) &&
       (codec === "flac" || codec === "wav" || url.includes("stream"))
@@ -95,21 +88,17 @@ export const useEnhancedAudioPlayer = (
       return "tone";
     }
 
-    // Check for Howler-supported formats (most common for radio streaming)
     if (
       HOWLER_FORMATS.some((format) => url.includes(format)) ||
       HOWLER_FORMATS.includes(codec) ||
       station.bitrate > 0
     ) {
-      // Most radio streams are MP3/AAC
       return "howler";
     }
 
-    // Default fallback for unknown formats
     return "howler";
   }, []);
 
-  // HLS Player Implementation (unchanged)
   const setupHLSPlayer = useCallback(
     async (url: string) => {
       if (!audioRef.current || !Hls.isSupported()) {
@@ -119,17 +108,14 @@ export const useEnhancedAudioPlayer = (
       if (hlsRef.current) {
         hlsRef.current.destroy();
       }
-
       const hls = new Hls({
         lowLatencyMode: true,
         backBufferLength: options.preferredLatency === "low" ? 5 : 10,
         maxBufferLength: options.preferredLatency === "low" ? 10 : 30,
         maxMaxBufferLength: options.preferredLatency === "low" ? 15 : 60,
-
         fragLoadingTimeOut: 5000,
         manifestLoadingTimeOut: 5000,
         levelLoadingTimeOut: 5000,
-
         startLevel: -1,
         enableWorker: true,
         enableSoftwareAES: true,
@@ -137,14 +123,12 @@ export const useEnhancedAudioPlayer = (
       });
 
       hlsRef.current = hls;
-
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
         const loadTime = Date.now() - loadStartTimeRef.current;
         setLatency(loadTime / 1000);
         setIsLoading(false);
         options.onCanPlay?.();
       });
-
       hls.on(Hls.Events.ERROR, (event, data) => {
         console.error("HLS Error:", data);
         if (data.fatal) {
@@ -161,7 +145,6 @@ export const useEnhancedAudioPlayer = (
     [options]
   );
 
-  // Tone.js Player Implementation (unchanged)
   const setupTonePlayer = useCallback(
     async (url: string) => {
       try {
@@ -180,14 +163,10 @@ export const useEnhancedAudioPlayer = (
           fadeIn: 0,
           fadeOut: 0.1,
         }).toDestination();
-
         player.volume.value = Tone.gainToDb(options.volume || 0.7);
-
         await Tone.loaded();
-
         const loadTime = Date.now() - loadStartTimeRef.current;
         setLatency(loadTime / 1000);
-
         tonePlayerRef.current = player;
         setStreamType("tone");
         setIsLoading(false);
@@ -199,33 +178,23 @@ export const useEnhancedAudioPlayer = (
     },
     [options]
   );
-
-  // NEW: Howler Player Implementation for MP3 and radio streams
   const setupHowlerPlayer = useCallback(
     async (url: string, station: RadioStation) => {
       try {
         console.log(`🎵 Setting up Howler player for ${station.name}`);
-
-        // Cleanup previous instance
         if (howlRef.current) {
           howlRef.current.unload();
           howlRef.current = null;
         }
-
-        // Configure Howler for radio streaming
         const howlOptions: any = {
           src: [url],
-          html5: true, // Use HTML5 Audio for streaming
-          preload: false, // Don't preload for live streams
+          html5: true,
+          preload: false,
           volume: options.volume || 0.7,
           mute: options.muted || false,
-
-          // Optimizations for radio streaming
-          pool: 1, // Only one instance needed
+          pool: 1,
           autoplay: false,
           loop: false,
-
-          // Event handlers
           onload: () => {
             const loadTime = Date.now() - loadStartTimeRef.current;
             setLatency(loadTime / 1000);
@@ -266,13 +235,10 @@ export const useEnhancedAudioPlayer = (
           },
 
           onend: () => {
-            // For radio streams, this shouldn't happen unless there's an error
             console.log("Howler stream ended unexpectedly");
             options.onEnded?.();
           },
         };
-
-        // Add format hint if we can determine it
         const codec = station.codec?.toLowerCase();
         if (codec && HOWLER_FORMATS.includes(codec)) {
           howlOptions.format = [codec];
@@ -280,10 +246,7 @@ export const useEnhancedAudioPlayer = (
 
         const howl = new Howl(howlOptions);
         howlRef.current = howl;
-
-        // Start loading
         howl.load();
-
         setStreamType("howler");
       } catch (error) {
         console.error("Howler Setup Error:", error);
@@ -296,20 +259,15 @@ export const useEnhancedAudioPlayer = (
     },
     [options]
   );
-
-  // Enhanced smart player selection
   const load = useCallback(
     async (station: RadioStation) => {
       if (!station) return;
-
       setError(null);
       setIsLoading(true);
       loadStartTimeRef.current = Date.now();
       currentStationRef.current = station;
-
       const audioUrl = station.url_resolved || station.url;
       const preferredType = detectStreamType(station);
-
       console.log(
         `🎵 Loading ${station.name} as ${preferredType} stream (${station.codec}, ${station.bitrate}kbps)`
       );
@@ -321,8 +279,6 @@ export const useEnhancedAudioPlayer = (
               await setupHLSPlayer(audioUrl);
               break;
             }
-          // Fallback to howler for HLS if not supported
-
           case "tone":
             try {
               await setupTonePlayer(audioUrl);
@@ -332,9 +288,7 @@ export const useEnhancedAudioPlayer = (
                 "Tone.js failed, falling back to Howler:",
                 toneError
               );
-              // Fallback to howler
             }
-
           case "howler":
           default:
             await setupHowlerPlayer(audioUrl, station);
@@ -358,8 +312,6 @@ export const useEnhancedAudioPlayer = (
       options,
     ]
   );
-
-  // Enhanced pause method
   const pause = useCallback(() => {
     try {
       switch (streamType) {
@@ -388,28 +340,21 @@ export const useEnhancedAudioPlayer = (
       console.error("Error pausing audio:", error);
     }
   }, [streamType, options]);
-
-  // Enhanced play method with better station switching
   const play = useCallback(
     async (station?: RadioStation): Promise<void> => {
       try {
-        // If new station provided, load it first
         if (
           station &&
           station.stationuuid !== currentStationRef.current?.stationuuid
         ) {
-          // Stop current playback before switching
           if (streamType && isPlaying) {
             pause();
-            await new Promise((resolve) => setTimeout(resolve, 100)); // Brief pause for cleanup
+            await new Promise((resolve) => setTimeout(resolve, 100));
           }
 
           await load(station);
-          // Wait a bit longer for the stream to be ready
           await new Promise((resolve) => setTimeout(resolve, 200));
         }
-
-        // Play based on current stream type
         switch (streamType) {
           case "hls":
             if (audioRef.current) {
@@ -440,7 +385,6 @@ export const useEnhancedAudioPlayer = (
     [streamType, load, isPlaying, pause, options]
   );
 
-  // Enhanced stop method
   const stop = useCallback(() => {
     try {
       switch (streamType) {
@@ -471,7 +415,6 @@ export const useEnhancedAudioPlayer = (
     }
   }, [streamType]);
 
-  // Enhanced volume control
   const setVolume = useCallback(
     (volume: number) => {
       const clampedVolume = Math.max(0, Math.min(1, volume));
@@ -503,7 +446,6 @@ export const useEnhancedAudioPlayer = (
     [streamType]
   );
 
-  // Enhanced mute control
   const setMuted = useCallback(
     (muted: boolean) => {
       try {
@@ -532,15 +474,12 @@ export const useEnhancedAudioPlayer = (
     },
     [streamType]
   );
-
-  // Setup audio element reference
   useEffect(() => {
     if (audioRef.current && audioRef.current !== audioElement) {
       setAudioElement(audioRef.current);
     }
   }, [audioElement]);
 
-  // HLS audio event listeners (only for HLS streams)
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio || streamType !== "hls") return;
@@ -588,7 +527,6 @@ export const useEnhancedAudioPlayer = (
             errorMessage = "Unknown audio error";
         }
       }
-
       setError(errorMessage);
       setIsLoading(false);
       setIsPlaying(false);
@@ -612,10 +550,8 @@ export const useEnhancedAudioPlayer = (
     };
   }, [options, streamType]);
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
-      // Cleanup all player instances
       if (hlsRef.current) {
         hlsRef.current.destroy();
       }

@@ -29,7 +29,6 @@ export default function StationGauge({ limit = 50 }: StationGaugeProps) {
   const gaugeRef = useRef<SVGGElement>(null);
   const prevAngleRef = useRef<number>(180);
 
-  // Use enhanced hook with automatic filtering
   const {
     data: fetchedStations = [],
     isLoading,
@@ -50,7 +49,6 @@ export default function StationGauge({ limit = 50 }: StationGaugeProps) {
     setShowPlayer,
   } = useRadioStore();
 
-  // Update stations when filtered data is received
   useEffect(() => {
     if (fetchedStations.length > 0 && stations.length === 0) {
       console.log(
@@ -102,7 +100,6 @@ export default function StationGauge({ limit = 50 }: StationGaugeProps) {
     return { visible: false };
   });
 
-  // Get current station with quality info
   const getCurrentStationInfo = () => {
     if (error) return { display: "Error loading", quality: null };
     if (stations.length === 0) return { display: "No stations", quality: null };
@@ -121,24 +118,20 @@ export default function StationGauge({ limit = 50 }: StationGaugeProps) {
     };
   };
 
-  // Handle gauge click to toggle play/stop
   const handleGaugeClick = async () => {
     if (stations.length > 0) {
       const currentStationData = stations[currentStationIndex];
 
       if (showPlayer && currentStation && isPlaying) {
-        // If currently playing, stop and hide player
         console.log(`⏹️ Stopping ${currentStation.name}`);
         stop();
         setShowPlayer(false);
       } else {
-        // Start playing with error handling
         try {
           console.log(`▶️ Starting ${currentStationData?.name}`);
           play(currentStationData);
         } catch (error) {
           console.error("Failed to start playback:", error);
-          // Auto-skip to next station on failure
           if (stations.length > 1) {
             setTimeout(() => {
               nextStation();
@@ -150,7 +143,6 @@ export default function StationGauge({ limit = 50 }: StationGaugeProps) {
     }
   };
 
-  // Handle station navigation with left/right keys when gauge is focused
   const handleKeyDown = (event: React.KeyboardEvent) => {
     switch (event.code) {
       case "ArrowLeft":
@@ -171,7 +163,6 @@ export default function StationGauge({ limit = 50 }: StationGaugeProps) {
     }
   };
 
-  // Show loader component while stations are loading
   if (isLoading) {
     return (
       <div className="flex flex-col items-center gap-4 p-8">
@@ -202,7 +193,6 @@ export default function StationGauge({ limit = 50 }: StationGaugeProps) {
 
   return (
     <div className="flex flex-col items-center gap-4 p-8 bg-transparent">
-      {/* Enhanced Gauge Display */}
       <div
         className="w-82 aspect-square cursor-pointer transition-all duration-300 hover:scale-105 focus:outline-none rounded-full"
         style={{ position: "relative" }}
@@ -224,7 +214,6 @@ export default function StationGauge({ limit = 50 }: StationGaugeProps) {
           className="w-full h-full drop-shadow-lg"
           style={{ position: "relative" }}
         >
-          {/* Outer ring with quality-based color */}
           <circle
             cx={CENTER}
             cy={CENTER}
@@ -235,8 +224,6 @@ export default function StationGauge({ limit = 50 }: StationGaugeProps) {
             strokeDasharray="10 5"
             opacity={0.8}
           />
-
-          {/* Quality indicator ring */}
           {stationInfo.quality && (
             <circle
               cx={CENTER}
@@ -251,8 +238,6 @@ export default function StationGauge({ limit = 50 }: StationGaugeProps) {
               opacity={0.6}
             />
           )}
-
-          {/* Gauge ticks */}
           {ticks.map(({ x1, y1, x2, y2, strokeWidth, visible }, idx) =>
             visible ? (
               <line
@@ -267,8 +252,6 @@ export default function StationGauge({ limit = 50 }: StationGaugeProps) {
               />
             ) : null
           )}
-
-          {/* Center hub */}
           <circle
             cx={CENTER}
             cy={CENTER}
@@ -277,8 +260,6 @@ export default function StationGauge({ limit = 50 }: StationGaugeProps) {
             stroke="#333"
             strokeWidth={3}
           />
-
-          {/* Needle */}
           <g ref={gaugeRef}>
             <line
               x1={CENTER}
@@ -291,8 +272,6 @@ export default function StationGauge({ limit = 50 }: StationGaugeProps) {
               filter="drop-shadow(0 2px 4px rgba(0,0,0,0.3))"
             />
           </g>
-
-          {/* Enhanced Station Info Display */}
           <foreignObject
             x={CENTER + 30}
             y={CENTER + 80}
@@ -313,7 +292,6 @@ export default function StationGauge({ limit = 50 }: StationGaugeProps) {
                 gap: "4px",
               }}
             >
-              {/* Station Name */}
               <span
                 style={{
                   color: "#ff914d",
@@ -347,8 +325,6 @@ export default function StationGauge({ limit = 50 }: StationGaugeProps) {
                     : s;
                 })()}
               </span>
-
-              {/* Technical Info */}
               {(stationInfo.codec ||
                 stationInfo.bitrate ||
                 stationInfo.quality) && (
@@ -391,14 +367,10 @@ export default function StationGauge({ limit = 50 }: StationGaugeProps) {
           </foreignObject>
         </svg>
       </div>
-
-      {/* Enhanced Station Stats */}
       <Flex direction="column" align="center" gap="2">
         <Text size="2" className="text-slate-500">
           {stations.length} high-quality stations available
         </Text>
-
-        {/* Quality Distribution (development mode) */}
         {process.env.NODE_ENV === "development" && stations.length > 0 && (
           <Text size="1" className="text-slate-600">
             Station {currentStationIndex + 1}/{stations.length}
@@ -406,8 +378,6 @@ export default function StationGauge({ limit = 50 }: StationGaugeProps) {
               ` • Quality Score: ${Math.round(stationInfo.score)}/100`}
           </Text>
         )}
-
-        {/* Playback Status */}
         {showPlayer && currentStation && (
           <Flex align="center" gap="2">
             <div

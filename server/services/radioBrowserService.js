@@ -1,19 +1,13 @@
 const axios = require('axios');
 const dns = require('dns').promises;
 
-// Configuration constants
 const CONFIG = {
-  // Server discovery and caching
-  SERVER_CACHE_TTL: 10 * 60 * 1000, // 10 minutes
-  HEALTH_CHECK_TIMEOUT: 5000, // 5 seconds for health checks
-  REQUEST_TIMEOUT: 15000, // 15 seconds for actual requests
-  
-  // Retry configuration
+  SERVER_CACHE_TTL: 10 * 60 * 1000,
+  HEALTH_CHECK_TIMEOUT: 5000,
+  REQUEST_TIMEOUT: 15000,
   MAX_RETRIES: 3,
-  RETRY_DELAY: 1000, // Base delay between retries
-  BACKOFF_MULTIPLIER: 2, // Exponential backoff
-  
-  // Default limits
+  RETRY_DELAY: 1000,
+  BACKOFF_MULTIPLIER: 2,
   DEFAULT_LIMIT: 50,
   MAX_LIMIT: 1000,
   
@@ -29,19 +23,15 @@ const CONFIG = {
   ]
 };
 
-// Server cache with enhanced metadata
 let serverCache = {
   servers: [],
   selectedServer: null,
   timestamp: 0,
   ttl: CONFIG.SERVER_CACHE_TTL,
-  healthStats: new Map() // Track server performance
+  healthStats: new Map() 
 };
 
-/**
- * Enhanced server discovery using both SRV and A record methods
- * Implements the DNS discovery as specified in the API docs
- */
+ //Enhanced server discovery using both SRV and A record methods
 class RadioBrowserService {
   constructor() {
     this.isDiscovering = false;
@@ -642,7 +632,5 @@ module.exports = {
   refreshServerCache: () => radioBrowserService.refreshServerCache(),
   getServerInfo: () => radioBrowserService.getServerInfo(),
   healthCheck: () => radioBrowserService.healthCheck(),
-  
-  // Direct access to service instance for advanced usage
   service: radioBrowserService
 };

@@ -60,9 +60,7 @@ export default function RootLayout({
           >
             <div className="min-h-screen flex flex-col bg-main-gradient">
               <Suspense fallback={<Loader />}>
-                <div className="flex-1 pb-20"> {/* Add bottom padding for player */}
-                  {children}
-                </div>
+                <div className="flex-1 pb-20">{children}</div>
               </Suspense>
               <GlobalPlayer />
             </div>

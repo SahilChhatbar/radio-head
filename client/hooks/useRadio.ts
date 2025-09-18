@@ -15,7 +15,6 @@ export const QUERY_KEYS = {
   validated: ["stations", "validated"] as const,
 } as const;
 
-// Enhanced hook with automatic filtering
 export const useStations = (
   params?: RadioSearchParams & {
     enableFiltering?: boolean;
@@ -43,18 +42,15 @@ export const useStations = (
         return rawStations;
       }
 
-      // Apply quality filtering
       let filteredStations = getOptimalStations(rawStations, queryParams.limit);
 
-      // Apply real-time validation if requested (use sparingly)
       if (enableRealTimeValidation && filteredStations.length > 0) {
         console.log("🧪 Applying real-time validation...");
         filteredStations = await stationFilterService.validateStationsRealtime(
-          filteredStations.slice(0, 20), // Limit to prevent too many requests
-          3 // Max concurrent requests
+          filteredStations.slice(0, 20),
+          3
         );
       }
-
       console.log(`✅ Returning ${filteredStations.length} filtered stations`);
       return filteredStations;
     },
@@ -65,7 +61,6 @@ export const useStations = (
   });
 };
 
-// Enhanced search with smart filtering
 export const useSearchStations = (
   query: string,
   limit?: number,
@@ -81,14 +76,11 @@ export const useSearchStations = (
       if (!enableFiltering || rawStations.length === 0) {
         return rawStations;
       }
-
-      // Use smart search filtering
       const filteredStations = stationFilterService.searchStationsOptimal(
         rawStations,
         query,
         limit
       );
-
       console.log(
         `🔍 Search "${query}": ${filteredStations.length}/${rawStations.length} stations after filtering`
       );
@@ -100,7 +92,6 @@ export const useSearchStations = (
   });
 };
 
-// Enhanced popular stations with guaranteed quality
 export const usePopularStations = (
   limit?: number,
   options?: { enableFiltering?: boolean }
@@ -110,7 +101,6 @@ export const usePopularStations = (
   return useQuery({
     queryKey: [...QUERY_KEYS.popular, limit, enableFiltering],
     queryFn: async () => {
-      // Request more stations than needed to account for filtering
       const requestLimit = limit ? Math.min(limit * 2, 200) : 100;
       const rawStations = await radioApi.getPopularStations(requestLimit);
 
@@ -130,7 +120,6 @@ export const usePopularStations = (
   });
 };
 
-// Enhanced country stations with filtering
 export const useStationsByCountry = (
   countryCode: string,
   limit?: number,
@@ -141,7 +130,6 @@ export const useStationsByCountry = (
   return useQuery({
     queryKey: [...QUERY_KEYS.country, countryCode, limit, enableFiltering],
     queryFn: async () => {
-      // Request more stations to account for filtering
       const requestLimit = limit ? Math.min(limit * 2, 200) : 100;
       const rawStations = await radioApi.getStationsByCountry(
         countryCode,
@@ -157,7 +145,6 @@ export const useStationsByCountry = (
         countryCode,
         limit
       );
-
       console.log(
         `🌍 Country ${countryCode}: ${filteredStations.length} stations after filtering`
       );
@@ -169,7 +156,6 @@ export const useStationsByCountry = (
   });
 };
 
-// Enhanced tag stations with filtering
 export const useStationsByTag = (
   tag: string,
   limit?: number,
@@ -200,7 +186,6 @@ export const useStationsByTag = (
   });
 };
 
-// NEW: Hook for real-time station validation
 export const useValidatedStations = (
   stations: RadioStation[],
   enabled: boolean = false
@@ -216,30 +201,27 @@ export const useValidatedStations = (
       console.log("🧪 Starting real-time validation...");
       const validatedStations =
         await stationFilterService.validateStationsRealtime(
-          stations.slice(0, 15), // Limit for performance
-          4 // Max concurrent
+          stations.slice(0, 15),
+          4
         );
 
       return validatedStations;
     },
     enabled: enabled && stations.length > 0,
-    staleTime: 30 * 60 * 1000, // 30 minutes
-    gcTime: 60 * 60 * 1000, // 1 hour
-    retry: 1, // Don't retry validation failures aggressively
+    staleTime: 30 * 60 * 1000,
+    gcTime: 60 * 60 * 1000,
+    retry: 1,
   });
 };
 
-// NEW: Hook for station quality information
 export const useStationQuality = (station: RadioStation | null) => {
   return station ? stationFilterService.getStationQualityInfo(station) : null;
 };
 
-// NEW: Hook for quality statistics
 export const useStationQualityStats = (stations: RadioStation[]) => {
   return stationFilterService.getQualityStatistics(stations);
 };
 
-// Utility hook for getting curated station recommendations
 export const useCuratedStations = (
   type: "mixed" | "high-quality" | "popular" = "mixed",
   limit: number = 50
@@ -261,7 +243,6 @@ export const useCuratedStations = (
 
       if (allStations.length === 0) return [];
 
-      // Remove duplicates
       const unique = allStations.filter(
         (station, index, self) =>
           self.findIndex((s) => s.stationuuid === station.stationuuid) === index
@@ -296,7 +277,7 @@ export const useCuratedStations = (
       return curated;
     },
     enabled: !!(popularStations || recentStations),
-    staleTime: 15 * 60 * 1000, // 15 minutes
+    staleTime: 15 * 60 * 1000,
     gcTime: 30 * 60 * 1000,
   });
 };

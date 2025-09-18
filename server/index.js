@@ -3,34 +3,27 @@ const cors = require('cors');
 const dotenv = require('dotenv');
 const radioRoutes = require('./routes/radio');
 
-// Load environment variables
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 const NODE_ENV = process.env.NODE_ENV || 'development';
 
-// Trust proxy for accurate IP addresses (important for rate limiting)
 app.set('trust proxy', 1);
 
-// Security headers middleware
 app.use((req, res, next) => {
   // Basic security headers
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('X-XSS-Protection', '1; mode=block');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-  
-  // Remove powered by header
   res.removeHeader('X-Powered-By');
   
   next();
 });
 
-// Enhanced CORS configuration
 const corsOptions = {
   origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
     
     const allowedOrigins = [
@@ -40,7 +33,6 @@ const corsOptions = {
       'https://127.0.0.1:3000'
     ];
     
-    // Add additional origins from environment variable
     if (process.env.ALLOWED_ORIGINS) {
       allowedOrigins.push(...process.env.ALLOWED_ORIGINS.split(','));
     }
@@ -56,12 +48,11 @@ const corsOptions = {
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
   exposedHeaders: ['X-Total-Count', 'X-Rate-Limit-Remaining'],
-  maxAge: 86400 // 24 hours
+  maxAge: 86400 
 };
 
 app.use(cors(corsOptions));
 
-// Body parsing middleware with size limits
 app.use(express.json({ 
   limit: '1mb',
   strict: true
@@ -72,7 +63,6 @@ app.use(express.urlencoded({
   parameterLimit: 100
 }));
 
-// Request logging middleware
 app.use((req, res, next) => {
   const timestamp = new Date().toISOString();
   const userAgent = req.get('User-Agent') || 'Unknown';
@@ -80,7 +70,6 @@ app.use((req, res, next) => {
   
   console.log(`📊 [${timestamp}] ${req.method} ${req.url} - IP: ${ip}`);
   
-  // Log user agent for debugging (truncated)
   if (NODE_ENV === 'development') {
     console.log(`   UA: ${userAgent.substring(0, 100)}${userAgent.length > 100 ? '...' : ''}`);
   }
@@ -88,7 +77,6 @@ app.use((req, res, next) => {
   next();
 });
 
-// Performance monitoring middleware
 app.use((req, res, next) => {
   req.startTime = Date.now();
   
@@ -107,10 +95,8 @@ app.use((req, res, next) => {
   next();
 });
 
-// API Routes
 app.use('/api/radio', radioRoutes);
 
-// Root endpoint with API information
 app.get('/', (req, res) => {
   const serverInfo = {
     name: 'RadioHead API Server',
@@ -137,7 +123,6 @@ app.get('/', (req, res) => {
   res.json(serverInfo);
 });
 
-// Health check endpoint with detailed diagnostics
 app.get('/api/health', async (req, res) => {
   const healthCheck = {
     status: 'healthy',
@@ -156,7 +141,6 @@ app.get('/api/health', async (req, res) => {
   };
   
   try {
-    // Import health check from radio service
     const { healthCheck: radioHealthCheck } = require('./services/radioBrowserService');
     const radioBrowserHealth = await radioHealthCheck();
     
@@ -176,7 +160,6 @@ app.get('/api/health', async (req, res) => {
   res.json(healthCheck);
 });
 
-// API documentation endpoint
 app.get('/api/docs', (req, res) => {
   const docs = {
     title: 'RadioHead API Documentation',
@@ -299,9 +282,7 @@ app.get('/api/docs', (req, res) => {
   res.json(docs);
 });
 
-// Handle 404 for undefined routes
 app.use((req, res, next) => {
-  // Only handle if no other route matched
   res.status(404).json({
     success: false,
     message: 'Route not found',
@@ -320,12 +301,10 @@ app.use((req, res, next) => {
   });
 });
 
-// Global error handling middleware
 app.use((err, req, res, next) => {
   const timestamp = new Date().toISOString();
   const requestId = Math.random().toString(36).substring(2, 15);
   
-  // Log error with request details
   console.error(`🚨 [${timestamp}] Error ${requestId}:`, {
     error: err.message,
     stack: err.stack,
@@ -335,10 +314,8 @@ app.use((err, req, res, next) => {
     userAgent: req.get('User-Agent')
   });
   
-  // Don't send error details in production
   const isDevelopment = NODE_ENV === 'development';
   
-  // Handle specific error types
   if (err.name === 'ValidationError') {
     return res.status(400).json({
       success: false,
@@ -359,7 +336,6 @@ app.use((err, req, res, next) => {
     });
   }
   
-  // Generic server error
   res.status(err.status || 500).json({
     success: false,
     message: 'Internal server error',
@@ -370,7 +346,6 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Graceful shutdown handling
 const gracefulShutdown = (signal) => {
   console.log(`\n🔄 Received ${signal}. Starting graceful shutdown...`);
   
@@ -384,7 +359,6 @@ const gracefulShutdown = (signal) => {
     console.log(`⚡ Ready to serve radio stations from around the world!\n`);
   });
   
-  // Graceful shutdown
   const shutdown = () => {
     console.log('🛑 Closing server...');
     server.close((err) => {
@@ -395,8 +369,7 @@ const gracefulShutdown = (signal) => {
       console.log('✅ Server closed successfully');
       process.exit(0);
     });
-    
-    // Force close after 30 seconds
+
     setTimeout(() => {
       console.error('⏰ Could not close server gracefully, forcing shutdown');
       process.exit(1);
@@ -409,7 +382,6 @@ const gracefulShutdown = (signal) => {
   return server;
 };
 
-// Handle uncaught exceptions and unhandled rejections
 process.on('uncaughtException', (error) => {
   console.error('🚨 Uncaught Exception:', error);
   console.error('Stack:', error.stack);
@@ -418,10 +390,8 @@ process.on('uncaughtException', (error) => {
 
 process.on('unhandledRejection', (reason, promise) => {
   console.error('🚨 Unhandled Rejection at Promise:', promise, 'reason:', reason);
-  // Don't exit the process, but log it for debugging
 });
 
-// Start server
 if (require.main === module) {
   gracefulShutdown('startup');
 }

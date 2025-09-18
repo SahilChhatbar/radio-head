@@ -1,36 +1,28 @@
-import { create } from 'zustand';
-import { RadioStation, RadioPlayerState } from '@/types/index';
+import { create } from "zustand";
+import { RadioStation, RadioPlayerState } from "@/types/index";
 
 interface RadioStore extends RadioPlayerState {
-  // Actions for playback
   setCurrentStation: (station: RadioStation | null) => void;
   setIsPlaying: (playing: boolean) => void;
   setVolume: (volume: number) => void;
   setIsMuted: (muted: boolean) => void;
   setIsLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
-  
-  // Helper actions
   togglePlayPause: () => void;
   toggleMute: () => void;
   play: (station?: RadioStation) => void;
   stop: () => void;
-  
-  // Station management
   stations: RadioStation[];
   currentStationIndex: number;
   setStations: (stations: RadioStation[]) => void;
   setCurrentStationIndex: (index: number) => void;
   nextStation: () => void;
   previousStation: () => void;
-  
-  // UI state
   showPlayer: boolean;
   setShowPlayer: (show: boolean) => void;
 }
 
 export const useRadioStore = create<RadioStore>((set, get) => ({
-  // Initial state
   isPlaying: false,
   currentStation: null,
   volume: 0.7,
@@ -40,8 +32,6 @@ export const useRadioStore = create<RadioStore>((set, get) => ({
   stations: [],
   currentStationIndex: 0,
   showPlayer: false,
-
-  // Playback actions
   setCurrentStation: (station) => set({ currentStation: station }),
   setIsPlaying: (playing) => set({ isPlaying: playing }),
   setVolume: (volume) => set({ volume: Math.max(0, Math.min(1, volume)) }),
@@ -49,7 +39,6 @@ export const useRadioStore = create<RadioStore>((set, get) => ({
   setIsLoading: (loading) => set({ isLoading: loading }),
   setError: (error) => set({ error }),
 
-  // Helper actions
   togglePlayPause: () => {
     const { isPlaying, currentStation } = get();
     if (currentStation) {
@@ -64,15 +53,17 @@ export const useRadioStore = create<RadioStore>((set, get) => ({
 
   play: (station) => {
     const { currentStation, stations, currentStationIndex } = get();
-    
+
     if (station) {
-      set({ 
-        currentStation: station, 
-        isPlaying: true, 
+      set({
+        currentStation: station,
+        isPlaying: true,
         error: null,
-        showPlayer: true 
+        showPlayer: true,
       });
-      const index = stations.findIndex(s => s.stationuuid === station.stationuuid);
+      const index = stations.findIndex(
+        (s) => s.stationuuid === station.stationuuid
+      );
       if (index >= 0) {
         set({ currentStationIndex: index });
       }
@@ -80,11 +71,11 @@ export const useRadioStore = create<RadioStore>((set, get) => ({
       set({ isPlaying: true, error: null });
     } else if (stations.length > 0) {
       const stationToPlay = stations[currentStationIndex];
-      set({ 
-        currentStation: stationToPlay, 
-        isPlaying: true, 
+      set({
+        currentStation: stationToPlay,
+        isPlaying: true,
         error: null,
-        showPlayer: true 
+        showPlayer: true,
       });
     }
   },
@@ -93,9 +84,8 @@ export const useRadioStore = create<RadioStore>((set, get) => ({
     set({ isPlaying: false, error: null });
   },
 
-  // Station management
   setStations: (stations) => set({ stations }),
-  
+
   setCurrentStationIndex: (index) => {
     const { stations } = get();
     if (index >= 0 && index < stations.length) {
@@ -108,9 +98,9 @@ export const useRadioStore = create<RadioStore>((set, get) => ({
     if (stations.length > 0) {
       const nextIndex = (currentStationIndex + 1) % stations.length;
       const nextStation = stations[nextIndex];
-      set({ 
+      set({
         currentStationIndex: nextIndex,
-        currentStation: nextStation
+        currentStation: nextStation,
       });
     }
   },
@@ -118,11 +108,14 @@ export const useRadioStore = create<RadioStore>((set, get) => ({
   previousStation: () => {
     const { stations, currentStationIndex } = get();
     if (stations.length > 0) {
-      const prevIndex = currentStationIndex === 0 ? stations.length - 1 : currentStationIndex - 1;
+      const prevIndex =
+        currentStationIndex === 0
+          ? stations.length - 1
+          : currentStationIndex - 1;
       const prevStation = stations[prevIndex];
-      set({ 
+      set({
         currentStationIndex: prevIndex,
-        currentStation: prevStation
+        currentStation: prevStation,
       });
     }
   },

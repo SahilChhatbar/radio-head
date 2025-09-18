@@ -1,14 +1,7 @@
 "use client";
 
 import React from "react";
-import {
-  Container,
-  Flex,
-  Heading,
-  Text,
-  Section,
-  Box,
-} from "@radix-ui/themes";
+import { Container, Flex, Heading, Text, Section, Box } from "@radix-ui/themes";
 import Header from "@/components/Header";
 import StationSelector from "@/components/StationSelector";
 import { useRadioStore } from "@/store/useRadiostore";
@@ -24,9 +17,7 @@ export default function Home() {
 
   const getStatusText = () => {
     if (showPlayer && currentStation) {
-      return isPlaying
-        ? ""
-        : "PAUSED - Click gauge again to stop";
+      return isPlaying ? "" : "PAUSED - Click gauge again to stop";
     }
     return "Click the radio gauge to start listening →";
   };
@@ -63,7 +54,6 @@ export default function Home() {
                   {getStatusText()}
                 </Text>
               </Flex>
-
               {/* Right: Station Selector */}
               <Box className="flex-1 flex justify-center md:justify-end w-full">
                 <StationSelector />

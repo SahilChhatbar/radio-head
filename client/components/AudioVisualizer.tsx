@@ -1,6 +1,10 @@
-// AudioVisualizer.tsx
 "use client";
 import React, { useRef, useEffect, useCallback, useState } from "react";
+
+interface HTMLMediaElement {
+  captureStream?: () => MediaStream;
+  mozCaptureStream?: () => MediaStream;
+}
 
 interface AudioVisualizerProps {
   audioElement: HTMLMediaElement | null;
@@ -11,7 +15,7 @@ interface AudioVisualizerProps {
   maxHeight?: number;
   minHeight?: number;
   sensitivity?: number;
-  decay?: number; // 0..1, larger = slower decay
+  decay?: number;
 }
 
 const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
@@ -28,7 +32,7 @@ const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
-  const sourceRef = useRef<AudioNode | null>(null); // may be MediaElementAudioSourceNode or MediaStreamSource
+  const sourceRef = useRef<AudioNode | null>(null);
   const attachedElementRef = useRef<HTMLMediaElement | null>(null);
   const dataRef = useRef<Uint8Array | null>(null);
   const animRef = useRef<number | null>(null);
@@ -56,7 +60,8 @@ const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
 
   const ensureAnalyser = useCallback(async () => {
     if (!analyserRef.current) {
-      const AudioCtor = (window as any).AudioContext || (window as any).webkitAudioContext;
+      const AudioCtor =
+        window.AudioContext || (window as any).webkitAudioContext;
       if (!AudioCtor) {
         setError("Web Audio API not supported");
         console.warn("AudioVisualizer: Web Audio API not supported");
@@ -68,7 +73,10 @@ const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
       }
       const audioCtx = audioContextRef.current!;
       const analyser = audioCtx.createAnalyser();
-      const fftRequested = Math.max(64, Math.pow(2, Math.ceil(Math.log2(barCount * 2))));
+      const fftRequested = Math.max(
+        64,
+        Math.pow(2, Math.ceil(Math.log2(barCount * 2)))
+      );
       analyser.fftSize = Math.min(2048, Math.max(64, fftRequested));
       analyser.smoothingTimeConstant = 0.85;
       analyser.minDecibels = -90;
@@ -78,26 +86,30 @@ const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
     }
   }, [barCount]);
 
-  const computeBarAmps = useCallback((raw: Uint8Array) => {
-    const bins = raw.length;
-    const result: number[] = new Array(barCount).fill(0);
-    const binsPerBar = Math.max(1, Math.floor(bins / barCount));
-    for (let i = 0; i < barCount; i++) {
-      const start = i * binsPerBar;
-      const end = Math.min(start + binsPerBar, bins);
-      let sum = 0;
-      for (let j = start; j < end; j++) sum += raw[j];
-      const avg = sum / (end - start || 1);
-      result[i] = (avg / 255) * sensitivity;
-    }
-    return result;
-  }, [barCount, sensitivity]);
+  const computeBarAmps = useCallback(
+    (raw: Uint8Array) => {
+      const bins = raw.length;
+      const result: number[] = new Array(barCount).fill(0);
+      const binsPerBar = Math.max(1, Math.floor(bins / barCount));
+      for (let i = 0; i < barCount; i++) {
+        const start = i * binsPerBar;
+        const end = Math.min(start + binsPerBar, bins);
+        let sum = 0;
+        for (let j = start; j < end; j++) sum += raw[j];
+        const avg = sum / (end - start || 1);
+        result[i] = (avg / 255) * sensitivity;
+      }
+      return result;
+    },
+    [barCount, sensitivity]
+  );
 
-  // fallback: try captureStream -> createMediaStreamSource
   const tryCaptureStreamSource = useCallback((el: HTMLMediaElement | null) => {
     if (!el || !audioContextRef.current || !analyserRef.current) return false;
     try {
-      const captureFn = (el as any).captureStream || (el as any).mozCaptureStream;
+      const captureFn =
+        (el as HTMLMediaElement).captureStream ||
+        (el as HTMLMediaElement).mozCaptureStream;
       if (!captureFn) {
         console.warn("AudioVisualizer: captureStream not available on element");
         return false;
@@ -111,7 +123,6 @@ const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
       try {
         const msSource = audioCtx.createMediaStreamSource(stream);
         sourceRef.current = msSource;
-        // connect to analyser (do NOT connect analyser -> destination)
         try {
           msSource.connect(analyserRef.current!);
         } catch (e) {
@@ -129,109 +140,102 @@ const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
       return false;
     }
   }, []);
-
-  // Attach strategy: try createMediaElementSource, then fallback to captureStream.
-  // Also probes analyser shortly after attaching; if data is silent, attempt captureStream fallback.
-  const attachSource = useCallback(async (el: HTMLMediaElement | null) => {
-    if (!el) return;
-    try {
-      await ensureAnalyser();
-      const audioCtx = audioContextRef.current!;
-      if (!audioCtx || !analyserRef.current) return;
-
-      // If already attached to same element, skip
-      if (attachedElementRef.current === el) return;
-
-      // Disconnect prior source
-      if (sourceRef.current) {
-        try {
-          sourceRef.current.disconnect();
-        } catch {}
-        sourceRef.current = null;
-      }
-
-      // try createMediaElementSource
-      let usedCreate = false;
+  const attachSource = useCallback(
+    async (el: HTMLMediaElement | null) => {
+      if (!el) return;
       try {
-        // createMediaElementSource can throw if previously created for same element/context
-        const mes = audioCtx.createMediaElementSource(el);
-        sourceRef.current = mes;
-        try {
-          // CRITICAL FIX: Connect to both analyser AND destination to maintain audio output
-          mes.connect(analyserRef.current);
-          mes.connect(audioCtx.destination);
-        } catch (e) {
-          console.warn("AudioVisualizer: mes.connect threw", e);
+        await ensureAnalyser();
+        const audioCtx = audioContextRef.current!;
+        if (!audioCtx || !analyserRef.current) return;
+        if (attachedElementRef.current === el) return;
+        if (sourceRef.current) {
+          try {
+            sourceRef.current.disconnect();
+          } catch {}
+          sourceRef.current = null;
         }
-        attachedElementRef.current = el;
-        usedCreate = true;
-        console.log("AudioVisualizer: attached via createMediaElementSource with destination routing");
-      } catch (err: any) {
-        console.warn("AudioVisualizer: createMediaElementSource failed:", err?.message ?? err);
-        // fallthrough to captureStream attempt below
-      }
 
-      // ensure context resumed (user gesture may be needed)
-      if (audioCtx.state === "suspended") {
+        let usedCreate = false;
         try {
-          await audioCtx.resume();
-          console.log("AudioVisualizer: resumed AudioContext");
-        } catch (e) {
-          console.warn("AudioVisualizer: resume failed", e);
-        }
-      }
-
-      // brief probe: if we used createMediaElementSource, check analyser for audio energy.
-      // If near-silent after short delay, try captureStream fallback.
-      const probe = async () => {
-        const data = dataRef.current;
-        const analyser = analyserRef.current;
-        if (!data || !analyser) return;
-        // sample a few frames
-        const samples = 3;
-        let total = 0;
-        for (let s = 0; s < samples; s++) {
-          analyser.getByteFrequencyData(data);
-          let sum = 0;
-          for (let i = 0; i < data.length; i++) sum += data[i];
-          total += sum;
-          // small delay between samples
-          await new Promise((r) => setTimeout(r, 80));
-        }
-        const avg = total / samples;
-        const threshold = data.length * 2; // empirical: low threshold => probably silent
-        if (avg < threshold) {
-          console.warn("AudioVisualizer: probe indicates low audio energy (avg)", avg, "-> trying captureStream fallback");
-          // attempt fallback
-          if (tryCaptureStreamSource(el)) {
-            return;
-          } else {
-            console.warn("AudioVisualizer: captureStream fallback failed");
+          const mes = audioCtx.createMediaElementSource(el as any);
+          sourceRef.current = mes;
+          try {
+            mes.connect(analyserRef.current);
+            mes.connect(audioCtx.destination);
+          } catch (e) {
+            console.warn("AudioVisualizer: mes.connect threw", e);
           }
-        } else {
-          // good: we have audio energy
-          // nothing to do
+          attachedElementRef.current = el;
+          usedCreate = true;
+          console.log(
+            "AudioVisualizer: attached via createMediaElementSource with destination routing"
+          );
+        } catch (err: unknown) {
+          console.warn(
+            "AudioVisualizer: createMediaElementSource failed:",
+            err?.message ?? err
+          );
         }
-      };
 
-      // run probe only if we used createMediaElementSource (otherwise captureStream already attached)
-      if (usedCreate) {
-        // run probe asynchronously but don't block
-        setTimeout(() => {
-          probe().catch((e) => console.warn("AudioVisualizer: probe error", e));
-        }, 220);
-      } else {
-        // if create failed, attempt captureStream immediately
-        if (!tryCaptureStreamSource(el)) {
-          console.warn("AudioVisualizer: both createMediaElementSource and captureStream failed — visualizer will show idle animation");
+        if (audioCtx.state === "suspended") {
+          try {
+            await audioCtx.resume();
+            console.log("AudioVisualizer: resumed AudioContext");
+          } catch (e) {
+            console.warn("AudioVisualizer: resume failed", e);
+          }
         }
+
+        const probe = async () => {
+          const data = dataRef.current;
+          const analyser = analyserRef.current;
+          if (!data || !analyser) return;
+          const samples = 3;
+          let total = 0;
+          for (let s = 0; s < samples; s++) {
+            analyser.getByteFrequencyData(data);
+            let sum = 0;
+            for (let i = 0; i < data.length; i++) sum += data[i];
+            total += sum;
+            await new Promise((r) => setTimeout(r, 80));
+          }
+          const avg = total / samples;
+          const threshold = data.length * 2;
+          if (avg < threshold) {
+            console.warn(
+              "AudioVisualizer: probe indicates low audio energy (avg)",
+              avg,
+              "-> trying captureStream fallback"
+            );
+            if (tryCaptureStreamSource(el)) {
+              return;
+            } else {
+              console.warn("AudioVisualizer: captureStream fallback failed");
+            }
+          }
+        };
+
+        if (usedCreate) {
+          setTimeout(() => {
+            probe().catch((e) =>
+              console.warn("AudioVisualizer: probe error", e)
+            );
+          }, 220);
+        } else {
+          if (!tryCaptureStreamSource(el)) {
+            console.warn(
+              "AudioVisualizer: both createMediaElementSource and captureStream failed — visualizer will show idle animation"
+            );
+          }
+        }
+        setError(null);
+      } catch (e) {
+        console.error("AudioVisualizer: attachSource error", e);
+        setError(e instanceof Error ? e.message : String(e));
       }
-      setError(null);
-    } catch (e) {
-      console.error("AudioVisualizer: attachSource error", e);
-      setError(e instanceof Error ? e.message : String(e));
-    }
-  }, [ensureAnalyser, tryCaptureStreamSource]);
+    },
+    [ensureAnalyser, tryCaptureStreamSource]
+  );
 
   const draw = useCallback(() => {
     const canvas = canvasRef.current;
@@ -295,9 +299,16 @@ const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
     }
 
     animRef.current = requestAnimationFrame(draw);
-  }, [barCount, barWidth, barSpacing, maxHeight, minHeight, computeBarAmps, decay]);
+  }, [
+    barCount,
+    barWidth,
+    barSpacing,
+    maxHeight,
+    minHeight,
+    computeBarAmps,
+    decay,
+  ]);
 
-  // main effects
   useEffect(() => {
     setupCanvas();
     if (!animRef.current) animRef.current = requestAnimationFrame(draw);
@@ -315,15 +326,15 @@ const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
         await attachSource(audioElement);
       } else {
         console.log("AudioVisualizer: audioElement is null - detaching");
-        // detach existing source
         if (sourceRef.current) {
-          try { sourceRef.current.disconnect(); } catch {}
+          try {
+            sourceRef.current.disconnect();
+          } catch {}
           sourceRef.current = null;
         }
         attachedElementRef.current = null;
       }
     })();
-    // don't close audioContext here - keep ready
   }, [audioElement, attachSource]);
 
   useEffect(() => {
@@ -332,9 +343,16 @@ const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
         cancelAnimationFrame(animRef.current);
         animRef.current = null;
       }
-      try { if (sourceRef.current) sourceRef.current.disconnect(); } catch {}
-      try { if (analyserRef.current) analyserRef.current.disconnect(); } catch {}
-      try { if (audioContextRef.current) audioContextRef.current.close().catch(()=>{}); } catch {}
+      try {
+        if (sourceRef.current) sourceRef.current.disconnect();
+      } catch {}
+      try {
+        if (analyserRef.current) analyserRef.current.disconnect();
+      } catch {}
+      try {
+        if (audioContextRef.current)
+          audioContextRef.current.close().catch(() => {});
+      } catch {}
       audioContextRef.current = null;
       analyserRef.current = null;
       sourceRef.current = null;
@@ -343,21 +361,27 @@ const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
   }, []);
 
   return (
-    <div className={`flex items-center justify-center ${className}`} style={{ minWidth: 0 }}>
+    <div
+      className={`flex items-center justify-center ${className}`}
+      style={{ minWidth: 0 }}
+    >
       <canvas
         ref={canvasRef}
         aria-hidden
         style={{
           display: "block",
           width: "100%",
-          height: `${maxHeight + 12}px`, // Match the increased padding
-          minWidth: `${barCount * (barWidth + barSpacing) + 40}px`, // Ensure minimum width
-          maxWidth: `${barCount * (barWidth + barSpacing) + 80}px`, // Allow more space
+          height: `${maxHeight + 12}px`,
+          minWidth: `${barCount * (barWidth + barSpacing) + 40}px`,
+          maxWidth: `${barCount * (barWidth + barSpacing) + 80}px`,
           filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.25))",
         }}
       />
       {error && (
-        <div className="text-xs text-red-400 mt-1 opacity-70 ml-2" title={error}>
+        <div
+          className="text-xs text-red-400 mt-1 opacity-70 ml-2"
+          title={error}
+        >
           ⚠️ {error}
         </div>
       )}

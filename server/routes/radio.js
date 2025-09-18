@@ -15,7 +15,6 @@ const {
 
 const router = express.Router();
 
-// Request logging middleware
 router.use((req, res, next) => {
   const start = Date.now();
   const originalSend = res.send;
@@ -29,7 +28,6 @@ router.use((req, res, next) => {
   next();
 });
 
-// Utility function for standardized error responses
 const handleError = (res, error, context = 'Operation') => {
   console.error(`❌ ${context} failed:`, error);
   
@@ -45,7 +43,6 @@ const handleError = (res, error, context = 'Operation') => {
   });
 };
 
-// Utility function for standardized success responses
 const sendSuccess = (res, data, message = 'Success', meta = {}) => {
   res.json({
     success: true,
@@ -57,7 +54,6 @@ const sendSuccess = (res, data, message = 'Success', meta = {}) => {
   });
 };
 
-// Input validation middleware
 const validatePagination = (req, res, next) => {
   const { limit, offset } = req.query;
   
@@ -86,7 +82,6 @@ const validatePagination = (req, res, next) => {
   next();
 };
 
-// Rate limiting helper (basic implementation)
 const createRateLimiter = (maxRequests = 100, windowMs = 60000) => {
   const requests = new Map();
   
@@ -95,7 +90,6 @@ const createRateLimiter = (maxRequests = 100, windowMs = 60000) => {
     const now = Date.now();
     const windowStart = now - windowMs;
     
-    // Clean old entries
     if (requests.has(clientIP)) {
       const clientRequests = requests.get(clientIP).filter(time => time > windowStart);
       requests.set(clientIP, clientRequests);
@@ -119,10 +113,7 @@ const createRateLimiter = (maxRequests = 100, windowMs = 60000) => {
   };
 };
 
-// Apply rate limiting to all routes
-router.use(createRateLimiter(200, 60000)); // 200 requests per minute
-
-// GET /api/radio/stations - Get all stations with optional filters
+router.use(createRateLimiter(200, 60000)); 
 router.get('/stations', validatePagination, async (req, res) => {
   try {
     const { limit = 50, offset = 0, countrycode, tag, name, language, order, reverse } = req.query;
@@ -160,12 +151,10 @@ router.get('/stations', validatePagination, async (req, res) => {
   }
 });
 
-// GET /api/radio/search - Search stations by name
 router.get('/search', async (req, res) => {
   try {
     const { q, limit = 20 } = req.query;
     
-    // Validate search query
     if (!q || typeof q !== 'string') {
       return res.status(400).json({
         success: false,
@@ -193,13 +182,10 @@ router.get('/search', async (req, res) => {
   }
 });
 
-// GET /api/radio/country/:countryCode - Get stations by country
 router.get('/country/:countryCode', validatePagination, async (req, res) => {
   try {
     const { countryCode } = req.params;
     const { limit = 50 } = req.query;
-
-    // Validate country code
     if (!countryCode || !/^[a-zA-Z]{2}$/.test(countryCode)) {
       return res.status(400).json({
         success: false,
@@ -219,13 +205,11 @@ router.get('/country/:countryCode', validatePagination, async (req, res) => {
   }
 });
 
-// GET /api/radio/tag/:tagName - Get stations by tag
 router.get('/tag/:tagName', validatePagination, async (req, res) => {
   try {
     const { tagName } = req.params;
     const { limit = 50 } = req.query;
 
-    // Validate tag name
     if (!tagName || typeof tagName !== 'string' || tagName.trim().length === 0) {
       return res.status(400).json({
         success: false,
@@ -245,7 +229,6 @@ router.get('/tag/:tagName', validatePagination, async (req, res) => {
   }
 });
 
-// GET /api/radio/popular - Get popular stations (most clicked)
 router.get('/popular', validatePagination, async (req, res) => {
   try {
     const { limit = 50 } = req.query;
@@ -261,7 +244,6 @@ router.get('/popular', validatePagination, async (req, res) => {
   }
 });
 
-// GET /api/radio/countries - Get list of all countries
 router.get('/countries', async (req, res) => {
   try {
     const countries = await getCountries();
@@ -274,7 +256,6 @@ router.get('/countries', async (req, res) => {
   }
 });
 
-// GET /api/radio/tags - Get list of all tags
 router.get('/tags', async (req, res) => {
   try {
     const { limit = 100 } = req.query;
@@ -290,12 +271,10 @@ router.get('/tags', async (req, res) => {
   }
 });
 
-// POST /api/radio/click/:stationUuid - Record station click (important for API ecosystem)
 router.post('/click/:stationUuid', async (req, res) => {
   try {
     const { stationUuid } = req.params;
     
-    // Validate station UUID
     if (!stationUuid || typeof stationUuid !== 'string') {
       return res.status(400).json({
         success: false,
@@ -323,7 +302,6 @@ router.post('/click/:stationUuid', async (req, res) => {
   }
 });
 
-// GET /api/radio/health - Enhanced health check with server info
 router.get('/health', async (req, res) => {
   try {
     const healthStatus = await healthCheck();
@@ -351,7 +329,6 @@ router.get('/health', async (req, res) => {
   }
 });
 
-// GET /api/radio/server-info - Detailed server information (admin endpoint)
 router.get('/server-info', async (req, res) => {
   try {
     const serverInfo = getServerInfo();
@@ -362,7 +339,6 @@ router.get('/server-info', async (req, res) => {
   }
 });
 
-// POST /api/radio/refresh-cache - Force server cache refresh (admin endpoint)
 router.post('/refresh-cache', async (req, res) => {
   try {
     const newServer = await refreshServerCache();
@@ -376,10 +352,8 @@ router.post('/refresh-cache', async (req, res) => {
   }
 });
 
-// GET /api/radio/stats - Basic statistics endpoint
 router.get('/stats', async (req, res) => {
   try {
-    // Get some basic stats by making sample requests
     const [popularStations, countries] = await Promise.all([
       getPopularStations(1),
       getCountries()
@@ -414,7 +388,6 @@ router.get('/stats', async (req, res) => {
   }
 });
 
-// Error handler for unmatched routes within radio API
 router.use((req, res, next) => {
   res.status(404).json({
     success: false,
@@ -438,7 +411,6 @@ router.use((req, res, next) => {
   });
 });
 
-// Global error handler for this router
 router.use((error, req, res, next) => {
   console.error('🚨 Unhandled route error:', error);
   

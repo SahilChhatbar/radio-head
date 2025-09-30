@@ -41,9 +41,12 @@ const GlobalPlayer: React.FC = () => {
     setIsLoading,
     setIsPlaying,
   } = useRadioStore();
+
   const {
     audioRef,
     audioElement,
+    analyserNode,
+    audioContext,
     isLoading: audioLoading,
     error: audioError,
     streamType,
@@ -551,8 +554,12 @@ const GlobalPlayer: React.FC = () => {
               <Text size="1" className="text-[#FF914D] min-w-8 hidden lg:block">
                 {Math.round((isMuted ? 0 : volume) * 100)}%
               </Text>
+
+              {/* Audio visualizer: pass analyser/audioContext; audioElement only for HLS */}
               <AudioVisualizer
-                audioElement={streamType === "hls" ? audioRef.current : null}
+                audioElement={audioElement ?? undefined}
+                analyserNode={analyserNode ?? undefined}
+                audioContext={audioContext ?? undefined}
                 className="hidden lg:flex"
                 barCount={12}
                 barWidth={6}
@@ -565,9 +572,11 @@ const GlobalPlayer: React.FC = () => {
                     ? 1.1
                     : 1.0
                 }
+                decay={0.88}
               />
             </Flex>
           </Flex>
+
           {audioError && (
             <Flex
               align="center"
@@ -598,6 +607,7 @@ const GlobalPlayer: React.FC = () => {
               )}
             </Flex>
           )}
+
           {audioLoading && !audioError && (
             <Flex align="center" gap="2" className="mt-2">
               <div className="w-4 h-4 border-2 border-[#FF914D] border-t-transparent rounded-full animate-spin flex-shrink-0" />
@@ -614,6 +624,7 @@ const GlobalPlayer: React.FC = () => {
               </Flex>
             </Flex>
           )}
+
           {stationQuality &&
             (stationQuality.warnings.length > 0 ||
               stationQuality.issues.length > 0) &&
@@ -639,6 +650,7 @@ const GlobalPlayer: React.FC = () => {
                 </Flex>
               </Flex>
             )}
+
           {process.env.NODE_ENV === "development" &&
             streamType &&
             !audioError &&

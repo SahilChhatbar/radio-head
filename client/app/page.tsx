@@ -7,7 +7,7 @@ import StationSelector from "@/components/StationSelector";
 import { useRadioStore } from "@/store/useRadiostore";
 
 const DEFAULT_HERO_CONTENT = {
-  title: "Welcome to RadioHead",
+  title: "Welcome to RadioVerse",
   subtitle:
     "Your ultimate radio streaming experience. Discover, listen, and enjoy music from around the world with crystal-clear quality.",
 };

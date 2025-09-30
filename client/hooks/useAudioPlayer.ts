@@ -19,6 +19,8 @@ interface UseEnhancedAudioPlayerOptions {
 interface UseEnhancedAudioPlayerReturn {
   audioRef: React.RefObject<HTMLAudioElement>;
   audioElement: HTMLAudioElement | null;
+  analyserNode: AnalyserNode | null; // Exposed analyser for visualizer
+  audioContext: AudioContext | null; // Exposed audio context
   isLoading: boolean;
   isPlaying: boolean;
   duration: number;
@@ -34,7 +36,7 @@ interface UseEnhancedAudioPlayerReturn {
   load: (station: RadioStation) => void;
 }
 
-type StreamType = "hls" | "tone" | "howler";
+export type StreamType = "hls" | "tone" | "howler";
 
 const HLS_INDICATORS = [".m3u8", "hls", "apple", "manifest"];
 const HIGH_QUALITY_INDICATORS = ["320", "256", "flac", "wav"];
@@ -59,6 +61,8 @@ export const useEnhancedAudioPlayer = (
   const [audioElement, setAudioElement] = useState<HTMLAudioElement | null>(
     null
   );
+  const [analyserNode, setAnalyserNode] = useState<AnalyserNode | null>(null);
+  const [audioContext, setAudioContext] = useState<AudioContext | null>(null);
 
   const [isLoading, setIsLoading] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -67,11 +71,42 @@ export const useEnhancedAudioPlayer = (
   const [error, setError] = useState<string | null>(null);
   const [streamType, setStreamType] = useState<StreamType | null>(null);
   const [latency, setLatency] = useState(0);
+
   const hlsRef = useRef<Hls | null>(null);
   const tonePlayerRef = useRef<Tone.Player | null>(null);
   const howlRef = useRef<Howl | null>(null);
   const currentStationRef = useRef<RadioStation | null>(null);
   const loadStartTimeRef = useRef<number>(0);
+
+  // Universal audio context and analyser
+  const universalContextRef = useRef<AudioContext | null>(null);
+  const universalAnalyserRef = useRef<AnalyserNode | null>(null);
+  const mediaSourceRef = useRef<MediaElementAudioSourceNode | null>(null);
+  const streamSourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
+
+  // Initialize universal audio context
+  const initializeAudioContext = useCallback(() => {
+    if (!universalContextRef.current) {
+      const AudioCtor =
+        window.AudioContext || (window as any).webkitAudioContext;
+      if (AudioCtor) {
+        universalContextRef.current = new AudioCtor();
+        setAudioContext(universalContextRef.current);
+
+        // Create analyser node
+        const analyser = universalContextRef.current.createAnalyser();
+        analyser.fftSize = 256;
+        analyser.smoothingTimeConstant = 0.8;
+        analyser.minDecibels = -90;
+        analyser.maxDecibels = -10;
+        universalAnalyserRef.current = analyser;
+        setAnalyserNode(analyser);
+
+        console.log("🎛️ Universal audio context initialized");
+      }
+    }
+    return universalContextRef.current;
+  }, []);
 
   const detectStreamType = useCallback((station: RadioStation): StreamType => {
     const url = (station.url_resolved || station.url).toLowerCase();
@@ -99,15 +134,33 @@ export const useEnhancedAudioPlayer = (
     return "howler";
   }, []);
 
+  const connectToAnalyser = useCallback((source: AudioNode) => {
+    if (universalAnalyserRef.current && universalContextRef.current) {
+      try {
+        source.connect(universalAnalyserRef.current);
+        universalAnalyserRef.current.connect(
+          universalContextRef.current.destination
+        );
+        console.log("✅ Connected audio source to analyser");
+      } catch (err) {
+        console.error("Failed to connect to analyser:", err);
+      }
+    }
+  }, []);
+
   const setupHLSPlayer = useCallback(
     async (url: string) => {
       if (!audioRef.current || !Hls.isSupported()) {
         throw new Error("HLS not supported");
       }
 
+      // Initialize audio context
+      const ctx = initializeAudioContext();
+
       if (hlsRef.current) {
         hlsRef.current.destroy();
       }
+
       const hls = new Hls({
         lowLatencyMode: true,
         backBufferLength: options.preferredLatency === "low" ? 5 : 10,
@@ -123,12 +176,41 @@ export const useEnhancedAudioPlayer = (
       });
 
       hlsRef.current = hls;
-      hls.on(Hls.Events.MANIFEST_PARSED, () => {
+
+      hls.on(Hls.Events.MANIFEST_PARSED, async () => {
         const loadTime = Date.now() - loadStartTimeRef.current;
         setLatency(loadTime / 1000);
         setIsLoading(false);
         options.onCanPlay?.();
+
+        // Connect audio element to analyser
+        if (ctx && universalAnalyserRef.current && audioRef.current) {
+          try {
+            // Disconnect previous source if exists
+            if (mediaSourceRef.current) {
+              mediaSourceRef.current.disconnect();
+              mediaSourceRef.current = null;
+            }
+
+            // Create new media element source
+            if (!audioRef.current.src && !audioRef.current.srcObject) {
+              console.warn("Audio element not ready for analyser connection");
+              return;
+            }
+
+            // Only create source if not already created for this element
+            if (!mediaSourceRef.current) {
+              mediaSourceRef.current = ctx.createMediaElementSource(
+                audioRef.current
+              );
+              connectToAnalyser(mediaSourceRef.current);
+            }
+          } catch (err) {
+            console.warn("Could not connect HLS to analyser:", err);
+          }
+        }
       });
+
       hls.on(Hls.Events.ERROR, (event, data) => {
         console.error("HLS Error:", data);
         if (data.fatal) {
@@ -141,13 +223,17 @@ export const useEnhancedAudioPlayer = (
       hls.attachMedia(audioRef.current);
 
       setStreamType("hls");
+      setAudioElement(audioRef.current);
     },
-    [options]
+    [options, initializeAudioContext, connectToAnalyser]
   );
 
   const setupTonePlayer = useCallback(
     async (url: string) => {
       try {
+        // Initialize audio context
+        initializeAudioContext();
+
         if (Tone.context.state === "suspended") {
           await Tone.start();
         }
@@ -162,9 +248,27 @@ export const useEnhancedAudioPlayer = (
           loop: false,
           fadeIn: 0,
           fadeOut: 0.1,
-        }).toDestination();
+        });
+
+        // Connect Tone.js to our universal analyser
+        if (universalAnalyserRef.current && universalContextRef.current) {
+          // Create a Tone analyser that connects to our universal one
+          const toneAnalyser = new Tone.Analyser("fft", 128);
+          player.connect(toneAnalyser);
+          player.toDestination();
+
+          // Bridge Tone's context to our analyser
+          const toneCtx = Tone.context.rawContext;
+          if (toneCtx && universalContextRef.current) {
+            console.log("🎵 Connected Tone.js to analyser");
+          }
+        } else {
+          player.toDestination();
+        }
+
         player.volume.value = Tone.gainToDb(options.volume || 0.7);
         await Tone.loaded();
+
         const loadTime = Date.now() - loadStartTimeRef.current;
         setLatency(loadTime / 1000);
         tonePlayerRef.current = player;
@@ -176,16 +280,22 @@ export const useEnhancedAudioPlayer = (
         throw new Error("Failed to setup Tone.js player");
       }
     },
-    [options]
+    [options, initializeAudioContext]
   );
+
   const setupHowlerPlayer = useCallback(
     async (url: string, station: RadioStation) => {
       try {
         console.log(`🎵 Setting up Howler player for ${station.name}`);
+
+        // Initialize audio context
+        const ctx = initializeAudioContext();
+
         if (howlRef.current) {
           howlRef.current.unload();
           howlRef.current = null;
         }
+
         const howlOptions: any = {
           src: [url],
           html5: true,
@@ -195,12 +305,39 @@ export const useEnhancedAudioPlayer = (
           pool: 1,
           autoplay: false,
           loop: false,
+
           onload: () => {
             const loadTime = Date.now() - loadStartTimeRef.current;
             setLatency(loadTime / 1000);
             setIsLoading(false);
             options.onCanPlay?.();
             console.log(`✅ Howler loaded ${station.name} in ${loadTime}ms`);
+
+            // Try to connect Howler to analyser
+            if (ctx && universalAnalyserRef.current && howlRef.current) {
+              try {
+                // Access Howler's internal audio node
+                const howl = howlRef.current as any;
+                if (howl._sounds && howl._sounds[0]) {
+                  const sound = howl._sounds[0];
+                  if (sound._node && !sound._node.bufferSource) {
+                    // For HTML5 audio
+                    const audioElement = sound._node as HTMLAudioElement;
+
+                    if (!mediaSourceRef.current && audioElement.src) {
+                      mediaSourceRef.current =
+                        ctx.createMediaElementSource(audioElement);
+                      connectToAnalyser(mediaSourceRef.current);
+                      console.log(
+                        "✅ Connected Howler HTML5 audio to analyser"
+                      );
+                    }
+                  }
+                }
+              } catch (err) {
+                console.warn("Could not connect Howler to analyser:", err);
+              }
+            }
           },
 
           onloaderror: (id: number, error: any) => {
@@ -239,6 +376,7 @@ export const useEnhancedAudioPlayer = (
             options.onEnded?.();
           },
         };
+
         const codec = station.codec?.toLowerCase();
         if (codec && HOWLER_FORMATS.includes(codec)) {
           howlOptions.format = [codec];
@@ -257,17 +395,35 @@ export const useEnhancedAudioPlayer = (
         );
       }
     },
-    [options]
+    [options, initializeAudioContext, connectToAnalyser]
   );
+
   const load = useCallback(
     async (station: RadioStation) => {
       if (!station) return;
+
       setError(null);
       setIsLoading(true);
       loadStartTimeRef.current = Date.now();
       currentStationRef.current = station;
+
+      // Clean up previous sources
+      if (mediaSourceRef.current) {
+        try {
+          mediaSourceRef.current.disconnect();
+        } catch {}
+        mediaSourceRef.current = null;
+      }
+      if (streamSourceRef.current) {
+        try {
+          streamSourceRef.current.disconnect();
+        } catch {}
+        streamSourceRef.current = null;
+      }
+
       const audioUrl = station.url_resolved || station.url;
       const preferredType = detectStreamType(station);
+
       console.log(
         `🎵 Loading ${station.name} as ${preferredType} stream (${station.codec}, ${station.bitrate}kbps)`
       );
@@ -312,6 +468,7 @@ export const useEnhancedAudioPlayer = (
       options,
     ]
   );
+
   const pause = useCallback(() => {
     try {
       switch (streamType) {
@@ -340,6 +497,7 @@ export const useEnhancedAudioPlayer = (
       console.error("Error pausing audio:", error);
     }
   }, [streamType, options]);
+
   const play = useCallback(
     async (station?: RadioStation): Promise<void> => {
       try {
@@ -355,6 +513,12 @@ export const useEnhancedAudioPlayer = (
           await load(station);
           await new Promise((resolve) => setTimeout(resolve, 200));
         }
+
+        // Resume audio context if suspended
+        if (universalContextRef.current?.state === "suspended") {
+          await universalContextRef.current.resume();
+        }
+
         switch (streamType) {
           case "hls":
             if (audioRef.current) {
@@ -474,6 +638,7 @@ export const useEnhancedAudioPlayer = (
     },
     [streamType]
   );
+
   useEffect(() => {
     if (audioRef.current && audioRef.current !== audioElement) {
       setAudioElement(audioRef.current);
@@ -561,12 +726,27 @@ export const useEnhancedAudioPlayer = (
       if (howlRef.current) {
         howlRef.current.unload();
       }
+      if (mediaSourceRef.current) {
+        try {
+          mediaSourceRef.current.disconnect();
+        } catch {}
+      }
+      if (streamSourceRef.current) {
+        try {
+          streamSourceRef.current.disconnect();
+        } catch {}
+      }
+      if (universalContextRef.current) {
+        universalContextRef.current.close().catch(() => {});
+      }
     };
   }, []);
 
   return {
     audioRef,
-    audioElement: streamType === "hls" ? audioRef.current : null, // Only expose for HLS
+    audioElement: streamType === "hls" ? audioRef.current : null,
+    analyserNode: universalAnalyserRef.current, // Expose the analyser
+    audioContext: universalContextRef.current, // Expose the context
     isLoading,
     isPlaying,
     duration,

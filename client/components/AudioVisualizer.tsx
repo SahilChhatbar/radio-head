@@ -7,7 +7,9 @@ interface HTMLMediaElement {
 }
 
 interface AudioVisualizerProps {
-  audioElement: HTMLMediaElement | null;
+  audioElement?: HTMLMediaElement | null;
+  analyserNode?: AnalyserNode | null; // Direct analyser node (optional)
+  audioContext?: AudioContext | null; // External audio context (optional)
   className?: string;
   barCount?: number;
   barWidth?: number;
@@ -20,6 +22,8 @@ interface AudioVisualizerProps {
 
 const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
   audioElement,
+  analyserNode,
+  audioContext,
   className = "",
   barCount = 8,
   barWidth = 2,
@@ -30,14 +34,26 @@ const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
   decay = 0.88,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const analyserRef = useRef<AnalyserNode | null>(null);
+
+  // Local fallback contexts/analyser (used when props not provided)
+  const localAudioContextRef = useRef<AudioContext | null>(null);
+  const localAnalyserRef = useRef<AnalyserNode | null>(null);
+
+  // Track whether we created the local AudioContext so we don't close external one
+  const createdLocalAudioContextRef = useRef(false);
+
   const sourceRef = useRef<AudioNode | null>(null);
   const attachedElementRef = useRef<HTMLMediaElement | null>(null);
   const dataRef = useRef<Uint8Array | null>(null);
   const animRef = useRef<number | null>(null);
   const prevAmpsRef = useRef<number[]>(Array(barCount).fill(0));
   const [error, setError] = useState<string | null>(null);
+  const [_isActive, setIsActive] = useState(false);
+
+  // Keep prevAmps in sync if barCount changes
+  useEffect(() => {
+    prevAmpsRef.current = new Array(barCount).fill(0);
+  }, [barCount]);
 
   const setupCanvas = useCallback(() => {
     const canvas = canvasRef.current;
@@ -58,8 +74,31 @@ const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
     if (ctx) ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   }, [barCount, barWidth, barSpacing, maxHeight]);
 
+  /**
+   * Ensure there's an analyser available to read data from.
+   * Priority:
+   * 1) analyserNode prop (use as-is)
+   * 2) create analyser on provided audioContext prop
+   * 3) create local AudioContext + analyser
+   */
   const ensureAnalyser = useCallback(async () => {
-    if (!analyserRef.current) {
+    // If external analyser node provided, use that
+    if (analyserNode) {
+      localAnalyserRef.current = analyserNode;
+      try {
+        dataRef.current = new Uint8Array(analyserNode.frequencyBinCount);
+      } catch {
+        // defensive: if frequencyBinCount not present for some reason
+        dataRef.current = new Uint8Array(2048);
+      }
+      setIsActive(true);
+      return;
+    }
+
+    // Determine audio context to use (external or local)
+    let ctx = audioContext ?? localAudioContextRef.current;
+
+    if (!ctx) {
       const AudioCtor =
         window.AudioContext || (window as any).webkitAudioContext;
       if (!AudioCtor) {
@@ -67,12 +106,15 @@ const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
         console.warn("AudioVisualizer: Web Audio API not supported");
         return;
       }
-      if (!audioContextRef.current) {
-        audioContextRef.current = new AudioCtor();
-        console.log("AudioVisualizer: created AudioContext");
-      }
-      const audioCtx = audioContextRef.current!;
-      const analyser = audioCtx.createAnalyser();
+      localAudioContextRef.current = new AudioCtor();
+      createdLocalAudioContextRef.current = true;
+      ctx = localAudioContextRef.current;
+      console.log("AudioVisualizer: created local AudioContext");
+    }
+
+    // Only create analyser if we don't already have one (and no external analyser prop)
+    if (!localAnalyserRef.current) {
+      const analyser = ctx.createAnalyser();
       const fftRequested = Math.max(
         64,
         Math.pow(2, Math.ceil(Math.log2(barCount * 2)))
@@ -81,73 +123,114 @@ const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
       analyser.smoothingTimeConstant = 0.85;
       analyser.minDecibels = -90;
       analyser.maxDecibels = -10;
-      analyserRef.current = analyser;
+      localAnalyserRef.current = analyser;
       dataRef.current = new Uint8Array(analyser.frequencyBinCount);
     }
-  }, [barCount]);
 
+    setIsActive(true);
+  }, [analyserNode, audioContext, barCount]);
+
+  /**
+   * Convert frequency bins into per-bar amplitude values [0..~1] adjusted by sensitivity.
+   */
   const computeBarAmps = useCallback(
     (raw: Uint8Array) => {
       const bins = raw.length;
       const result: number[] = new Array(barCount).fill(0);
       const binsPerBar = Math.max(1, Math.floor(bins / barCount));
+
       for (let i = 0; i < barCount; i++) {
         const start = i * binsPerBar;
         const end = Math.min(start + binsPerBar, bins);
         let sum = 0;
         for (let j = start; j < end; j++) sum += raw[j];
         const avg = sum / (end - start || 1);
+        // Normalize 0..255 then apply sensitivity
         result[i] = (avg / 255) * sensitivity;
       }
+
       return result;
     },
     [barCount, sensitivity]
   );
 
-  const tryCaptureStreamSource = useCallback((el: HTMLMediaElement | null) => {
-    if (!el || !audioContextRef.current || !analyserRef.current) return false;
-    try {
-      const captureFn =
-        (el as HTMLMediaElement).captureStream ||
-        (el as HTMLMediaElement).mozCaptureStream;
-      if (!captureFn) {
-        console.warn("AudioVisualizer: captureStream not available on element");
-        return false;
-      }
-      const stream: MediaStream = captureFn.call(el);
-      if (!stream) {
-        console.warn("AudioVisualizer: captureStream returned null");
-        return false;
-      }
-      const audioCtx = audioContextRef.current!;
+  /**
+   * Try to attach via captureStream fallback (useful on some browsers or cross-origin media).
+   * Will create a MediaStreamSource from element.captureStream() and connect to analyser.
+   */
+  const tryCaptureStreamSource = useCallback(
+    (el: HTMLMediaElement | null) => {
+      if (!el) return false;
+
+      // Need an AudioContext to create a MediaStreamSource
+      const audioCtx = audioContext ?? localAudioContextRef.current;
+      const analyser = localAnalyserRef.current;
+      if (!audioCtx || !analyser) return false;
+
       try {
-        const msSource = audioCtx.createMediaStreamSource(stream);
-        sourceRef.current = msSource;
-        try {
-          msSource.connect(analyserRef.current!);
-        } catch (e) {
-          console.warn("AudioVisualizer: msSource.connect threw", e);
+        const captureFn =
+          (el as any).captureStream || (el as any).mozCaptureStream;
+        if (!captureFn) {
+          console.warn(
+            "AudioVisualizer: captureStream not available on element"
+          );
+          return false;
         }
-        attachedElementRef.current = el;
-        console.log("AudioVisualizer: attached via captureStream fallback");
-        return true;
+        const stream: MediaStream = captureFn.call(el);
+        if (!stream) {
+          console.warn("AudioVisualizer: captureStream returned null");
+          return false;
+        }
+
+        try {
+          const msSource = audioCtx.createMediaStreamSource(stream);
+          sourceRef.current = msSource;
+          try {
+            msSource.connect(analyser);
+          } catch (e) {
+            console.warn("AudioVisualizer: msSource.connect threw", e);
+          }
+          attachedElementRef.current = el;
+          console.log("AudioVisualizer: attached via captureStream fallback");
+          return true;
+        } catch (e) {
+          console.warn("AudioVisualizer: createMediaStreamSource failed", e);
+          return false;
+        }
       } catch (e) {
-        console.warn("AudioVisualizer: createMediaStreamSource failed", e);
+        console.warn("AudioVisualizer: captureStream error", e);
         return false;
       }
-    } catch (e) {
-      console.warn("AudioVisualizer: captureStream error", e);
-      return false;
-    }
-  }, []);
+    },
+    [audioContext]
+  );
+
+  /**
+   * Attach a media element to the analyser, using the provided or local audio context.
+   * Attempts:
+   *  - createMediaElementSource on chosen audio context (audioContext prop OR local)
+   *  - if that fails or seems to produce low energy, probe and try captureStream fallback
+   */
   const attachSource = useCallback(
     async (el: HTMLMediaElement | null) => {
       if (!el) return;
       try {
         await ensureAnalyser();
-        const audioCtx = audioContextRef.current!;
-        if (!audioCtx || !analyserRef.current) return;
+
+        // Choose the audio context to use for creating sources:
+        const audioCtx = audioContext ?? localAudioContextRef.current;
+        const analyser = localAnalyserRef.current;
+        if (!audioCtx || !analyser) {
+          // If analyserNode prop was provided but no audioContext prop, we may still attempt captureStream:
+          if (analyserNode && tryCaptureStreamSource(el)) {
+            setError(null);
+            return;
+          }
+          return;
+        }
+
         if (attachedElementRef.current === el) return;
+
         if (sourceRef.current) {
           try {
             sourceRef.current.disconnect();
@@ -157,26 +240,33 @@ const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
 
         let usedCreate = false;
         try {
-          const mes = audioCtx.createMediaElementSource(el as any);
+          // createMediaElementSource must be called on the audio context that will own the source
+          const mes = (audioCtx as AudioContext).createMediaElementSource(
+            el as any
+          );
           sourceRef.current = mes;
           try {
-            mes.connect(analyserRef.current);
-            mes.connect(audioCtx.destination);
+            mes.connect(analyser);
+            // also route to destination so audio plays (unless external audio is already playing)
+            try {
+              mes.connect((audioCtx as AudioContext).destination);
+            } catch (e) {
+              // not fatal
+            }
           } catch (e) {
             console.warn("AudioVisualizer: mes.connect threw", e);
           }
           attachedElementRef.current = el;
           usedCreate = true;
-          console.log(
-            "AudioVisualizer: attached via createMediaElementSource with destination routing"
-          );
+          console.log("AudioVisualizer: attached via createMediaElementSource");
         } catch (err: unknown) {
           console.warn(
             "AudioVisualizer: createMediaElementSource failed:",
-            err?.message ?? err
+            err?.toString?.() ?? err
           );
         }
 
+        // If audioCtx suspended, resume it
         if (audioCtx.state === "suspended") {
           try {
             await audioCtx.resume();
@@ -186,14 +276,15 @@ const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
           }
         }
 
+        // Probe the analyser to ensure audio energy is present; if not, try captureStream fallback
         const probe = async () => {
           const data = dataRef.current;
-          const analyser = analyserRef.current;
-          if (!data || !analyser) return;
+          const a = localAnalyserRef.current;
+          if (!data || !a) return;
           const samples = 3;
           let total = 0;
           for (let s = 0; s < samples; s++) {
-            analyser.getByteFrequencyData(data);
+            a.getByteFrequencyData(data);
             let sum = 0;
             for (let i = 0; i < data.length; i++) sum += data[i];
             total += sum;
@@ -228,19 +319,20 @@ const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
             );
           }
         }
+
         setError(null);
       } catch (e) {
         console.error("AudioVisualizer: attachSource error", e);
         setError(e instanceof Error ? e.message : String(e));
       }
     },
-    [ensureAnalyser, tryCaptureStreamSource]
+    [ensureAnalyser, audioContext, analyserNode, tryCaptureStreamSource]
   );
 
   const draw = useCallback(() => {
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext("2d");
-    const analyser = analyserRef.current;
+    const analyser = localAnalyserRef.current;
     const data = dataRef.current;
     const prev = prevAmpsRef.current;
 
@@ -256,8 +348,14 @@ const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
 
     let amps: number[] = new Array(barCount).fill(0);
     if (analyser && data) {
-      analyser.getByteFrequencyData(data);
-      amps = computeBarAmps(data);
+      try {
+        analyser.getByteFrequencyData(data);
+        amps = computeBarAmps(data);
+      } catch (e) {
+        // If the analyser belongs to a different context or something else fails,
+        // fall back to idle animation
+        console.warn("AudioVisualizer: getByteFrequencyData failed", e);
+      }
     } else {
       const t = Date.now() / 800;
       for (let i = 0; i < barCount; i++) {
@@ -274,6 +372,7 @@ const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
       if (target >= p) {
         p = target;
       } else {
+        // decay mixing (smoothed fall)
         p = p * decay + target * (1 - decay);
       }
       prev[i] = p;
@@ -293,6 +392,7 @@ const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
       } else {
         gradient.addColorStop(0, "rgba(255,145,77,0.35)");
         gradient.addColorStop(1, "rgba(255,145,77,0.12)");
+        ctx.shadowBlur = 0;
       }
       ctx.fillStyle = gradient;
       ctx.fillRect(Math.round(x), Math.round(y), barWidth, Math.round(barH));
@@ -309,6 +409,7 @@ const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
     decay,
   ]);
 
+  // Initialize canvas + animation frame
   useEffect(() => {
     setupCanvas();
     if (!animRef.current) animRef.current = requestAnimationFrame(draw);
@@ -319,6 +420,7 @@ const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
     };
   }, [setupCanvas, draw]);
 
+  // Watch audioElement changes and attach/detach source
   useEffect(() => {
     (async () => {
       if (audioElement) {
@@ -337,6 +439,7 @@ const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
     })();
   }, [audioElement, attachSource]);
 
+  // Cleanup on unmount
   useEffect(() => {
     return () => {
       if (animRef.current) {
@@ -347,14 +450,19 @@ const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
         if (sourceRef.current) sourceRef.current.disconnect();
       } catch {}
       try {
-        if (analyserRef.current) analyserRef.current.disconnect();
+        if (localAnalyserRef.current) localAnalyserRef.current.disconnect();
       } catch {}
       try {
-        if (audioContextRef.current)
-          audioContextRef.current.close().catch(() => {});
+        // close local audio context only if we created it (don't close external one)
+        if (
+          createdLocalAudioContextRef.current &&
+          localAudioContextRef.current
+        ) {
+          localAudioContextRef.current.close().catch(() => {});
+        }
       } catch {}
-      audioContextRef.current = null;
-      analyserRef.current = null;
+      localAudioContextRef.current = null;
+      localAnalyserRef.current = null;
       sourceRef.current = null;
       dataRef.current = null;
     };

@@ -20,11 +20,11 @@ const LoadingScreen: React.FC<LoaderProps> = ({ variant = "default" }) => {
                 <div className="absolute inset-0 rounded-full border-4 border-transparent border-t-[#ff914d] border-r-[#ff914d] animate-spin"></div>
                 {/* Logo in center */}
                 <div className="absolute inset-4 flex items-center justify-center">
-                  <Image 
-                    src={logo} 
-                    width={120} 
-                    height={120} 
-                    alt="radiohead" 
+                  <Image
+                    src={logo}
+                    width={120}
+                    height={120}
+                    alt="radioverse"
                     className="object-contain animate-bounce"
                   />
                 </div>
@@ -46,7 +46,7 @@ const LoadingScreen: React.FC<LoaderProps> = ({ variant = "default" }) => {
               size={{ initial: "6", sm: "8" }}
               className="text-foreground"
             >
-             Tuning in
+              Tuning in
               <span className="loading-dots"></span>
             </Heading>
           </Flex>

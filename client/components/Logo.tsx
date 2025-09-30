@@ -63,7 +63,7 @@ const Logo = ({
               Radio
             </Heading>
             <Heading size={textSize} weight="bold">
-              Head
+              Verse
             </Heading>
           </Flex>
         )}
@@ -88,7 +88,7 @@ const Logo = ({
             </Heading>
             <div style={{ marginTop: "-4px" }}>
               <Heading size={textSize} weight="bold">
-                Head
+                Verse
               </Heading>
             </div>
           </Flex>

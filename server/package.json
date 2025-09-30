@@ -1,5 +1,5 @@
 {
-  "name": "radiohead-server",
+  "name": "RadioVerse-server",
   "version": "2.0.0",
   "description": "Professional Radio Browser API server with enhanced reliability and monitoring",
   "main": "index.js",
@@ -61,10 +61,10 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/your-username/radiohead-server.git"
+    "url": "https://github.com/your-username/RadioVerse-server.git"
   },
   "bugs": {
-    "url": "https://github.com/your-username/radiohead-server/issues"
+    "url": "https://github.com/your-username/RadioVerse-server/issues"
   },
-  "homepage": "https://github.com/your-username/radiohead-server#readme"
+  "homepage": "https://github.com/your-username/RadioVerse-server#readme"
 }

@@ -99,7 +99,7 @@ app.use('/api/radio', radioRoutes);
 
 app.get('/', (req, res) => {
   const serverInfo = {
-    name: 'RadioHead API Server',
+    name: 'RadioVerse API Server',
     version: '2.0.0',
     status: 'operational',
     timestamp: new Date().toISOString(),
@@ -162,7 +162,7 @@ app.get('/api/health', async (req, res) => {
 
 app.get('/api/docs', (req, res) => {
   const docs = {
-    title: 'RadioHead API Documentation',
+    title: 'RadioVerse API Documentation',
     version: '2.0.0',
     baseUrl: req.protocol + '://' + req.get('host') + '/api/radio',
     endpoints: [
@@ -350,7 +350,7 @@ const gracefulShutdown = (signal) => {
   console.log(`\n🔄 Received ${signal}. Starting graceful shutdown...`);
   
   const server = app.listen(PORT, () => {
-    console.log(`🚀 RadioHead API Server is running!`);
+    console.log(`🚀 RadioVerse API Server is running!`);
     console.log(`📡 Environment: ${NODE_ENV}`);
     console.log(`🌐 Server: http://localhost:${PORT}`);
     console.log(`📖 Documentation: http://localhost:${PORT}/api/docs`);

@@ -1,8 +1,9 @@
-# RadioHead - Retro Radio Streaming App
+# RadioVerse - Retro Radio Streaming App
 
 A vintage-inspired radio application that allows users to stream stations worldwide with interactive visualizations and location-based features.
 
 ## Tech Stack
+
 - Next.js with TypeScript
 - Tailwind CSS
 - Radix UI + Lucide icons
@@ -14,7 +15,9 @@ A vintage-inspired radio application that allows users to stream stations worldw
 - TanStack Query for data fetching
 
 ## Getting Started
+
 A Next js typescript project, with installed packages such as
+
 - Next.js with TypeScript
 - Tailwind CSS
 - Radix UI + Lucide icons
@@ -26,9 +29,11 @@ A Next js typescript project, with installed packages such as
 - TanStack Query for data fetching
 
 ## Features
+
 [Core feature descriptions]
 
 ## Project Structure
+
 - assets for custom images
 - components for reusable elements
 - hooks for custom defining hooks
@@ -38,15 +43,17 @@ A Next js typescript project, with installed packages such as
 
 It is supposed to follow this structure:
 
-radiohead/
-├── client/          <-- All frontend files are now in here
-└── server/          <-- This is empty, ready for Express backend
+RadioVerse/
+├── client/ <-- All frontend files are now in here
+└── server/ <-- This is empty, ready for Express backend
 
 ## API Documentation
+
 [Links to internal API docs]
 
 ## Roadmap
-18th may 2025: Set up the project called "radiohead" using Next js, installed all the libraries required for planned feature.
+
+18th may 2025: Set up the project called "RadioVerse" using Next js, installed all the libraries required for planned feature.
 
 19th may 2025: Created a proper folder structure for better readability and accessibility. Also configured the import path for better readability.
 
@@ -58,9 +65,9 @@ radiohead/
 
 23rd may 2025: Created Logo component.
 
-24th may 2025: Created a Structure of Header, subject to change. 
+24th may 2025: Created a Structure of Header, subject to change.
 
-29th jun 2025: Add suspense and lazy loading 
+29th jun 2025: Add suspense and lazy loading
 
 5th jul 2025: Code cleanup and station selector creation, integraation
 
@@ -68,7 +75,7 @@ radiohead/
 
 18th jul 2025: try to change the implementation of the station selector
 
-19th jul 2025: finalised the UI and working of the  station selector
+19th jul 2025: finalised the UI and working of the station selector
 
 20th jul 2025: defined type interfaces for components, also changed the nomanclature in station selector- replaced speed with stations
 
@@ -76,15 +83,15 @@ radiohead/
 
 10th aug 2025: define folder structure for server.
 
-24th aug 2025: Radio Browser API integration, defined store using zustand. 
+24th aug 2025: Radio Browser API integration, defined store using zustand.
 
-30th & 31st aug 2025: Created global sticky player like in spotify, UI enhancements. 
+30th & 31st aug 2025: Created global sticky player like in spotify, UI enhancements.
 
 6th aug 2025: Audio visualizer integration
 
-7th aug 2025: Enhanced audio streaming using hls and tone 
-*Make the audio format and unplayable handling better, still needs improvement for mp3 codec stations
-## Contributing
+7th aug 2025: Enhanced audio streaming using hls and tone
+\*Make the audio format and unplayable handling better, still needs improvement for mp3 codec stations
 
+## Contributing
 
 [Guidelines for contributing]

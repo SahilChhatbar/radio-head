@@ -331,7 +331,7 @@ class StationFilterService {
         method: "HEAD",
         signal: controller.signal,
         headers: {
-          "User-Agent": "RadioHead/1.0",
+          "User-Agent": "RadioVerse/1.0",
           Accept: "audio/*,application/vnd.apple.mpegurl,*/*;q=0.1",
         },
       });

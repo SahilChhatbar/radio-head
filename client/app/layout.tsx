@@ -33,7 +33,7 @@ const roboto = Roboto({
 });
 
 export const metadata: Metadata = {
-  title: "RadioHead",
+  title: "RadioVerse",
   description: "Radio streaming application",
   icons: {
     icon: "/base.png",

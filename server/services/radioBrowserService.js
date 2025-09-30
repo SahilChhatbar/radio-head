@@ -12,7 +12,7 @@ const CONFIG = {
   MAX_LIMIT: 1000,
   
   // User agent (speaking HTTP agent string as required)
-  USER_AGENT: 'RadioHead/1.0 (https://radiohead-app.com)',
+  USER_AGENT: 'RadioVerse/1.0 (https://RadioVerse-app.com)',
   
   // Fallback servers (geographically distributed)
   FALLBACK_SERVERS: [

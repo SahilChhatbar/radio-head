@@ -9,12 +9,12 @@ const LoadingScreen: React.FC = () => {
       <Box>
         <Flex align="center" justify="center" minHeight={"100vh"}>
           <Flex direction="column" align="center" justify="center" gap="4">
-            <Image src={logo} width={200} alt="radiohead" />
+            <Image src={logo} width={200} alt="RadioVerse" />
             <Heading
               size={{ initial: "6", sm: "8" }}
               className="text-foreground"
             >
-             Tuning in
+              Tuning in
               <span className="loading-dots"></span>
             </Heading>
           </Flex>

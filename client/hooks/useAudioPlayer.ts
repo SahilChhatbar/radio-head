@@ -83,6 +83,7 @@ export const useEnhancedAudioPlayer = (
   const universalAnalyserRef = useRef<AnalyserNode | null>(null);
   const mediaSourceRef = useRef<MediaElementAudioSourceNode | null>(null);
   const streamSourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
+  const sourceConnectedRef = useRef<boolean>(false);
 
   // Initialize universal audio context
   const initializeAudioContext = useCallback(() => {
@@ -95,8 +96,8 @@ export const useEnhancedAudioPlayer = (
 
         // Create analyser node
         const analyser = universalContextRef.current.createAnalyser();
-        analyser.fftSize = 256;
-        analyser.smoothingTimeConstant = 0.8;
+        analyser.fftSize = 512;
+        analyser.smoothingTimeConstant = 0.7;
         analyser.minDecibels = -90;
         analyser.maxDecibels = -10;
         universalAnalyserRef.current = analyser;
@@ -135,12 +136,23 @@ export const useEnhancedAudioPlayer = (
   }, []);
 
   const connectToAnalyser = useCallback((source: AudioNode) => {
-    if (universalAnalyserRef.current && universalContextRef.current) {
+    if (
+      universalAnalyserRef.current &&
+      universalContextRef.current &&
+      !sourceConnectedRef.current
+    ) {
       try {
+        // Disconnect any previous connections
+        try {
+          source.disconnect();
+        } catch {}
+
+        // Connect: source -> analyser -> destination
         source.connect(universalAnalyserRef.current);
         universalAnalyserRef.current.connect(
           universalContextRef.current.destination
         );
+        sourceConnectedRef.current = true;
         console.log("✅ Connected audio source to analyser");
       } catch (err) {
         console.error("Failed to connect to analyser:", err);
@@ -156,9 +168,21 @@ export const useEnhancedAudioPlayer = (
 
       // Initialize audio context
       const ctx = initializeAudioContext();
+      if (!ctx) {
+        throw new Error("Could not initialize audio context");
+      }
 
       if (hlsRef.current) {
         hlsRef.current.destroy();
+      }
+
+      // Reset connection state
+      sourceConnectedRef.current = false;
+      if (mediaSourceRef.current) {
+        try {
+          mediaSourceRef.current.disconnect();
+        } catch {}
+        mediaSourceRef.current = null;
       }
 
       const hls = new Hls({
@@ -183,32 +207,22 @@ export const useEnhancedAudioPlayer = (
         setIsLoading(false);
         options.onCanPlay?.();
 
-        // Connect audio element to analyser
-        if (ctx && universalAnalyserRef.current && audioRef.current) {
-          try {
-            // Disconnect previous source if exists
-            if (mediaSourceRef.current) {
-              mediaSourceRef.current.disconnect();
-              mediaSourceRef.current = null;
+        // Connect audio element to analyser after a short delay to ensure audio is ready
+        setTimeout(() => {
+          if (ctx && universalAnalyserRef.current && audioRef.current) {
+            try {
+              if (!mediaSourceRef.current && !sourceConnectedRef.current) {
+                console.log("🔌 Connecting HLS audio to analyser...");
+                mediaSourceRef.current = ctx.createMediaElementSource(
+                  audioRef.current
+                );
+                connectToAnalyser(mediaSourceRef.current);
+              }
+            } catch (err) {
+              console.warn("Could not connect HLS to analyser:", err);
             }
-
-            // Create new media element source
-            if (!audioRef.current.src && !audioRef.current.srcObject) {
-              console.warn("Audio element not ready for analyser connection");
-              return;
-            }
-
-            // Only create source if not already created for this element
-            if (!mediaSourceRef.current) {
-              mediaSourceRef.current = ctx.createMediaElementSource(
-                audioRef.current
-              );
-              connectToAnalyser(mediaSourceRef.current);
-            }
-          } catch (err) {
-            console.warn("Could not connect HLS to analyser:", err);
           }
-        }
+        }, 100);
       });
 
       hls.on(Hls.Events.ERROR, (event, data) => {
@@ -231,8 +245,14 @@ export const useEnhancedAudioPlayer = (
   const setupTonePlayer = useCallback(
     async (url: string) => {
       try {
-        // Initialize audio context
-        initializeAudioContext();
+        // Initialize audio context first
+        const ctx = initializeAudioContext();
+        if (!ctx) {
+          throw new Error("Could not initialize audio context");
+        }
+
+        // Reset connection state
+        sourceConnectedRef.current = false;
 
         if (Tone.context.state === "suspended") {
           await Tone.start();
@@ -250,23 +270,39 @@ export const useEnhancedAudioPlayer = (
           fadeOut: 0.1,
         });
 
-        // Connect Tone.js to our universal analyser
-        if (universalAnalyserRef.current && universalContextRef.current) {
-          // Create a Tone analyser that connects to our universal one
-          const toneAnalyser = new Tone.Analyser("fft", 128);
-          player.connect(toneAnalyser);
-          player.toDestination();
+        player.volume.value = Tone.gainToDb(options.volume || 0.7);
 
-          // Bridge Tone's context to our analyser
-          const toneCtx = Tone.context.rawContext;
-          if (toneCtx && universalContextRef.current) {
-            console.log("🎵 Connected Tone.js to analyser");
+        // Connect Tone.js player to our universal analyser
+        if (universalAnalyserRef.current && ctx) {
+          try {
+            // Get Tone's native audio context
+            const toneCtx = Tone.getContext().rawContext as AudioContext;
+
+            // If contexts match, we can connect directly
+            if (toneCtx === ctx) {
+              // Connect player to our analyser
+              const nativeNode = player.toDestination();
+
+              // Tone.js uses a different context, so we need to bridge it
+              // We'll connect Tone's output to our analyser
+              player.connect(universalAnalyserRef.current as any);
+              sourceConnectedRef.current = true;
+              console.log("✅ Connected Tone.js to analyser");
+            } else {
+              // Fallback: just connect to destination
+              player.toDestination();
+              console.warn(
+                "⚠️ Tone.js context mismatch, visualizer may not work"
+              );
+            }
+          } catch (err) {
+            console.warn("Could not connect Tone.js to analyser:", err);
+            player.toDestination();
           }
         } else {
           player.toDestination();
         }
 
-        player.volume.value = Tone.gainToDb(options.volume || 0.7);
         await Tone.loaded();
 
         const loadTime = Date.now() - loadStartTimeRef.current;
@@ -290,6 +326,18 @@ export const useEnhancedAudioPlayer = (
 
         // Initialize audio context
         const ctx = initializeAudioContext();
+        if (!ctx) {
+          throw new Error("Could not initialize audio context");
+        }
+
+        // Reset connection state
+        sourceConnectedRef.current = false;
+        if (mediaSourceRef.current) {
+          try {
+            mediaSourceRef.current.disconnect();
+          } catch {}
+          mediaSourceRef.current = null;
+        }
 
         if (howlRef.current) {
           howlRef.current.unload();
@@ -313,31 +361,40 @@ export const useEnhancedAudioPlayer = (
             options.onCanPlay?.();
             console.log(`✅ Howler loaded ${station.name} in ${loadTime}ms`);
 
-            // Try to connect Howler to analyser
-            if (ctx && universalAnalyserRef.current && howlRef.current) {
-              try {
-                // Access Howler's internal audio node
-                const howl = howlRef.current as any;
-                if (howl._sounds && howl._sounds[0]) {
-                  const sound = howl._sounds[0];
-                  if (sound._node && !sound._node.bufferSource) {
-                    // For HTML5 audio
-                    const audioElement = sound._node as HTMLAudioElement;
+            // Connect Howler to analyser after load
+            setTimeout(() => {
+              if (
+                ctx &&
+                universalAnalyserRef.current &&
+                howlRef.current &&
+                !sourceConnectedRef.current
+              ) {
+                try {
+                  const howl = howlRef.current as any;
 
-                    if (!mediaSourceRef.current && audioElement.src) {
-                      mediaSourceRef.current =
-                        ctx.createMediaElementSource(audioElement);
-                      connectToAnalyser(mediaSourceRef.current);
-                      console.log(
-                        "✅ Connected Howler HTML5 audio to analyser"
-                      );
+                  // Access Howler's internal audio nodes
+                  if (howl._sounds && howl._sounds.length > 0) {
+                    const sound = howl._sounds[0];
+
+                    // For HTML5 audio (which Howler uses for streams)
+                    if (sound._node) {
+                      const audioElement = sound._node as HTMLAudioElement;
+
+                      if (audioElement && audioElement.src) {
+                        console.log(
+                          "🔌 Connecting Howler HTML5 audio to analyser..."
+                        );
+                        mediaSourceRef.current =
+                          ctx.createMediaElementSource(audioElement);
+                        connectToAnalyser(mediaSourceRef.current);
+                      }
                     }
                   }
+                } catch (err) {
+                  console.warn("Could not connect Howler to analyser:", err);
                 }
-              } catch (err) {
-                console.warn("Could not connect Howler to analyser:", err);
               }
-            }
+            }, 150);
           },
 
           onloaderror: (id: number, error: any) => {
@@ -407,7 +464,9 @@ export const useEnhancedAudioPlayer = (
       loadStartTimeRef.current = Date.now();
       currentStationRef.current = station;
 
-      // Clean up previous sources
+      // Clean up previous sources and reset connection state
+      sourceConnectedRef.current = false;
+
       if (mediaSourceRef.current) {
         try {
           mediaSourceRef.current.disconnect();

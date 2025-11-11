@@ -18,11 +18,16 @@ import {
 import { useRadioStore } from "@/store/useRadiostore";
 import * as Slider from "@radix-ui/react-slider";
 import { useHotkeys } from "react-hotkeys-hook";
-import AudioVisualizer from "./AudioVisualizer";
+import { useDebouncedCallback } from "use-debounce";
+import AudioVisualizer, {
+  AudioVisualizerHandle,
+} from "./AudioVisualizer";
 import { useEnhancedAudioPlayer } from "@/hooks/useAudioPlayer";
 import { getStationQualityInfo } from "@/services/StationFilter";
 
 const GlobalPlayer: React.FC = () => {
+  const visualizerRef = React.useRef<AudioVisualizerHandle>(null);
+  const isChangingStationRef = React.useRef(false);
   const {
     stations,
     currentStationIndex,
@@ -36,7 +41,7 @@ const GlobalPlayer: React.FC = () => {
     play,
     togglePlayPause,
     toggleMute,
-    setVolume,
+    setVolume: setStoreVolume,
     setError,
     setIsLoading,
     setIsPlaying,
@@ -45,8 +50,6 @@ const GlobalPlayer: React.FC = () => {
   const {
     audioRef,
     audioElement,
-    analyserNode,
-    audioContext,
     isLoading: audioLoading,
     error: audioError,
     streamType,
@@ -97,61 +100,104 @@ const GlobalPlayer: React.FC = () => {
     }
   }, [audioError, setError]);
 
-  const handleNextStation = React.useCallback(async () => {
-    try {
-      nextStation();
-      const nextStationData = stations[currentStationIndex + 1] || stations[0];
-
-      if (isPlaying && nextStationData) {
-        console.log(`⏭️ Switching to next station: ${nextStationData.name}`);
-        await playAudio(nextStationData);
+  const handleNextStation = useDebouncedCallback(
+    async () => {
+      if (isChangingStationRef.current) {
+        console.log("⏭️ Station change already in progress, skipping...");
+        return;
       }
-    } catch (error) {
-      console.error("Failed to switch to next station:", error);
-      setError("Failed to switch station");
-    }
-  }, [
-    nextStation,
-    isPlaying,
-    stations,
-    currentStationIndex,
-    playAudio,
-    setError,
-  ]);
 
-  const handlePreviousStation = React.useCallback(async () => {
-    try {
-      previousStation();
-      const prevIndex =
-        currentStationIndex === 0
-          ? stations.length - 1
-          : currentStationIndex - 1;
-      const prevStationData = stations[prevIndex];
+      try {
+        isChangingStationRef.current = true;
 
-      if (isPlaying && prevStationData) {
-        console.log(
-          `⏮️ Switching to previous station: ${prevStationData.name}`
-        );
-        await playAudio(prevStationData);
+        // Pause current audio immediately
+        if (isPlaying) {
+          pauseAudio();
+          visualizerRef.current?.pause();
+        }
+
+        nextStation();
+        const nextStationData = stations[currentStationIndex + 1] || stations[0];
+
+        if (nextStationData) {
+          console.log(`⏭️ Switching to next station: ${nextStationData.name}`);
+
+          // Reset visualizer and show ghost animation during loading
+          visualizerRef.current?.reset();
+
+          // Load and play the new station
+          await playAudio(nextStationData);
+
+          // Resume visualizer once loaded
+          visualizerRef.current?.resume();
+        }
+      } catch (error) {
+        console.error("Failed to switch to next station:", error);
+        setError("Failed to switch station");
+        visualizerRef.current?.resume();
+      } finally {
+        isChangingStationRef.current = false;
       }
-    } catch (error) {
-      console.error("Failed to switch to previous station:", error);
-      setError("Failed to switch station");
-    }
-  }, [
-    previousStation,
-    currentStationIndex,
-    stations,
-    isPlaying,
-    playAudio,
-    setError,
-  ]);
+    },
+    300, // 300ms debounce
+    { leading: true, trailing: false }
+  );
+
+  const handlePreviousStation = useDebouncedCallback(
+    async () => {
+      if (isChangingStationRef.current) {
+        console.log("⏮️ Station change already in progress, skipping...");
+        return;
+      }
+
+      try {
+        isChangingStationRef.current = true;
+
+        // Pause current audio immediately
+        if (isPlaying) {
+          pauseAudio();
+          visualizerRef.current?.pause();
+        }
+
+        previousStation();
+        const prevIndex =
+          currentStationIndex === 0
+            ? stations.length - 1
+            : currentStationIndex - 1;
+        const prevStationData = stations[prevIndex];
+
+        if (prevStationData) {
+          console.log(
+            `⏮️ Switching to previous station: ${prevStationData.name}`
+          );
+
+          // Reset visualizer and show ghost animation during loading
+          visualizerRef.current?.reset();
+
+          // Load and play the new station
+          await playAudio(prevStationData);
+
+          // Resume visualizer once loaded
+          visualizerRef.current?.resume();
+        }
+      } catch (error) {
+        console.error("Failed to switch to previous station:", error);
+        setError("Failed to switch station");
+        visualizerRef.current?.resume();
+      } finally {
+        isChangingStationRef.current = false;
+      }
+    },
+    300, // 300ms debounce
+    { leading: true, trailing: false }
+  );
 
   const handlePlayPause = React.useCallback(async () => {
     try {
       if (!currentStation && stations.length > 0) {
         const stationToPlay = stations[currentStationIndex];
         console.log(`▶️ Starting playback: ${stationToPlay.name}`);
+        visualizerRef.current?.reset(); // Reset visualizer for new station
         await playAudio(stationToPlay);
         play(stationToPlay);
       } else if (currentStation) {
@@ -187,6 +233,14 @@ const GlobalPlayer: React.FC = () => {
     setError,
     handleNextStation,
   ]);
+
+  // Reset visualizer whenever station changes
+  React.useEffect(() => {
+    if (currentStation) {
+      console.log(`🎨 Resetting visualizer for: ${currentStation.name}`);
+      visualizerRef.current?.reset();
+    }
+  }, [currentStation?.stationuuid]);
 
   React.useEffect(() => {
     if (currentStation && isPlaying && streamType && !audioLoading) {
@@ -265,10 +319,10 @@ const GlobalPlayer: React.FC = () => {
       event.preventDefault();
       if (isMuted) toggleMute();
       const newVol = Math.min(1, Math.round((volume + 0.1) * 100) / 100);
-      setVolume(newVol);
+      setStoreVolume(newVol);
     },
     { enabled: isDesktop },
-    [isMuted, toggleMute, volume, setVolume]
+    [isMuted, toggleMute, volume, setStoreVolume]
   );
 
   useHotkeys(
@@ -277,11 +331,11 @@ const GlobalPlayer: React.FC = () => {
       if (ignoreIfFormElement(event)) return;
       event.preventDefault();
       const newVol = Math.max(0, Math.round((volume - 0.1) * 100) / 100);
-      setVolume(newVol);
+      setStoreVolume(newVol);
       if (newVol === 0 && !isMuted) toggleMute();
     },
     { enabled: isDesktop },
-    [volume, setVolume, isMuted, toggleMute]
+    [volume, setStoreVolume, isMuted, toggleMute]
   );
 
   useHotkeys(
@@ -345,15 +399,13 @@ const GlobalPlayer: React.FC = () => {
 
   return (
     <>
-      {/* Hidden Audio Element (only for HLS) */}
-      {streamType === "hls" && (
-        <audio
-          ref={audioRef}
-          crossOrigin="anonymous"
-          preload="none"
-          style={{ display: "none" }}
-        />
-      )}
+      {/* Hidden Audio Element (for HLS and fallback support) */}
+      <audio
+        ref={audioRef}
+        crossOrigin="anonymous"
+        preload="none"
+        style={{ display: "none" }}
+      />
       <Box className="fixed bottom-0 left-0 right-0 z-50 border-t border-gray-700/50 backdrop-blur-md bg-[#0C1521]/95">
         <Container size="4" className="py-3">
           <Flex align="center" justify="between" gap="4">
@@ -531,7 +583,7 @@ const GlobalPlayer: React.FC = () => {
                   value={[isMuted ? 0 : volume]}
                   onValueChange={(val) => {
                     const newVolume = Math.round(val[0] * 100) / 100;
-                    setVolume(newVolume);
+                    setStoreVolume(newVolume);
                     if (newVolume === 0 && !isMuted) {
                       toggleMute();
                     } else if (newVolume > 0 && isMuted) {
@@ -555,24 +607,17 @@ const GlobalPlayer: React.FC = () => {
                 {Math.round((isMuted ? 0 : volume) * 100)}%
               </Text>
 
-              {/* Audio visualizer: pass analyser/audioContext; audioElement only for HLS */}
+              {/* Audio visualizer with default animation */}
               <AudioVisualizer
-                audioElement={audioElement ?? undefined}
-                analyserNode={analyserNode ?? undefined}
-                audioContext={audioContext ?? undefined}
+                ref={visualizerRef}
                 className="hidden lg:flex"
                 barCount={12}
                 barWidth={6}
                 barSpacing={2}
                 maxHeight={40}
-                sensitivity={
-                  streamType === "tone"
-                    ? 1.2
-                    : streamType === "howler"
-                    ? 1.1
-                    : 1.0
-                }
                 decay={0.88}
+                isLoading={audioLoading}
+                isPaused={!isPlaying}
               />
             </Flex>
           </Flex>

@@ -1,19 +1,21 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Container, Flex, Heading, Text, Section, Box } from "@radix-ui/themes";
 import Header from "@/components/Header";
 import StationSelector from "@/components/StationSelector";
 import { useRadioStore } from "@/store/useRadiostore";
+import Loader from "@/components/Loader";
 
 const DEFAULT_HERO_CONTENT = {
   title: "Welcome to RadioVerse",
   subtitle:
-    "Your ultimate radio streaming experience. Discover, listen, and enjoy music from around the world with crystal-clear quality.",
+    "Log in or sign up for a more personalized and curated experience!",
 };
 
 export default function Home() {
-  const { showPlayer, isPlaying, currentStation } = useRadioStore();
+  const { showPlayer, isPlaying, currentStation, stations } = useRadioStore();
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
 
   const getStatusText = () => {
     if (showPlayer && currentStation) {
@@ -23,6 +25,47 @@ export default function Home() {
   };
 
   const heroContent = DEFAULT_HERO_CONTENT;
+
+  // Handle loading state with both data check and maximum timeout
+  useEffect(() => {
+    // Maximum timeout - show content after 3 seconds regardless
+    const maxLoadingTimer = setTimeout(() => {
+      setIsInitialLoading(false);
+    }, 3000);
+
+    // Minimum loading time for smooth UX
+    const minLoadingTimer = setTimeout(() => {
+      // Hide loader after minimum time if stations are loaded
+      if (stations.length > 0) {
+        setIsInitialLoading(false);
+      }
+    }, 1000);
+
+    return () => {
+      clearTimeout(maxLoadingTimer);
+      clearTimeout(minLoadingTimer);
+    };
+  }, [stations.length]);
+
+  // Also hide loader when stations become available after minimum time
+  useEffect(() => {
+    if (stations.length > 0 && !isInitialLoading) {
+      return;
+    }
+
+    // Small delay to ensure we've passed minimum loading time
+    const timer = setTimeout(() => {
+      if (stations.length > 0) {
+        setIsInitialLoading(false);
+      }
+    }, 1100);
+
+    return () => clearTimeout(timer);
+  }, [stations.length, isInitialLoading]);
+
+  if (isInitialLoading) {
+    return <Loader />;
+  }
 
   return (
     <div className="flex flex-col min-h-screen">

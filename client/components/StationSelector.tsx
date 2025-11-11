@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef } from "react";
 import { Flex, Text } from "@radix-ui/themes";
-import { usePopularStations } from "@/hooks/useRadio";
+import { useIndianAndQualityStations } from "@/hooks/useRadio";
 import { useRadioStore } from "@/store/useRadiostore";
 import { getStationQualityInfo } from "@/services/StationFilter";
 import Loader from "./Loader";
@@ -20,7 +20,7 @@ interface Tick {
   visible: boolean;
 }
 
-export default function StationGauge({ limit = 50 }: StationGaugeProps) {
+export default function StationGauge({ limit = 100 }: StationGaugeProps) {
   const VIEWBOX_SIZE = 800;
   const CENTER = VIEWBOX_SIZE / 2;
   const INNER_R = 300;
@@ -33,7 +33,7 @@ export default function StationGauge({ limit = 50 }: StationGaugeProps) {
     data: fetchedStations = [],
     isLoading,
     error,
-  } = usePopularStations(limit, { enableFiltering: true });
+  } = useIndianAndQualityStations(limit);
 
   const {
     stations,

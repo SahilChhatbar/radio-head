@@ -281,3 +281,65 @@ export const useCuratedStations = (
     gcTime: 30 * 60 * 1000,
   });
 };
+
+/**
+ * Custom hook for fetching only Indian stations (top 100 quality)
+ * Filters for decent quality audio and playable streams
+ */
+export const useIndianAndQualityStations = (
+  limit: number = 100
+): UseQueryResult<RadioStation[], Error> => {
+  return useQuery({
+    queryKey: ["indian-quality-stations", limit],
+    queryFn: async () => {
+      console.log("🇮🇳 Fetching top Indian stations...");
+
+      // Fetch more Indian stations to have a good selection pool
+      const fetchLimit = Math.min(limit * 3, 300);
+      const indianStations = await radioApi.getStationsByCountry("IN", fetchLimit);
+      console.log(`🇮🇳 Found ${indianStations.length} Indian stations`);
+
+      // Apply comprehensive quality filtering
+      const qualityFiltered = indianStations
+        .map((station) => ({
+          station,
+          quality: stationFilterService.getStationQualityInfo(station),
+        }))
+        .filter(({ quality, station }) => {
+          // Only include excellent, good, or acceptable quality
+          const isQualityGood =
+            quality.quality === "excellent" ||
+            quality.quality === "good" ||
+            quality.quality === "acceptable";
+
+          // Ensure minimum bitrate for decent audio quality
+          const hasDecentBitrate = station.bitrate >= 64;
+
+          // Ensure recent verification (within 30 days)
+          const recentlyVerified = quality.verificationAge <= 30;
+
+          return isQualityGood && hasDecentBitrate && recentlyVerified;
+        })
+        .sort((a, b) => {
+          // Sort by quality score first
+          if (b.quality.score !== a.quality.score) {
+            return b.quality.score - a.quality.score;
+          }
+          // Then by bitrate
+          return (b.station.bitrate || 0) - (a.station.bitrate || 0);
+        })
+        .map(({ station }) => station)
+        .slice(0, limit);
+
+      console.log(
+        `✅ Final selection: ${qualityFiltered.length} high-quality Indian stations`
+      );
+
+      return qualityFiltered;
+    },
+    staleTime: 10 * 60 * 1000, // 10 minutes
+    gcTime: 30 * 60 * 1000, // 30 minutes
+    retry: 2,
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+  });
+};

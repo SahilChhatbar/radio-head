@@ -135,21 +135,26 @@ export const useEnhancedAudioPlayer = (
       }
 
       const hls = new Hls({
-        lowLatencyMode: true,
-        backBufferLength: options.preferredLatency === "low" ? 5 : 10,
-        maxBufferLength: options.preferredLatency === "low" ? 10 : 30,
-        maxMaxBufferLength: options.preferredLatency === "low" ? 15 : 60,
-        fragLoadingTimeOut: 10000, // Increased for better compatibility
-        manifestLoadingTimeOut: 10000, // Increased for better compatibility
-        levelLoadingTimeOut: 10000, // Increased for better compatibility
-        fragLoadingMaxRetry: 3,
-        manifestLoadingMaxRetry: 3,
-        levelLoadingMaxRetry: 3,
-        startLevel: -1, // Auto quality selection
+        lowLatencyMode: false, // Disable for better quality
+        backBufferLength: 90, // Keep more buffer for smooth playback
+        maxBufferLength: 60, // Larger buffer for better quality
+        maxMaxBufferLength: 120, // Maximum buffer
+        fragLoadingTimeOut: 20000, // Longer timeout for quality
+        manifestLoadingTimeOut: 20000,
+        levelLoadingTimeOut: 20000,
+        fragLoadingMaxRetry: 4,
+        manifestLoadingMaxRetry: 4,
+        levelLoadingMaxRetry: 4,
+        startLevel: -1, // Auto select highest quality
+        autoStartLoad: true,
         enableWorker: true,
         enableSoftwareAES: true,
+        maxLoadingDelay: 4, // Balanced loading
+        maxBufferSize: 60 * 1000 * 1000, // 60 MB buffer
+        maxBufferHole: 0.5,
+        highBufferWatchdogPeriod: 3,
+        nudgeMaxRetry: 10,
         xhrSetup: (xhr) => {
-          // Add custom headers for better compatibility
           xhr.setRequestHeader("User-Agent", "RadioVerse/1.0");
         },
         debug: process.env.NODE_ENV === "development",
@@ -213,6 +218,10 @@ export const useEnhancedAudioPlayer = (
           await Tone.start();
         }
 
+        // Set audio context to high quality
+        Tone.context.lookAhead = 0.1; // Lower latency
+        Tone.context.latencyHint = "playback"; // Optimize for playback quality
+
         if (tonePlayerRef.current) {
           tonePlayerRef.current.dispose();
         }
@@ -222,7 +231,8 @@ export const useEnhancedAudioPlayer = (
           autostart: false,
           loop: false,
           fadeIn: 0,
-          fadeOut: 0.1,
+          fadeOut: 0.05,
+          playbackRate: 1, // Normal playback speed
         });
 
         player.volume.value = Tone.gainToDb(options.volume || 0.7);
@@ -256,13 +266,21 @@ export const useEnhancedAudioPlayer = (
 
         const howlOptions: any = {
           src: [url],
-          html5: true,
-          preload: false,
+          html5: true, // HTML5 Audio for streaming
+          preload: true, // Preload for better quality
           volume: options.volume || 0.7,
           mute: options.muted || false,
           pool: 1,
           autoplay: false,
           loop: false,
+          // Quality enhancements
+          xhr: {
+            method: "GET",
+            headers: {
+              "User-Agent": "RadioVerse/1.0",
+            },
+            withCredentials: false,
+          },
 
           onload: () => {
             const loadTime = Date.now() - loadStartTimeRef.current;
@@ -330,9 +348,59 @@ export const useEnhancedAudioPlayer = (
     [options]
   );
 
+  const cleanup = useCallback(() => {
+    console.log("🧹 Cleaning up all audio players...");
+
+    // Stop and cleanup HLS
+    if (hlsRef.current) {
+      try {
+        if (audioRef.current) {
+          audioRef.current.pause();
+          audioRef.current.src = "";
+          audioRef.current.load();
+        }
+        hlsRef.current.destroy();
+        hlsRef.current = null;
+      } catch (e) {
+        console.warn("HLS cleanup error:", e);
+      }
+    }
+
+    // Stop and cleanup Tone.js
+    if (tonePlayerRef.current) {
+      try {
+        tonePlayerRef.current.stop();
+        tonePlayerRef.current.dispose();
+        tonePlayerRef.current = null;
+      } catch (e) {
+        console.warn("Tone cleanup error:", e);
+      }
+    }
+
+    // Stop and cleanup Howler
+    if (howlRef.current) {
+      try {
+        howlRef.current.stop();
+        howlRef.current.unload();
+        howlRef.current = null;
+      } catch (e) {
+        console.warn("Howler cleanup error:", e);
+      }
+    }
+
+    setIsPlaying(false);
+  }, []);
+
   const load = useCallback(
     async (station: RadioStation) => {
       if (!station) return;
+
+      // CRITICAL: Stop and cleanup ALL previous audio before loading new station
+      console.log("🛑 Stopping all previous audio streams...");
+      cleanup();
+
+      // Small delay to ensure cleanup completes
+      await new Promise((resolve) => setTimeout(resolve, 50));
 
       setError(null);
       setIsLoading(true);
@@ -387,6 +455,7 @@ export const useEnhancedAudioPlayer = (
       }
     },
     [
+      cleanup,
       detectStreamType,
       setupHLSPlayer,
       setupTonePlayer,

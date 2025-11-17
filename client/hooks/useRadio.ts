@@ -315,10 +315,7 @@ export const useIndianAndQualityStations = (
           // Ensure minimum bitrate for decent audio quality
           const hasDecentBitrate = station.bitrate >= 64;
 
-          // Ensure recent verification (within 30 days)
-          const recentlyVerified = quality.verificationAge <= 30;
-
-          return isQualityGood && hasDecentBitrate && recentlyVerified;
+          return isQualityGood && hasDecentBitrate;
         })
         .sort((a, b) => {
           // Sort by quality score first

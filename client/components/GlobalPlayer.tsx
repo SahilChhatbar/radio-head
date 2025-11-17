@@ -83,14 +83,6 @@ const GlobalPlayer: React.FC = () => {
   });
 
   React.useEffect(() => {
-    setAudioVolume(volume);
-  }, [volume, setAudioVolume]);
-
-  React.useEffect(() => {
-    setAudioMuted(isMuted);
-  }, [isMuted, setAudioMuted]);
-
-  React.useEffect(() => {
     setIsLoading(audioLoading);
   }, [audioLoading, setIsLoading]);
 
@@ -99,6 +91,27 @@ const GlobalPlayer: React.FC = () => {
       setError(audioError);
     }
   }, [audioError, setError]);
+
+  // Unified volume change handler - instant, no delay
+  const handleVolumeChange = React.useCallback((newVolume: number) => {
+    const clampedVolume = Math.max(0, Math.min(1, newVolume));
+    setStoreVolume(clampedVolume);
+    setAudioVolume(clampedVolume);
+  }, [setStoreVolume, setAudioVolume]);
+
+  // Unified mute toggle handler - instant, no delay
+  const handleMuteToggle = React.useCallback(() => {
+    toggleMute();
+    setAudioMuted(!isMuted);
+  }, [toggleMute, setAudioMuted, isMuted]);
+
+  // Sync volume/mute to audio player when stream type changes (new station loaded)
+  React.useEffect(() => {
+    if (streamType) {
+      setAudioVolume(volume);
+      setAudioMuted(isMuted);
+    }
+  }, [streamType, volume, isMuted, setAudioVolume, setAudioMuted]);
 
   const handleNextStation = useDebouncedCallback(
     async () => {
@@ -282,71 +295,71 @@ const GlobalPlayer: React.FC = () => {
   useHotkeys(
     "space",
     (event: KeyboardEvent) => {
-      if (ignoreIfFormElement(event)) return;
+      if (ignoreIfFormElement(event) || audioLoading || isChangingStationRef.current) return;
       event.preventDefault();
       handlePlayPause();
     },
     { enabled: isDesktop },
-    [handlePlayPause]
+    [handlePlayPause, audioLoading]
   );
 
   useHotkeys(
     "left",
     (event: KeyboardEvent) => {
-      if (ignoreIfFormElement(event)) return;
+      if (ignoreIfFormElement(event) || audioLoading || isChangingStationRef.current) return;
       event.preventDefault();
       handlePreviousStation();
     },
     { enabled: isDesktop },
-    [handlePreviousStation]
+    [handlePreviousStation, audioLoading]
   );
 
   useHotkeys(
     "right",
     (event: KeyboardEvent) => {
-      if (ignoreIfFormElement(event)) return;
+      if (ignoreIfFormElement(event) || audioLoading || isChangingStationRef.current) return;
       event.preventDefault();
       handleNextStation();
     },
     { enabled: isDesktop },
-    [handleNextStation]
+    [handleNextStation, audioLoading]
   );
 
   useHotkeys(
     "up",
     (event: KeyboardEvent) => {
-      if (ignoreIfFormElement(event)) return;
+      if (ignoreIfFormElement(event) || audioLoading || isChangingStationRef.current) return;
       event.preventDefault();
-      if (isMuted) toggleMute();
+      if (isMuted) handleMuteToggle();
       const newVol = Math.min(1, Math.round((volume + 0.1) * 100) / 100);
-      setStoreVolume(newVol);
+      handleVolumeChange(newVol);
     },
     { enabled: isDesktop },
-    [isMuted, toggleMute, volume, setStoreVolume]
+    [isMuted, handleMuteToggle, volume, handleVolumeChange, audioLoading]
   );
 
   useHotkeys(
     "down",
     (event: KeyboardEvent) => {
-      if (ignoreIfFormElement(event)) return;
+      if (ignoreIfFormElement(event) || audioLoading || isChangingStationRef.current) return;
       event.preventDefault();
       const newVol = Math.max(0, Math.round((volume - 0.1) * 100) / 100);
-      setStoreVolume(newVol);
-      if (newVol === 0 && !isMuted) toggleMute();
+      handleVolumeChange(newVol);
+      if (newVol === 0 && !isMuted) handleMuteToggle();
     },
     { enabled: isDesktop },
-    [volume, setStoreVolume, isMuted, toggleMute]
+    [volume, handleVolumeChange, isMuted, handleMuteToggle, audioLoading]
   );
 
   useHotkeys(
     "m",
     (event: KeyboardEvent) => {
-      if (ignoreIfFormElement(event)) return;
+      if (ignoreIfFormElement(event) || audioLoading || isChangingStationRef.current) return;
       event.preventDefault();
-      toggleMute();
+      handleMuteToggle();
     },
     { enabled: isDesktop },
-    [toggleMute]
+    [handleMuteToggle, audioLoading]
   );
 
   const getStreamTypeInfo = () => {
@@ -525,7 +538,7 @@ const GlobalPlayer: React.FC = () => {
               <Button
                 size="2"
                 onClick={handlePreviousStation}
-                disabled={stations.length <= 1 || audioLoading}
+                disabled={stations.length <= 1 || audioLoading || isChangingStationRef.current}
                 title="Previous Station (← key)"
                 className="hover:bg-[#FF914D]/10"
               >
@@ -535,7 +548,7 @@ const GlobalPlayer: React.FC = () => {
               <Button
                 size="3"
                 onClick={handlePlayPause}
-                disabled={stations.length === 0}
+                disabled={stations.length === 0 || audioLoading || isChangingStationRef.current}
                 title={isPlaying ? "Pause (Space)" : "Play (Space)"}
                 className="w-12 h-12 rounded-full bg-[#FF914D] hover:bg-[#FF914D]/90 text-white"
               >
@@ -551,7 +564,7 @@ const GlobalPlayer: React.FC = () => {
               <Button
                 size="2"
                 onClick={handleNextStation}
-                disabled={stations.length <= 1 || audioLoading}
+                disabled={stations.length <= 1 || audioLoading || isChangingStationRef.current}
                 title="Next Station (→ key)"
                 className="hover:bg-[#FF914D]/10"
               >
@@ -563,8 +576,8 @@ const GlobalPlayer: React.FC = () => {
               <Button
                 variant="ghost"
                 size="2"
-                onClick={toggleMute}
-                disabled={!currentStation}
+                onClick={handleMuteToggle}
+                disabled={!currentStation || audioLoading || isChangingStationRef.current}
                 title={isMuted ? "Unmute (M key)" : "Mute (M key)"}
                 className="hover:bg-[#FF914D]/10"
               >
@@ -577,18 +590,23 @@ const GlobalPlayer: React.FC = () => {
               <div className="w-20 hidden md:block">
                 <Slider.Root
                   className="relative flex items-center w-full h-5 select-none"
+                  disabled={audioLoading || isChangingStationRef.current}
                   min={0}
                   max={1}
-                  step={0.05}
+                  step={0.01}
                   value={[isMuted ? 0 : volume]}
                   onValueChange={(val) => {
                     const newVolume = Math.round(val[0] * 100) / 100;
-                    setStoreVolume(newVolume);
+
+                    // Handle mute state changes
                     if (newVolume === 0 && !isMuted) {
-                      toggleMute();
+                      handleMuteToggle();
                     } else if (newVolume > 0 && isMuted) {
-                      toggleMute();
+                      handleMuteToggle();
                     }
+
+                    // Always update volume instantly
+                    handleVolumeChange(newVolume);
                   }}
                   title="Volume Control (↑↓ keys)"
                 >

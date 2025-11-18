@@ -351,14 +351,23 @@ export const useEnhancedAudioPlayer = (
   const cleanup = useCallback(() => {
     console.log("🧹 Cleaning up all audio players...");
 
+    // ALWAYS stop the HTML audio element first (critical for preventing echo)
+    if (audioRef.current) {
+      try {
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0;
+        audioRef.current.src = "";
+        audioRef.current.load();
+        // Remove all event listeners to prevent leaks
+        audioRef.current.removeAttribute("src");
+      } catch (e) {
+        console.warn("Audio element cleanup error:", e);
+      }
+    }
+
     // Stop and cleanup HLS
     if (hlsRef.current) {
       try {
-        if (audioRef.current) {
-          audioRef.current.pause();
-          audioRef.current.src = "";
-          audioRef.current.load();
-        }
         hlsRef.current.destroy();
         hlsRef.current = null;
       } catch (e) {
@@ -389,7 +398,30 @@ export const useEnhancedAudioPlayer = (
     }
 
     setIsPlaying(false);
+    setStreamType(null);
   }, []);
+
+  const pause = useCallback(() => {
+    try {
+      // Always try to pause all possible audio sources to prevent echo
+      if (audioRef.current) {
+        audioRef.current.pause();
+      }
+
+      if (tonePlayerRef.current) {
+        tonePlayerRef.current.stop();
+      }
+
+      if (howlRef.current) {
+        howlRef.current.pause();
+      }
+
+      setIsPlaying(false);
+      options.onPause?.();
+    } catch (error) {
+      console.error("Error pausing audio:", error);
+    }
+  }, [options]);
 
   const load = useCallback(
     async (station: RadioStation) => {
@@ -397,10 +429,15 @@ export const useEnhancedAudioPlayer = (
 
       // CRITICAL: Stop and cleanup ALL previous audio before loading new station
       console.log("🛑 Stopping all previous audio streams...");
+
+      // First pause everything immediately
+      pause();
+
+      // Then full cleanup
       cleanup();
 
-      // Small delay to ensure cleanup completes
-      await new Promise((resolve) => setTimeout(resolve, 50));
+      // Longer delay to ensure complete cleanup and prevent echo
+      await new Promise((resolve) => setTimeout(resolve, 150));
 
       setError(null);
       setIsLoading(true);
@@ -455,6 +492,7 @@ export const useEnhancedAudioPlayer = (
       }
     },
     [
+      pause,
       cleanup,
       detectStreamType,
       setupHLSPlayer,
@@ -463,35 +501,6 @@ export const useEnhancedAudioPlayer = (
       options,
     ]
   );
-
-  const pause = useCallback(() => {
-    try {
-      switch (streamType) {
-        case "hls":
-          if (audioRef.current) {
-            audioRef.current.pause();
-          }
-          break;
-
-        case "tone":
-          if (tonePlayerRef.current) {
-            tonePlayerRef.current.stop();
-          }
-          break;
-
-        case "howler":
-          if (howlRef.current) {
-            howlRef.current.pause();
-          }
-          break;
-      }
-
-      setIsPlaying(false);
-      options.onPause?.();
-    } catch (error) {
-      console.error("Error pausing audio:", error);
-    }
-  }, [streamType, options]);
 
   const play = useCallback(
     async (station?: RadioStation): Promise<void> => {
@@ -569,65 +578,45 @@ export const useEnhancedAudioPlayer = (
     }
   }, [streamType]);
 
-  const setVolume = useCallback(
-    (volume: number) => {
-      const clampedVolume = Math.max(0, Math.min(1, volume));
+  const setVolume = useCallback((volume: number) => {
+    const clampedVolume = Math.max(0, Math.min(1, volume));
 
-      try {
-        switch (streamType) {
-          case "hls":
-            if (audioRef.current) {
-              audioRef.current.volume = clampedVolume;
-            }
-            break;
-
-          case "tone":
-            if (tonePlayerRef.current) {
-              tonePlayerRef.current.volume.value = Tone.gainToDb(clampedVolume);
-            }
-            break;
-
-          case "howler":
-            if (howlRef.current) {
-              howlRef.current.volume(clampedVolume);
-            }
-            break;
-        }
-      } catch (error) {
-        console.error("Error setting volume:", error);
+    try {
+      // Always try to set volume on all possible audio sources
+      if (audioRef.current) {
+        audioRef.current.volume = clampedVolume;
       }
-    },
-    [streamType]
-  );
 
-  const setMuted = useCallback(
-    (muted: boolean) => {
-      try {
-        switch (streamType) {
-          case "hls":
-            if (audioRef.current) {
-              audioRef.current.muted = muted;
-            }
-            break;
-
-          case "tone":
-            if (tonePlayerRef.current) {
-              tonePlayerRef.current.mute = muted;
-            }
-            break;
-
-          case "howler":
-            if (howlRef.current) {
-              howlRef.current.mute(muted);
-            }
-            break;
-        }
-      } catch (error) {
-        console.error("Error setting mute:", error);
+      if (tonePlayerRef.current) {
+        tonePlayerRef.current.volume.value = Tone.gainToDb(clampedVolume);
       }
-    },
-    [streamType]
-  );
+
+      if (howlRef.current) {
+        howlRef.current.volume(clampedVolume);
+      }
+    } catch (error) {
+      console.error("Error setting volume:", error);
+    }
+  }, []);
+
+  const setMuted = useCallback((muted: boolean) => {
+    try {
+      // Always try to set mute on all possible audio sources
+      if (audioRef.current) {
+        audioRef.current.muted = muted;
+      }
+
+      if (tonePlayerRef.current) {
+        tonePlayerRef.current.mute = muted;
+      }
+
+      if (howlRef.current) {
+        howlRef.current.mute(muted);
+      }
+    } catch (error) {
+      console.error("Error setting mute:", error);
+    }
+  }, []);
 
   useEffect(() => {
     if (audioRef.current && audioRef.current !== audioElement) {

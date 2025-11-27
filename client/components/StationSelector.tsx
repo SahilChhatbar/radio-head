@@ -47,6 +47,7 @@ export default function StationGauge({ limit = 100 }: StationGaugeProps) {
     play,
     stop,
     setShowPlayer,
+    audioControls,
   } = useRadioStore();
 
   useEffect(() => {
@@ -129,13 +130,15 @@ export default function StationGauge({ limit = 100 }: StationGaugeProps) {
       } else {
         try {
           console.log(`▶️ Starting ${currentStationData?.name}`);
+          // Use the store's play method which will trigger audio controls
           play(currentStationData);
         } catch (error) {
           console.error("Failed to start playback:", error);
           if (stations.length > 1) {
             setTimeout(() => {
               nextStation();
-              play(stations[(currentStationIndex + 1) % stations.length]);
+              const nextStationData = stations[(currentStationIndex + 1) % stations.length];
+              play(nextStationData);
             }, 500);
           }
         }
@@ -200,14 +203,11 @@ export default function StationGauge({ limit = 100 }: StationGaugeProps) {
         onKeyDown={handleKeyDown}
         tabIndex={0}
         role="button"
-        aria-label={`Radio gauge. Current station: ${
-          stationInfo.display
-        }. Quality: ${
-          stationInfo.quality || "unknown"
-        }. Use left/right arrows to change station, Enter or Space to toggle play.`}
-        title={`${stationInfo.display}${
-          stationInfo.quality ? ` (${stationInfo.quality} quality)` : ""
-        }\n\nClick to toggle play\nUse ←→ keys to change station\nEnter/Space to toggle`}
+        aria-label={`Radio gauge. Current station: ${stationInfo.display
+          }. Quality: ${stationInfo.quality || "unknown"
+          }. Use left/right arrows to change station, Enter or Space to toggle play.`}
+        title={`${stationInfo.display}${stationInfo.quality ? ` (${stationInfo.quality} quality)` : ""
+          }\n\nClick to toggle play\nUse ←→ keys to change station\nEnter/Space to toggle`}
       >
         <svg
           viewBox={`0 0 ${VIEWBOX_SIZE} ${VIEWBOX_SIZE}`}
@@ -300,7 +300,7 @@ export default function StationGauge({ limit = 100 }: StationGaugeProps) {
                   fontSize: "0.95rem",
                   background: "rgba(30,30,30,0.9)",
                   borderRadius: "8px",
-                  border: `1px solid $"#ff914d"40`,
+                  border: `1px solid #ff914d40`,
                   padding: "8px 12px",
                   width: "100%",
                   overflow: "hidden",
@@ -313,9 +313,8 @@ export default function StationGauge({ limit = 100 }: StationGaugeProps) {
                   textAlign: "center",
                   boxShadow: "0 2px 8px rgba(0,0,0,0.3)",
                 }}
-                title={`${stationInfo.display}${
-                  stationInfo.country ? ` - ${stationInfo.country}` : ""
-                }`}
+                title={`${stationInfo.display}${stationInfo.country ? ` - ${stationInfo.country}` : ""
+                  }`}
               >
                 {(() => {
                   const s = stationInfo.display || "";
@@ -328,41 +327,41 @@ export default function StationGauge({ limit = 100 }: StationGaugeProps) {
               {(stationInfo.codec ||
                 stationInfo.bitrate ||
                 stationInfo.quality) && (
-                <div
-                  style={{
-                    display: "flex",
-                    gap: "6px",
-                    fontSize: "0.7rem",
-                    color: "#94a3b8",
-                    fontFamily: "var(--font-roboto), monospace",
-                    flexWrap: "wrap",
-                    justifyContent: "center",
-                    alignItems: "center",
-                  }}
-                >
-                  {stationInfo.quality && (
-                    <span
-                      style={{
-                        backgroundColor: `$"#ff914d"20`,
-                        color: "#ff914d",
-                        padding: "2px 6px",
-                        borderRadius: "4px",
-                        fontSize: "0.65rem",
-                        fontWeight: 500,
-                        border: `1px solid $"#ff914d"40`,
-                      }}
-                    >
-                      {stationInfo.quality.toUpperCase()}
-                    </span>
-                  )}
-                  {stationInfo.codec && (
-                    <span>{stationInfo.codec.toUpperCase()}</span>
-                  )}
-                  {stationInfo.bitrate && stationInfo.bitrate > 0 && (
-                    <span>{stationInfo.bitrate}k</span>
-                  )}
-                </div>
-              )}
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: "6px",
+                      fontSize: "0.7rem",
+                      color: "#94a3b8",
+                      fontFamily: "var(--font-roboto), monospace",
+                      flexWrap: "wrap",
+                      justifyContent: "center",
+                      alignItems: "center",
+                    }}
+                  >
+                    {stationInfo.quality && (
+                      <span
+                        style={{
+                          backgroundColor: "#ff914d20",
+                          color: "#ff914d",
+                          padding: "2px 6px",
+                          borderRadius: "4px",
+                          fontSize: "0.65rem",
+                          fontWeight: 500,
+                          border: "1px solid #ff914d40",
+                        }}
+                      >
+                        {stationInfo.quality.toUpperCase()}
+                      </span>
+                    )}
+                    {stationInfo.codec && (
+                      <span>{stationInfo.codec.toUpperCase()}</span>
+                    )}
+                    {stationInfo.bitrate && stationInfo.bitrate > 0 && (
+                      <span>{stationInfo.bitrate}k</span>
+                    )}
+                  </div>
+                )}
             </div>
           </foreignObject>
         </svg>
@@ -381,9 +380,8 @@ export default function StationGauge({ limit = 100 }: StationGaugeProps) {
         {showPlayer && currentStation && (
           <Flex align="center" gap="2">
             <div
-              className={`w-2 h-2 rounded-full ${
-                isPlaying ? "bg-green-400 animate-pulse" : "bg-yellow-400"
-              }`}
+              className={`w-2 h-2 rounded-full ${isPlaying ? "bg-green-400 animate-pulse" : "bg-yellow-400"
+                }`}
               title={isPlaying ? "Playing" : "Paused"}
             />
             <Text size="1" className="text-slate-400">

@@ -145,6 +145,8 @@ export const useEnhancedAudioPlayer = (
   const isCleaningUpRef = useRef(false);
   const volumeRef = useRef(options.volume ?? 0.7);
   const mutedRef = useRef(options.muted ?? false);
+  // Track stream type with a ref for immediate access (state updates are async)
+  const streamTypeRef = useRef<StreamType | null>(null);
 
   // Keep refs in sync with options
   useEffect(() => {
@@ -272,6 +274,7 @@ export const useEnhancedAudioPlayer = (
       audioRef.current.volume = mutedRef.current ? 0 : volumeRef.current;
       audioRef.current.muted = mutedRef.current;
 
+      streamTypeRef.current = "hls";
       setStreamType("hls");
       setAudioElement(audioRef.current);
     },
@@ -308,6 +311,7 @@ export const useEnhancedAudioPlayer = (
         setLatency(loadTime / 1000);
         tonePlayerRef.current = player;
         globalAudioInstance.tone = player;
+        streamTypeRef.current = "tone";
         setStreamType("tone");
         setIsLoading(false);
         options.onCanPlay?.();
@@ -320,8 +324,8 @@ export const useEnhancedAudioPlayer = (
   );
 
   const setupHowlerPlayer = useCallback(
-    async (url: string, station: RadioStation) => {
-      try {
+    async (url: string, station: RadioStation): Promise<void> => {
+      return new Promise((resolve, reject) => {
         console.log(`🎵 Setting up Howler player for ${station.name}`);
 
         const effectiveVolume = mutedRef.current ? 0 : volumeRef.current;
@@ -349,6 +353,7 @@ export const useEnhancedAudioPlayer = (
             setIsLoading(false);
             options.onCanPlay?.();
             console.log(`✅ Howler loaded ${station.name} in ${loadTime}ms`);
+            resolve();
           },
 
           onloaderror: (id: number, error: any) => {
@@ -357,6 +362,7 @@ export const useEnhancedAudioPlayer = (
             setError(errorMsg);
             setIsLoading(false);
             options.onError?.(errorMsg);
+            reject(new Error(errorMsg));
           },
 
           onplayerror: (id: number, error: any) => {
@@ -397,15 +403,9 @@ export const useEnhancedAudioPlayer = (
         howlRef.current = howl;
         globalAudioInstance.howl = howl;
         howl.load();
+        streamTypeRef.current = "howler";
         setStreamType("howler");
-      } catch (error) {
-        console.error("Howler Setup Error:", error);
-        throw new Error(
-          `Failed to setup Howler player: ${
-            error instanceof Error ? error.message : "Unknown error"
-          }`
-        );
-      }
+      });
     },
     [options]
   );
@@ -469,6 +469,7 @@ export const useEnhancedAudioPlayer = (
     }
 
     setIsPlaying(false);
+    streamTypeRef.current = null;
     setStreamType(null);
     isCleaningUpRef.current = false;
   }, []);
@@ -498,8 +499,8 @@ export const useEnhancedAudioPlayer = (
   }, [options]);
 
   const load = useCallback(
-    async (station: RadioStation) => {
-      if (!station) return;
+    async (station: RadioStation): Promise<StreamType> => {
+      if (!station) throw new Error("No station provided");
 
       console.log(`🔄 Loading new station: ${station.name}`);
 
@@ -526,30 +527,30 @@ export const useEnhancedAudioPlayer = (
           case "hls":
             if (Hls.isSupported()) {
               await setupHLSPlayer(audioUrl);
-              break;
+              return "hls";
             } else {
               console.warn(
                 "HLS not supported in this browser, falling back to Howler"
               );
               await setupHowlerPlayer(audioUrl, station);
-              break;
+              return "howler";
             }
           case "tone":
             try {
               await setupTonePlayer(audioUrl);
-              break;
+              return "tone";
             } catch (toneError) {
               console.warn(
                 "Tone.js failed, falling back to Howler:",
                 toneError
               );
               await setupHowlerPlayer(audioUrl, station);
-              break;
+              return "howler";
             }
           case "howler":
           default:
             await setupHowlerPlayer(audioUrl, station);
-            break;
+            return "howler";
         }
       } catch (error) {
         console.error("Failed to load audio:", error);
@@ -574,22 +575,22 @@ export const useEnhancedAudioPlayer = (
   const play = useCallback(
     async (station?: RadioStation): Promise<void> => {
       try {
+        let currentStreamType = streamTypeRef.current;
+        
         // If a new station is provided and different from current, load it first
         if (
           station &&
           station.stationuuid !== currentStationRef.current?.stationuuid
         ) {
           console.log(`▶️ Loading and playing new station: ${station.name}`);
-          await load(station);
-          // Wait for load to complete
-          await new Promise((resolve) => setTimeout(resolve, 300));
+          currentStreamType = await load(station);
+          // Small additional delay to ensure everything is ready
+          await new Promise((resolve) => setTimeout(resolve, 100));
         }
 
-        console.log(`▶️ Starting playback, streamType: ${streamType}`);
+        console.log(`▶️ Starting playback, streamType: ${currentStreamType}`);
 
-        // Play based on current stream type
-        const currentStreamType = streamType;
-
+        // Play based on current stream type (use ref for immediate value)
         switch (currentStreamType) {
           case "hls":
             if (audioRef.current) {
@@ -623,7 +624,7 @@ export const useEnhancedAudioPlayer = (
             break;
 
           default:
-            console.warn("No stream type available for playback");
+            console.warn("No stream type available for playback, streamType:", currentStreamType);
             break;
         }
       } catch (error) {
@@ -634,7 +635,7 @@ export const useEnhancedAudioPlayer = (
         throw error;
       }
     },
-    [streamType, load, options]
+    [load, options]
   );
 
   const stop = useCallback(() => {
@@ -724,7 +725,7 @@ export const useEnhancedAudioPlayer = (
 
   useEffect(() => {
     const audio = audioRef.current;
-    if (!audio || streamType !== "hls") return;
+    if (!audio || streamTypeRef.current !== "hls") return;
 
     const handlePlay = () => {
       setIsPlaying(true);

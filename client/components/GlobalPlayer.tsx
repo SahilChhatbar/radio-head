@@ -40,7 +40,6 @@ const GlobalPlayer: React.FC = () => {
     nextStation,
     previousStation,
     play,
-    togglePlayPause,
     setError,
     setIsLoading,
     setIsPlaying,
@@ -219,7 +218,7 @@ const GlobalPlayer: React.FC = () => {
     }
   }, [audioLoading, previousStation, pauseAudio, playAudio, setError]);
 
-  // Handle play/pause
+  // Handle play/pause - FIXED: removed duplicate state toggling
   const handlePlayPause = React.useCallback(async () => {
     if (audioLoading || isChangingStationRef.current) {
       return;
@@ -236,11 +235,12 @@ const GlobalPlayer: React.FC = () => {
         if (isPlaying) {
           console.log(`⏸️ Pausing: ${currentStation.name}`);
           pauseAudio();
-          togglePlayPause();
+          // The onPause callback in useEnhancedAudioPlayer already calls setIsPlaying(false)
+          // So we don't need to call togglePlayPause() here - that was causing double toggle!
         } else {
           console.log(`▶️ Resuming: ${currentStation.name}`);
           await playAudio(currentStation);
-          togglePlayPause();
+          // The onPlay callback in useEnhancedAudioPlayer already calls setIsPlaying(true)
         }
       }
     } catch (error) {
@@ -255,7 +255,6 @@ const GlobalPlayer: React.FC = () => {
     }
   }, [
     currentStation,
-    togglePlayPause,
     stations,
     currentStationIndex,
     playAudio,

@@ -381,11 +381,13 @@ export const useEnhancedAudioPlayer = (
           onpause: () => {
             setIsPlaying(false);
             options.onPause?.();
+            console.log(`⏸️ Paused ${station.name} via Howler`);
           },
 
           onstop: () => {
             setIsPlaying(false);
             setCurrentTime(0);
+            console.log(`⏹️ Stopped ${station.name} via Howler`);
           },
 
           onend: () => {
@@ -474,27 +476,56 @@ export const useEnhancedAudioPlayer = (
     isCleaningUpRef.current = false;
   }, []);
 
+  // FIXED: Improved pause function that properly handles all stream types
   const pause = useCallback(() => {
     try {
-      console.log("⏸️ Pausing audio...");
+      console.log(`⏸️ Pausing audio... (streamType: ${streamTypeRef.current})`);
 
-      // Pause all possible audio sources to prevent echo
+      // Pause based on current stream type for more targeted control
+      const currentStreamType = streamTypeRef.current;
+
+      // Always try to pause the HTML audio element (used by HLS)
       if (audioRef.current) {
-        audioRef.current.pause();
+        try {
+          audioRef.current.pause();
+          console.log("⏸️ HTML audio element paused");
+        } catch (e) {
+          console.warn("Error pausing audio element:", e);
+        }
       }
 
+      // Pause Tone.js player if active
       if (tonePlayerRef.current) {
-        tonePlayerRef.current.stop();
+        try {
+          tonePlayerRef.current.stop();
+          console.log("⏸️ Tone.js player stopped");
+        } catch (e) {
+          console.warn("Error stopping Tone player:", e);
+        }
       }
 
+      // Pause Howler if active
       if (howlRef.current) {
-        howlRef.current.pause();
+        try {
+          howlRef.current.pause();
+          console.log("⏸️ Howler paused");
+        } catch (e) {
+          console.warn("Error pausing Howler:", e);
+        }
       }
 
+      // Update state
       setIsPlaying(false);
+      
+      // Call the onPause callback
       options.onPause?.();
+      
+      console.log("⏸️ Pause complete");
     } catch (error) {
       console.error("Error pausing audio:", error);
+      // Still try to update state even if there was an error
+      setIsPlaying(false);
+      options.onPause?.();
     }
   }, [options]);
 

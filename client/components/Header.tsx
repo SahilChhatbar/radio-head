@@ -37,44 +37,45 @@ const Header: React.FC<HeaderProps> = ({
   return (
     <header className={`p-3 ${className}`}>
       <Container size="4">
-        <Flex direction="column" gap="4" className="py-4">
-          {/* Top Row - Logo and Sign In */}
-          <Flex align="center" justify="between">
-            <Flex align="center">
-              {/* Mobile: icon-only */}
-              <div className="block md:hidden">
-                <Logo size="md" priority variant="icon-only" {...logoProps} />
-              </div>
-              {/* Desktop and up: default variant */}
-              <div className="hidden md:block">
-                <Logo size="md" priority {...logoProps} />
-              </div>
-            </Flex>
-            {showSignIn && (
-              <Flex align="center" gap="3">
-                <Button size="2">Sign In</Button>
-              </Flex>
-            )}
+        {/* Single Row Layout */}
+        <Flex align="center" justify="between" className="h-16 px-6">
+          {/* Left: Logo */}
+          <Flex align="center">
+            {/* Mobile: icon-only */}
+            <div className="block md:hidden">
+              <Logo size="md" priority variant="icon-only" {...logoProps} />
+            </div>
+            {/* Desktop: default variant */}
+            <div className="hidden md:block">
+              <Logo size="md" priority {...logoProps} />
+            </div>
           </Flex>
 
-          {/* Middle Row - Location Selectors */}
-          <div className="w-full">
+          {/* Center: Location Selectors (Hidden on very small screens) */}
+          <Flex align="center" className="hidden sm:flex flex-1 justify-center mx-4 max-w-md">
             <LocationSelector />
-          </div>
+          </Flex>
 
-          {/* Bottom Row - Current Playing */}
-          <Flex align="center" justify="center">
-            <Container className="bg-gray-900/60 border border-gray-700/50 rounded-lg px-4 py-2 backdrop-blur-sm scrolling-text-container">
+          {/* Right: Now Playing & Sign In */}
+          <Flex align="center" gap="3">
+            {/* Now Playing - Hidden on mobile */}
+            <Container className="hidden lg:block bg-gray-900/60 border border-gray-700/50 rounded-lg px-3 py-1.5 backdrop-blur-sm">
               <Text
-                size="2"
-                className="text-red-400 font-mono font-medium tracking-wider [text-shadow:0_0_8px_rgb(248_113_113_/_0.8),_0_0_16px_rgb(248_113_113_/_0.4)] scrolling-text"
+                size="1"
+                className="text-red-400 font-mono font-medium tracking-wider [text-shadow:0_0_8px_rgb(248_113_113_/_0.8)] truncate max-w-[200px]"
                 title={displayText}
               >
                 {displayText}
               </Text>
             </Container>
+            {showSignIn && (
+              <Button size="2">Sign In</Button>
+            )}
           </Flex>
         </Flex>
+
+        {/* Mobile: Show location selectors below on small screens */}
+
       </Container>
     </header>
   );
@@ -82,3 +83,4 @@ const Header: React.FC<HeaderProps> = ({
 
 export default Header;
 export type { HeaderProps, LogoProps };
+

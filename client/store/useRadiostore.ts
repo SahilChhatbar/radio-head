@@ -143,7 +143,7 @@ export const useRadioStore = create<RadioStore>((set, get) => ({
     audioControls.setMuted?.(muted);
   },
 
-  // Play station
+  // Play station - UPDATED to always show player
   play: (station) => {
     const { currentStation, stations, currentStationIndex, audioControls } = get();
 
@@ -157,13 +157,17 @@ export const useRadioStore = create<RadioStore>((set, get) => ({
         currentStation: station,
         isPlaying: true,
         error: null,
-        showPlayer: true,
+        showPlayer: true, // ALWAYS show player when playing
         ...(index >= 0 && { currentStationIndex: index }),
       });
 
       audioControls.play?.(station);
     } else if (currentStation) {
-      set({ isPlaying: true, error: null });
+      set({
+        isPlaying: true,
+        error: null,
+        showPlayer: true, // ALWAYS show player when playing
+      });
       audioControls.play?.(currentStation);
     } else if (stations.length > 0) {
       const stationToPlay = stations[currentStationIndex];
@@ -171,7 +175,7 @@ export const useRadioStore = create<RadioStore>((set, get) => ({
         currentStation: stationToPlay,
         isPlaying: true,
         error: null,
-        showPlayer: true,
+        showPlayer: true, // ALWAYS show player when playing
       });
       audioControls.play?.(stationToPlay);
     }

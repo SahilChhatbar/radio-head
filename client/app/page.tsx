@@ -21,21 +21,18 @@ export default function Home() {
     if (showPlayer && currentStation) {
       return isPlaying ? "" : "PAUSED - Click gauge again to stop";
     }
-    return "Click the radio gauge to start listening →";
+    return "Select a region and station to start listening →";
   };
 
   const heroContent = DEFAULT_HERO_CONTENT;
 
-  // Handle loading state with both data check and maximum timeout
+  // Handle loading state - wait for stations to load
   useEffect(() => {
-    // Maximum timeout - show content after 3 seconds regardless
     const maxLoadingTimer = setTimeout(() => {
       setIsInitialLoading(false);
     }, 3000);
 
-    // Minimum loading time for smooth UX
     const minLoadingTimer = setTimeout(() => {
-      // Hide loader after minimum time if stations are loaded
       if (stations.length > 0) {
         setIsInitialLoading(false);
       }
@@ -47,13 +44,11 @@ export default function Home() {
     };
   }, [stations.length]);
 
-  // Also hide loader when stations become available after minimum time
   useEffect(() => {
     if (stations.length > 0 && !isInitialLoading) {
       return;
     }
 
-    // Small delay to ensure we've passed minimum loading time
     const timer = setTimeout(() => {
       if (stations.length > 0) {
         setIsInitialLoading(false);

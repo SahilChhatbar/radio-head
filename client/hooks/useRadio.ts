@@ -340,3 +340,56 @@ export const useIndianAndQualityStations = (
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
   });
 };
+export const useStationsByCountryWithFilter = (
+  countryCode: string,
+  limit: number = 100,
+  enabled: boolean = true
+): UseQueryResult<RadioStation[], Error> => {
+  return useQuery({
+    queryKey: ["stations-by-country-filtered", countryCode, limit],
+    queryFn: async () => {
+      console.log(`🌍 Fetching quality stations for ${countryCode}...`);
+
+      const fetchLimit = Math.min(limit * 2, 200);
+      const countryStations = await radioApi.getStationsByCountry(
+        countryCode,
+        fetchLimit
+      );
+      console.log(`🌍 Found ${countryStations.length} stations for ${countryCode}`);
+
+      // Apply quality filtering
+      const qualityFiltered = countryStations
+        .map((station) => ({
+          station,
+          quality: stationFilterService.getStationQualityInfo(station),
+        }))
+        .filter(({ quality, station }) => {
+          const isQualityGood =
+            quality.quality === "excellent" ||
+            quality.quality === "good" ||
+            quality.quality === "acceptable";
+          const hasDecentBitrate = station.bitrate >= 64 || station.bitrate === 0;
+          return isQualityGood && hasDecentBitrate;
+        })
+        .sort((a, b) => {
+          if (b.quality.score !== a.quality.score) {
+            return b.quality.score - a.quality.score;
+          }
+          return (b.station.clickcount || 0) - (a.station.clickcount || 0);
+        })
+        .map(({ station }) => station)
+        .slice(0, limit);
+
+      console.log(
+        `✅ Filtered to ${qualityFiltered.length} high-quality stations for ${countryCode}`
+      );
+
+      return qualityFiltered;
+    },
+    enabled: enabled && !!countryCode,
+    staleTime: 10 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
+    retry: 2,
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+  });
+};

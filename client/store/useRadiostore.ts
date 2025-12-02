@@ -1,3 +1,6 @@
+// File: client/store/useRadiostore.ts
+// Fixed to always show player when playing starts
+
 import { create } from "zustand";
 import { RadioStation, RadioPlayerState } from "@/types/index";
 
@@ -23,6 +26,10 @@ interface RadioStore extends RadioPlayerState {
   setCurrentStationIndex: (index: number) => void;
   nextStation: () => void;
   previousStation: () => void;
+
+  // Country management
+  selectedCountry: string;
+  setSelectedCountry: (country: string) => void;
 
   // UI state
   showPlayer: boolean;
@@ -58,6 +65,7 @@ export const useRadioStore = create<RadioStore>((set, get) => ({
   stations: [],
   currentStationIndex: 0,
   showPlayer: false,
+  selectedCountry: "IN",
 
   // Audio control callbacks
   audioControls: {
@@ -143,9 +151,11 @@ export const useRadioStore = create<RadioStore>((set, get) => ({
     audioControls.setMuted?.(muted);
   },
 
-  // Play station - UPDATED to always show player
+  // FIXED: Play station - ALWAYS show player when playing
   play: (station) => {
     const { currentStation, stations, currentStationIndex, audioControls } = get();
+
+    console.log("▶️ Store play() called with station:", station?.name || "current");
 
     if (station) {
       // Find index of station in stations array
@@ -157,17 +167,19 @@ export const useRadioStore = create<RadioStore>((set, get) => ({
         currentStation: station,
         isPlaying: true,
         error: null,
-        showPlayer: true, // ALWAYS show player when playing
+        showPlayer: true, // ✅ ALWAYS show player
         ...(index >= 0 && { currentStationIndex: index }),
       });
 
+      console.log("✅ Player visibility set to TRUE");
       audioControls.play?.(station);
     } else if (currentStation) {
       set({
         isPlaying: true,
         error: null,
-        showPlayer: true, // ALWAYS show player when playing
+        showPlayer: true, // ✅ ALWAYS show player
       });
+      console.log("✅ Player visibility set to TRUE (current station)");
       audioControls.play?.(currentStation);
     } else if (stations.length > 0) {
       const stationToPlay = stations[currentStationIndex];
@@ -175,8 +187,9 @@ export const useRadioStore = create<RadioStore>((set, get) => ({
         currentStation: stationToPlay,
         isPlaying: true,
         error: null,
-        showPlayer: true, // ALWAYS show player when playing
+        showPlayer: true, // ✅ ALWAYS show player
       });
+      console.log("✅ Player visibility set to TRUE (first station)");
       audioControls.play?.(stationToPlay);
     }
   },
@@ -189,7 +202,10 @@ export const useRadioStore = create<RadioStore>((set, get) => ({
   },
 
   // Station management
-  setStations: (stations) => set({ stations }),
+  setStations: (stations) => {
+    console.log(`📻 Store: Setting ${stations.length} stations`);
+    set({ stations });
+  },
 
   setCurrentStationIndex: (index) => {
     const { stations } = get();
@@ -204,6 +220,7 @@ export const useRadioStore = create<RadioStore>((set, get) => ({
     if (stations.length > 0) {
       const nextIndex = (currentStationIndex + 1) % stations.length;
       const nextStation = stations[nextIndex];
+      console.log(`⏭️ Next station: ${nextStation.name}`);
       set({
         currentStationIndex: nextIndex,
         currentStation: nextStation,
@@ -220,6 +237,7 @@ export const useRadioStore = create<RadioStore>((set, get) => ({
           ? stations.length - 1
           : currentStationIndex - 1;
       const prevStation = stations[prevIndex];
+      console.log(`⏮️ Previous station: ${prevStation.name}`);
       set({
         currentStationIndex: prevIndex,
         currentStation: prevStation,
@@ -228,5 +246,15 @@ export const useRadioStore = create<RadioStore>((set, get) => ({
   },
 
   // UI state
-  setShowPlayer: (show) => set({ showPlayer: show }),
+  setShowPlayer: (show) => {
+    console.log(`👁️ Store: setShowPlayer(${show})`);
+    set({ showPlayer: show });
+  },
+
+  // Country management
+  setSelectedCountry: (country) => {
+    console.log(`🌍 Store: setSelectedCountry(${country})`);
+    set({ selectedCountry: country });
+    localStorage.setItem("radioverse-country", country);
+  },
 }));

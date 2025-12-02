@@ -1,9 +1,12 @@
+// File: client/components/StationSelector.tsx
+// Fixed to ensure player is visible when playing starts
+
 "use client";
 
 import React, { useEffect, useRef } from "react";
 import { Flex, Text } from "@radix-ui/themes";
-import { useIndianAndQualityStations } from "@/hooks/useRadio";
 import { useRadioStore } from "@/store/useRadiostore";
+import { radioApi } from "@/api/index";
 import { getStationQualityInfo } from "@/services/StationFilter";
 import Loader from "./Loader";
 
@@ -30,12 +33,6 @@ export default function StationGauge({ limit = 100 }: StationGaugeProps) {
   const prevAngleRef = useRef<number>(180);
 
   const {
-    data: fetchedStations = [],
-    isLoading,
-    error,
-  } = useIndianAndQualityStations(limit);
-
-  const {
     stations,
     currentStationIndex,
     showPlayer,
@@ -47,19 +44,36 @@ export default function StationGauge({ limit = 100 }: StationGaugeProps) {
     play,
     stop,
     setShowPlayer,
-    audioControls,
+    selectedCountry,
   } = useRadioStore();
 
-  useEffect(() => {
-    if (fetchedStations.length > 0 && stations.length === 0) {
-      console.log(
-        `🎵 Loading ${fetchedStations.length} filtered stations into gauge`
-      );
-      setStations(fetchedStations);
-    }
-  }, [fetchedStations, stations.length, setStations]);
+  // Track if we need to load initial data
+  const [isInitializing, setIsInitializing] = React.useState(true);
+  const [isLoadingStations, setIsLoadingStations] = React.useState(false);
+  const [loadingError, setLoadingError] = React.useState<string | null>(null);
 
-  const indexToAngle = (index: number) => {
+  // Initialize with default country stations if store is empty
+  useEffect(() => {
+    const initializeStations = async () => {
+      if (stations.length === 0 && isInitializing) {
+        console.log(`🎵 Initializing gauge with stations for ${selectedCountry}`);
+        setIsLoadingStations(true);
+        try {
+          const countryStations = await radioApi.getStationsByCountry(selectedCountry, limit);
+          console.log(`✅ Loaded ${countryStations.length} stations from API`);
+          setStations(countryStations);
+        } catch (err) {
+          console.error("❌ Failed to initialize stations:", err);
+          setLoadingError(String(err));
+        } finally {
+          setIsLoadingStations(false);
+          setIsInitializing(false);
+        }
+      }
+    };
+
+    initializeStations();
+  }, [isInitializing, selectedCountry, stations.length, setStations, limit]); const indexToAngle = (index: number) => {
     if (stations.length === 0) return 180;
     return 180 + (index / Math.max(stations.length - 1, 1)) * 270;
   };
@@ -102,7 +116,7 @@ export default function StationGauge({ limit = 100 }: StationGaugeProps) {
   });
 
   const getCurrentStationInfo = () => {
-    if (error) return { display: "Error loading", quality: null };
+    if (loadingError) return { display: "Error loading", quality: null };
     if (stations.length === 0) return { display: "No stations", quality: null };
 
     const station = stations[currentStationIndex];
@@ -130,8 +144,9 @@ export default function StationGauge({ limit = 100 }: StationGaugeProps) {
       } else {
         try {
           console.log(`▶️ Starting ${currentStationData?.name}`);
-          // Use the store's play method which will trigger audio controls
           play(currentStationData);
+          // FIXED: Ensure player is visible when playing starts
+          setShowPlayer(true);
         } catch (error) {
           console.error("Failed to start playback:", error);
           if (stations.length > 1) {
@@ -139,6 +154,7 @@ export default function StationGauge({ limit = 100 }: StationGaugeProps) {
               nextStation();
               const nextStationData = stations[(currentStationIndex + 1) % stations.length];
               play(nextStationData);
+              setShowPlayer(true);
             }, 500);
           }
         }
@@ -166,18 +182,25 @@ export default function StationGauge({ limit = 100 }: StationGaugeProps) {
     }
   };
 
-  if (isLoading) {
+  // Reset visualizer whenever station changes
+  React.useEffect(() => {
+    if (currentStation) {
+      console.log(`🎨 Station changed to: ${currentStation.name}`);
+    }
+  }, [currentStation?.stationuuid]);
+
+  if (isLoadingStations || isInitializing) {
     return (
       <div className="flex flex-col items-center gap-4 p-8">
         <Loader variant="spinner" />
         <Text size="2" className="text-slate-500">
-          Loading high-quality stations...
+          Loading stations...
         </Text>
       </div>
     );
   }
 
-  if (error) {
+  if (loadingError) {
     return (
       <div className="flex flex-col items-center gap-4 p-8">
         <div className="w-112 aspect-square flex items-center justify-center">

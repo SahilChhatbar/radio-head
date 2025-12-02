@@ -114,6 +114,10 @@ export const radioApi = {
       return false;
     }
   },
+  getCountries: async () => {
+  const response = await api.get("/radio/countries");
+  return response.data.data;
+}
 };
 
 export default radioApi;

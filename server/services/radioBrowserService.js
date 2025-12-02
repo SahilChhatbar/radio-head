@@ -10,14 +10,14 @@ const CONFIG = {
   BACKOFF_MULTIPLIER: 2,
   DEFAULT_LIMIT: 50,
   MAX_LIMIT: 1000,
-  
+
   // User agent (speaking HTTP agent string as required)
   USER_AGENT: 'RadioVerse/1.0 (https://RadioVerse-app.com)',
-  
+
   // Fallback servers (geographically distributed)
   FALLBACK_SERVERS: [
     'https://de1.api.radio-browser.info',
-    'https://nl1.api.radio-browser.info', 
+    'https://nl1.api.radio-browser.info',
     'https://at1.api.radio-browser.info',
     'https://fr1.api.radio-browser.info'
   ]
@@ -28,7 +28,7 @@ let serverCache = {
   selectedServer: null,
   timestamp: 0,
   ttl: CONFIG.SERVER_CACHE_TTL,
-  healthStats: new Map() 
+  healthStats: new Map()
 };
 
  //Enhanced server discovery using both SRV and A record methods
@@ -45,7 +45,7 @@ class RadioBrowserService {
     try {
       console.log('🔍 Discovering servers via SRV records...');
       const srvRecords = await dns.resolveSrv('_api._tcp.radio-browser.info');
-      
+
       if (!srvRecords || srvRecords.length === 0) {
         throw new Error('No SRV records found');
       }
@@ -70,7 +70,7 @@ class RadioBrowserService {
     try {
       console.log('🔍 Discovering servers via A records...');
       const aRecords = await dns.resolve4('all.api.radio-browser.info');
-      
+
       if (!aRecords || aRecords.length === 0) {
         throw new Error('No A records found');
       }
@@ -120,18 +120,18 @@ class RadioBrowserService {
   async _performDiscovery() {
     // Try SRV records first (preferred)
     let servers = await this.discoverServersViaSRV();
-    
+
     // Fallback to A records
     if (!servers || servers.length === 0) {
       servers = await this.discoverServersViaA();
     }
-    
+
     // Final fallback to hardcoded servers
     if (!servers || servers.length === 0) {
       console.warn('🚨 DNS discovery failed completely, using fallback servers');
       return [...CONFIG.FALLBACK_SERVERS];
     }
-    
+
     // Shuffle servers for load distribution
     return this.shuffleArray([...servers]);
   }
@@ -142,32 +142,32 @@ class RadioBrowserService {
   async testServerHealth(server, timeout = CONFIG.HEALTH_CHECK_TIMEOUT) {
     const start = Date.now();
     const api = this.createApiInstance(server, timeout);
-    
+
     try {
       // Test with a lightweight endpoint
       await api.get('/countries', { params: { limit: 1 } });
-      
+
       const responseTime = Date.now() - start;
-      const stats = { 
-        server, 
-        healthy: true, 
+      const stats = {
+        server,
+        healthy: true,
         responseTime,
         timestamp: Date.now()
       };
-      
+
       // Update health stats cache
       serverCache.healthStats.set(server, stats);
-      
+
       return stats;
     } catch (error) {
-      const stats = { 
-        server, 
-        healthy: false, 
-        responseTime: Infinity, 
+      const stats = {
+        server,
+        healthy: false,
+        responseTime: Infinity,
         error: error.message,
         timestamp: Date.now()
       };
-      
+
       serverCache.healthStats.set(server, stats);
       return stats;
     }
@@ -180,24 +180,24 @@ class RadioBrowserService {
     try {
       const servers = await this.discoverServers();
       console.log(`🏥 Testing ${servers.length} servers for health and response time...`);
-      
+
       // Test all servers in parallel with timeout
-      const healthCheckPromises = servers.map(server => 
+      const healthCheckPromises = servers.map(server =>
         Promise.race([
           this.testServerHealth(server),
-          new Promise(resolve => 
-            setTimeout(() => resolve({ 
-              server, 
-              healthy: false, 
-              responseTime: Infinity, 
-              error: 'Timeout' 
+          new Promise(resolve =>
+            setTimeout(() => resolve({
+              server,
+              healthy: false,
+              responseTime: Infinity,
+              error: 'Timeout'
             }), CONFIG.HEALTH_CHECK_TIMEOUT + 1000)
           )
         ])
       );
 
       const healthResults = await Promise.all(healthCheckPromises);
-      
+
       // Filter and sort healthy servers by response time
       const healthyServers = healthResults
         .filter(result => result.healthy)
@@ -209,14 +209,14 @@ class RadioBrowserService {
 
       const bestServer = healthyServers[0];
       console.log(`🎯 Selected server: ${bestServer.server} (${bestServer.responseTime}ms)`);
-      
+
       // Store backup servers for failover
       serverCache.servers = healthyServers.slice(0, 3); // Keep top 3
-      
+
       return bestServer.server;
     } catch (error) {
       console.error('💥 Error finding best server:', error.message);
-      
+
       // Try fallback servers as last resort
       for (const fallbackServer of CONFIG.FALLBACK_SERVERS) {
         try {
@@ -229,7 +229,7 @@ class RadioBrowserService {
           continue;
         }
       }
-      
+
       throw new Error('All Radio Browser servers are unavailable');
     }
   }
@@ -240,11 +240,11 @@ class RadioBrowserService {
   async getCachedServer(forceRefresh = false) {
     const now = Date.now();
     const isExpired = now - serverCache.timestamp > serverCache.ttl;
-    
+
     // Check if we need to refresh
     if (forceRefresh || !serverCache.selectedServer || isExpired) {
       console.log('🔄 Refreshing server cache...');
-      
+
       try {
         serverCache.selectedServer = await this.getBestWorkingServer(forceRefresh);
         serverCache.timestamp = now;
@@ -257,7 +257,7 @@ class RadioBrowserService {
         throw error;
       }
     }
-    
+
     return serverCache.selectedServer;
   }
 
@@ -294,45 +294,45 @@ class RadioBrowserService {
   async executeRequest(requestFn, maxRetries = CONFIG.MAX_RETRIES) {
     let lastError;
     let retryCount = 0;
-    
+
     while (retryCount <= maxRetries) {
       try {
         const forceRefresh = retryCount > 0;
         const api = await this.getApiInstance(forceRefresh);
-        
+
         const response = await requestFn(api);
-        
+
         // Validate response
         if (!response.data) {
           throw new Error('Empty response data');
         }
-        
+
         // Reset retry count on success
         if (retryCount > 0) {
           console.log(`✅ Request succeeded after ${retryCount} retries`);
         }
-        
+
         return response.data;
-        
+
       } catch (error) {
         lastError = error;
         retryCount++;
-        
+
         console.warn(`⚠️ Request failed (attempt ${retryCount}/${maxRetries + 1}):`, error.message);
-        
+
         if (retryCount <= maxRetries) {
           // Calculate exponential backoff delay
           const delay = CONFIG.RETRY_DELAY * Math.pow(CONFIG.BACKOFF_MULTIPLIER, retryCount - 1);
           console.log(`⏳ Retrying in ${delay}ms...`);
-          
+
           await new Promise(resolve => setTimeout(resolve, delay));
           continue;
         }
-        
+
         break;
       }
     }
-    
+
     // All retries failed
     console.error('💥 All retry attempts failed:', lastError?.message);
     throw new Error(`Failed to execute request after ${maxRetries + 1} attempts: ${lastError?.message}`);
@@ -343,17 +343,17 @@ class RadioBrowserService {
    */
   validateParams(params = {}) {
     const validated = {};
-    
+
     // Limit validation
     if (params.limit !== undefined) {
       validated.limit = Math.min(Math.max(parseInt(params.limit) || CONFIG.DEFAULT_LIMIT, 1), CONFIG.MAX_LIMIT);
     }
-    
+
     // Offset validation
     if (params.offset !== undefined) {
       validated.offset = Math.max(parseInt(params.offset) || 0, 0);
     }
-    
+
     // String parameters - sanitize
     const stringParams = ['countrycode', 'tag', 'name', 'language', 'order'];
     stringParams.forEach(param => {
@@ -361,12 +361,12 @@ class RadioBrowserService {
         validated[param] = params[param].trim().substring(0, 100); // Limit length
       }
     });
-    
+
     // Boolean parameters
     if (params.reverse !== undefined) {
       validated.reverse = Boolean(params.reverse);
     }
-    
+
     return validated;
   }
 
@@ -375,16 +375,16 @@ class RadioBrowserService {
    */
   buildQueryParams(params) {
     const queryParams = new URLSearchParams();
-    
+
     Object.entries(params).forEach(([key, value]) => {
       if (value !== undefined && value !== null) {
         queryParams.append(key, value.toString());
       }
     });
-    
+
     // Always hide broken stations
     queryParams.append('hidebroken', 'true');
-    
+
     return queryParams.toString();
   }
 
@@ -397,18 +397,18 @@ class RadioBrowserService {
       limit: params.limit || CONFIG.DEFAULT_LIMIT,
       offset: params.offset || 0
     });
-    
+
     console.log('🎵 Fetching radio stations with params:', validatedParams);
-    
+
     return await this.executeRequest(async (api) => {
       const queryString = this.buildQueryParams(validatedParams);
       const response = await api.get(`/stations/search?${queryString}`);
-      
+
       // Validate response structure
       if (!Array.isArray(response.data)) {
         throw new Error('Invalid response format: expected array');
       }
-      
+
       console.log(`✅ Successfully fetched ${response.data.length} stations`);
       return response;
     });
@@ -421,12 +421,12 @@ class RadioBrowserService {
     if (!query || typeof query !== 'string') {
       throw new Error('Search query must be a non-empty string');
     }
-    
+
     const trimmedQuery = query.trim();
     if (trimmedQuery.length < 2) {
       throw new Error('Search query must be at least 2 characters long');
     }
-    
+
     return await this.getRadioStations({
       name: trimmedQuery,
       limit,
@@ -438,24 +438,55 @@ class RadioBrowserService {
   /**
    * Get stations by country code (ISO 3166-1 alpha-2)
    */
-  async getStationsByCountry(countryCode, limit = 50) {
-    if (!countryCode || typeof countryCode !== 'string') {
-      throw new Error('Country code must be a non-empty string');
-    }
-    
-    // Validate country code format (2 letter ISO code)
-    const normalizedCode = countryCode.toLowerCase().trim();
-    if (!/^[a-z]{2}$/.test(normalizedCode)) {
-      throw new Error('Country code must be a valid 2-letter ISO country code');
-    }
-    
-    return await this.getRadioStations({
-      countrycode: normalizedCode,
-      limit,
-      order: 'clickcount',
-      reverse: true
-    });
+ /**
+ * Get stations by country code (ISO 3166-1 alpha-2)
+ * Uses the dedicated /stations/bycountrycodeexact/{code} endpoint.
+ */
+async getStationsByCountry(countryCode, limit = 50) {
+  if (!countryCode || typeof countryCode !== "string") {
+    throw new Error("Country code must be a non-empty string");
   }
+
+  // Radio Browser expects UPPERCASE ISO 3166-1 alpha-2 codes
+  const normalizedCode = countryCode.toUpperCase().trim();
+  if (!/^[A-Z]{2}$/.test(normalizedCode)) {
+    throw new Error("Country code must be a valid 2-letter ISO country code");
+  }
+
+  // Clamp limit using the same rules as the rest of the service
+  const safeLimit = Math.min(
+    Math.max(parseInt(limit) || CONFIG.DEFAULT_LIMIT, 1),
+    CONFIG.MAX_LIMIT
+  );
+
+  console.log(`🎯 Fetching stations for country ${normalizedCode} (limit=${safeLimit})`);
+
+  return await this.executeRequest(async (api) => {
+    const response = await api.get(
+      `/stations/bycountrycodeexact/${encodeURIComponent(normalizedCode)}`,
+      {
+        params: {
+          // Order by most clicked, hide broken – matches your “popular” logic
+          limit: safeLimit,
+          hidebroken: "true",
+          order: "clickcount",
+          reverse: "true",
+        },
+      }
+    );
+
+    if (!Array.isArray(response.data)) {
+      throw new Error("Invalid response format for getStationsByCountry");
+    }
+
+    console.log(
+      `✅ Successfully fetched ${response.data.length} stations for ${normalizedCode}`
+    );
+
+    // executeRequest will return response.data to the caller
+    return response;
+  });
+}
 
   /**
    * Get stations by tag with improved filtering
@@ -464,12 +495,12 @@ class RadioBrowserService {
     if (!tag || typeof tag !== 'string') {
       throw new Error('Tag must be a non-empty string');
     }
-    
+
     const trimmedTag = tag.trim();
     if (trimmedTag.length === 0) {
       throw new Error('Tag cannot be empty');
     }
-    
+
     return await this.getRadioStations({
       tag: trimmedTag,
       limit,
@@ -494,14 +525,14 @@ class RadioBrowserService {
    */
   async getCountries() {
     console.log('🌍 Fetching countries list...');
-    
+
     return await this.executeRequest(async (api) => {
       const response = await api.get('/countries');
-      
+
       if (!Array.isArray(response.data)) {
         throw new Error('Invalid countries response format');
       }
-      
+
       console.log(`✅ Successfully fetched ${response.data.length} countries`);
       return response;
     });
@@ -512,15 +543,15 @@ class RadioBrowserService {
    */
   async getTags(limit = 100) {
     console.log('🏷️ Fetching tags list...');
-    
+
     return await this.executeRequest(async (api) => {
       const queryString = limit ? `?limit=${limit}` : '';
       const response = await api.get(`/tags${queryString}`);
-      
+
       if (!Array.isArray(response.data)) {
         throw new Error('Invalid tags response format');
       }
-      
+
       console.log(`✅ Successfully fetched ${response.data.length} tags`);
       return response;
     });
@@ -535,12 +566,12 @@ class RadioBrowserService {
       console.warn('⚠️ Cannot record click: missing station UUID');
       return false;
     }
-    
+
     try {
       await this.executeRequest(async (api) => {
         return await api.get(`/url/${stationUuid}`);
       });
-      
+
       console.log(`📊 Recorded click for station: ${stationUuid}`);
       return true;
     } catch (error) {
@@ -557,7 +588,7 @@ class RadioBrowserService {
       server,
       ...stats
     }));
-    
+
     return {
       currentServer: serverCache.selectedServer,
       cacheAge: serverCache.timestamp ? Date.now() - serverCache.timestamp : null,
@@ -598,9 +629,9 @@ class RadioBrowserService {
     try {
       const server = await this.getCachedServer();
       const api = this.createApiInstance(server, 5000);
-      
+
       await api.get('/countries', { params: { limit: 1 } });
-      
+
       return {
         status: 'healthy',
         server,

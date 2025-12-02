@@ -18,25 +18,29 @@ app.use((req, res, next) => {
   res.setHeader('X-XSS-Protection', '1; mode=block');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
   res.removeHeader('X-Powered-By');
-  
+
   next();
 });
 
 const corsOptions = {
   origin: function (origin, callback) {
     if (!origin) return callback(null, true);
-    
+
     const allowedOrigins = [
       process.env.CLIENT_URL || 'http://localhost:3000',
       'http://localhost:3000',
       'http://127.0.0.1:3000',
-      'https://127.0.0.1:3000'
+      'https://127.0.0.1:3000',
+      'http://localhost:3001',
+      'http://localhost:3001',
+      'http://127.0.0.1:3001',
+      'https://127.0.0.1:3001'
     ];
-    
+
     if (process.env.ALLOWED_ORIGINS) {
       allowedOrigins.push(...process.env.ALLOWED_ORIGINS.split(','));
     }
-    
+
     if (allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
@@ -48,17 +52,17 @@ const corsOptions = {
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
   exposedHeaders: ['X-Total-Count', 'X-Rate-Limit-Remaining'],
-  maxAge: 86400 
+  maxAge: 86400
 };
 
 app.use(cors(corsOptions));
 
-app.use(express.json({ 
+app.use(express.json({
   limit: '1mb',
   strict: true
 }));
-app.use(express.urlencoded({ 
-  extended: true, 
+app.use(express.urlencoded({
+  extended: true,
   limit: '1mb',
   parameterLimit: 100
 }));
@@ -67,31 +71,31 @@ app.use((req, res, next) => {
   const timestamp = new Date().toISOString();
   const userAgent = req.get('User-Agent') || 'Unknown';
   const ip = req.ip || req.connection.remoteAddress;
-  
+
   console.log(`📊 [${timestamp}] ${req.method} ${req.url} - IP: ${ip}`);
-  
+
   if (NODE_ENV === 'development') {
     console.log(`   UA: ${userAgent.substring(0, 100)}${userAgent.length > 100 ? '...' : ''}`);
   }
-  
+
   next();
 });
 
 app.use((req, res, next) => {
   req.startTime = Date.now();
-  
+
   const originalSend = res.send;
   res.send = function(data) {
     const responseTime = Date.now() - req.startTime;
     res.setHeader('X-Response-Time', `${responseTime}ms`);
-    
+
     if (responseTime > 5000) {
       console.warn(`⚠️ Slow response: ${req.method} ${req.url} took ${responseTime}ms`);
     }
-    
+
     return originalSend.call(this, data);
   };
-  
+
   next();
 });
 
@@ -119,7 +123,7 @@ app.get('/', (req, res) => {
       radioBrowserAPI: 'https://api.radio-browser.info'
     }
   };
-  
+
   res.json(serverInfo);
 });
 
@@ -139,24 +143,24 @@ app.get('/api/health', async (req, res) => {
       pid: process.pid
     }
   };
-  
+
   try {
     const { healthCheck: radioHealthCheck } = require('./services/radioBrowserService');
     const radioBrowserHealth = await radioHealthCheck();
-    
+
     healthCheck.radioBrowser = radioBrowserHealth;
-    
+
     if (radioBrowserHealth.status === 'unhealthy') {
       healthCheck.status = 'degraded';
       res.status(503);
     }
-    
+
   } catch (error) {
     healthCheck.status = 'error';
     healthCheck.error = error.message;
     res.status(503);
   }
-  
+
   res.json(healthCheck);
 });
 
@@ -278,7 +282,7 @@ app.get('/api/docs', (req, res) => {
       note: 'Rate limits are applied per IP address'
     }
   };
-  
+
   res.json(docs);
 });
 
@@ -304,7 +308,7 @@ app.use((req, res, next) => {
 app.use((err, req, res, next) => {
   const timestamp = new Date().toISOString();
   const requestId = Math.random().toString(36).substring(2, 15);
-  
+
   console.error(`🚨 [${timestamp}] Error ${requestId}:`, {
     error: err.message,
     stack: err.stack,
@@ -313,9 +317,9 @@ app.use((err, req, res, next) => {
     ip: req.ip,
     userAgent: req.get('User-Agent')
   });
-  
+
   const isDevelopment = NODE_ENV === 'development';
-  
+
   if (err.name === 'ValidationError') {
     return res.status(400).json({
       success: false,
@@ -325,7 +329,7 @@ app.use((err, req, res, next) => {
       timestamp
     });
   }
-  
+
   if (err.message && err.message.includes('CORS')) {
     return res.status(403).json({
       success: false,
@@ -335,7 +339,7 @@ app.use((err, req, res, next) => {
       timestamp
     });
   }
-  
+
   res.status(err.status || 500).json({
     success: false,
     message: 'Internal server error',
@@ -348,7 +352,7 @@ app.use((err, req, res, next) => {
 
 const gracefulShutdown = (signal) => {
   console.log(`\n🔄 Received ${signal}. Starting graceful shutdown...`);
-  
+
   const server = app.listen(PORT, () => {
     console.log(`🚀 RadioVerse API Server is running!`);
     console.log(`📡 Environment: ${NODE_ENV}`);
@@ -358,7 +362,7 @@ const gracefulShutdown = (signal) => {
     console.log(`🎵 Radio API: http://localhost:${PORT}/api/radio`);
     console.log(`⚡ Ready to serve radio stations from around the world!\n`);
   });
-  
+
   const shutdown = () => {
     console.log('🛑 Closing server...');
     server.close((err) => {
@@ -375,10 +379,10 @@ const gracefulShutdown = (signal) => {
       process.exit(1);
     }, 30000);
   };
-  
+
   process.on('SIGTERM', shutdown);
   process.on('SIGINT', shutdown);
-  
+
   return server;
 };
 

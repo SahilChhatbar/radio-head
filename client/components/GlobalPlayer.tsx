@@ -14,6 +14,10 @@ import {
   Clock,
   Signal,
   Zap,
+  DiscAlbumIcon,
+  Disc2Icon,
+  Disc3,
+  Unplug,
 } from "lucide-react";
 import { useRadioStore } from "@/store/useRadiostore";
 import * as Slider from "@radix-ui/react-slider";
@@ -218,55 +222,49 @@ const GlobalPlayer: React.FC = () => {
     }
   }, [audioLoading, previousStation, pauseAudio, playAudio, setError]);
 
-  // Handle play/pause - FIXED: removed duplicate state toggling
-  const handlePlayPause = React.useCallback(async () => {
-    if (audioLoading || isChangingStationRef.current) {
-      return;
-    }
+ const handlePlayPause = React.useCallback(async () => {
+ if (audioLoading || isChangingStationRef.current) { return;
+ }
+ try {
+ if (isPlaying) {
+ console.log(`⏸️ Pausing: ${currentStation?.name || 'audio'}`);
+ pauseAudio();
+ } else {
+ let stationToPlay = currentStation;
+ if (!stationToPlay && stations.length > 0) {
+ stationToPlay = stations[currentStationIndex];
+ }
+ if (stationToPlay) {
+ console.log(`▶️ Starting/Resuming playback: ${stationToPlay.name}`);
+ visualizerRef.current?.reset();
+ play(stationToPlay); 
+ } else {
+  console.warn("Cannot play, no station available.");
+ }
+ }
 
-    try {
-      if (!currentStation && stations.length > 0) {
-        const stationToPlay = stations[currentStationIndex];
-        console.log(`▶️ Starting playback: ${stationToPlay.name}`);
-        visualizerRef.current?.reset();
-        await playAudio(stationToPlay);
-        play(stationToPlay);
-      } else if (currentStation) {
-        if (isPlaying) {
-          console.log(`⏸️ Pausing: ${currentStation.name}`);
-          pauseAudio();
-          // The onPause callback in useEnhancedAudioPlayer already calls setIsPlaying(false)
-          // So we don't need to call togglePlayPause() here - that was causing double toggle!
-        } else {
-          console.log(`▶️ Resuming: ${currentStation.name}`);
-          await playAudio(currentStation);
-          // The onPlay callback in useEnhancedAudioPlayer already calls setIsPlaying(true)
-        }
-      }
-    } catch (error) {
-      console.error("Failed to toggle playback:", error);
-      setError("Playback failed - trying next station...");
+ } catch (error) {
+ console.error("Failed to toggle playback:", error);
+ setError("Playback failed - trying next station...");
 
-      setTimeout(() => {
-        if (stations.length > 1) {
-          handleNextStation();
-        }
-      }, 1000);
-    }
-  }, [
-    currentStation,
-    stations,
-    currentStationIndex,
-    playAudio,
-    play,
-    isPlaying,
-    pauseAudio,
-    setError,
-    handleNextStation,
-    audioLoading,
-  ]);
+ setTimeout(() => {
+ if (stations.length > 1) {
+ handleNextStation();
+ }
+ }, 1000);
+ }
+ }, [
+ currentStation,
+ stations,
+ currentStationIndex,
+ play,
+ isPlaying,
+ pauseAudio,
+ setError,
+ handleNextStation,
+ audioLoading,
+ ]);
 
-  // Reset visualizer whenever station changes
   React.useEffect(() => {
     if (currentStation) {
       console.log(`🎨 Station changed to: ${currentStation.name}`);
@@ -274,7 +272,6 @@ const GlobalPlayer: React.FC = () => {
     }
   }, [currentStation?.stationuuid]);
 
-  // Desktop detection for hotkeys
   const isDesktop =
     typeof window !== "undefined" && !("ontouchstart" in window);
 
@@ -424,7 +421,12 @@ const GlobalPlayer: React.FC = () => {
             {/* Left: Station Info with Quality Indicators */}
             <Flex align="center" gap="3" className="flex-1 min-w-0">
               <div className="w-12 h-12 bg-[#FF914D]/20 rounded-lg flex items-center justify-center flex-shrink-0 relative">
-                <Radio size={20} className="text-[#FF914D]" />
+            {isPlaying ? (
+           <Disc3
+            size={28}
+            className="text-[#FF914D] animate-spin"
+            />  
+          ) : (<Unplug size={28} className="text-[#FF914D] animate-pulse"/>)}
                 {/* Stream type indicator with quality badge */}
                 <div
                   className="absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center text-xs border border-current"

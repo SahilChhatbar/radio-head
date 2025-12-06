@@ -14,10 +14,9 @@ import {
   Clock,
   Signal,
   Zap,
-  DiscAlbumIcon,
-  Disc2Icon,
   Disc3,
   Unplug,
+  RadioTower,
 } from "lucide-react";
 import { useRadioStore } from "@/store/useRadiostore";
 import * as Slider from "@radix-ui/react-slider";
@@ -422,25 +421,42 @@ const GlobalPlayer: React.FC = () => {
             <Flex align="center" gap="3" className="flex-1 min-w-0">
               <div className="w-12 h-12 bg-[#FF914D]/20 rounded-lg flex items-center justify-center flex-shrink-0 relative">
 <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+
+  {/* Loading Icon */}
   <div
     className={`
       absolute inset-0 flex items-center justify-center
-      transition-opacity transition-transform duration-300 ease-in-out
-      ${isPlaying ? "opacity-100 scale-100" : "opacity-0 scale-90"}
+      transition-opacity duration-300 ease-in-out
+      ${audioLoading ? "opacity-100 scale-100" : "opacity-0 scale-90"}
+    `}
+  >
+    <div className="w-6 h-6 border-2 border-[#FF914D] border-t-transparent rounded-full animate-spin" />
+  </div>
+
+  {/* Playing Icon */}
+  <div
+    className={`
+      absolute inset-0 flex items-center justify-center
+      transition-opacity duration-300 ease-in-out
+      ${!audioLoading && isPlaying ? "opacity-100 scale-100" : "opacity-0 scale-90"}
     `}
   >
     <Disc3 size={28} className="text-[#FF914D] animate-spin" />
   </div>
-<div
+
+  {/* Paused / Stopped Icon */}
+  <div
     className={`
       absolute inset-0 flex items-center justify-center
-      transition-opacity transition-transform duration-300 ease-in-out
-      ${isPlaying ? "opacity-0 scale-90" : "opacity-100 scale-100"}
+      transition-opacity duration-300 ease-in-out
+      ${!audioLoading && !isPlaying ? "opacity-100 scale-100" : "opacity-0 scale-90"}
     `}
   >
     <Unplug size={28} className="text-[#FF914D] animate-pulse" />
   </div>
+
 </div>
+
 
                 {/* Stream type indicator with quality badge */}
                 <div
@@ -499,35 +515,9 @@ const GlobalPlayer: React.FC = () => {
                 </Flex>
 
                 <Flex gap="3" align="center" className="text-xs">
-                  <Flex
-                    gap="1"
-                    align="center"
-                    style={{ color: streamInfo.color }}
-                  >
-                    {streamInfo.icon}
-                    <span>{streamInfo.label}</span>
-                  </Flex>
-
-                  {latency > 0 && (
-                    <Flex gap="1" align="center" className="text-slate-500">
-                      <Clock size={12} />
-                      <span>{formatLatency(latency)}</span>
-                    </Flex>
-                  )}
-
-                  {currentStation?.bitrate && (
-                    <span className="text-slate-500">
-                      {currentStation.bitrate}kbps
-                    </span>
-                  )}
-
-                  {currentStation?.codec && (
-                    <span className="text-slate-500 uppercase">
-                      {currentStation.codec}
-                    </span>
-                  )}
-
                   {stationQuality && (
+                    <Flex gap="1" align="center" className="text-foreground">
+                    <RadioTower size={14} className=""/>
                     <span
                       className={`font-medium ${stationQuality.quality === "excellent"
                           ? "text-green-400"
@@ -543,7 +533,14 @@ const GlobalPlayer: React.FC = () => {
                     >
                       {stationQuality.quality}
                     </span>
-                  )}
+                  </Flex>)}
+
+                  {latency > 0 && (
+                    <Flex gap="1" align="center" className="text-foreground">
+                      <Clock size={12} />
+                      <span>{formatLatency(latency)}</span>
+                    </Flex>
+                )}
                 </Flex>
               </Flex>
             </Flex>
@@ -659,12 +656,6 @@ const GlobalPlayer: React.FC = () => {
                 <Text size="2" className="text-red-400">
                   {audioError}
                 </Text>
-                {streamType && (
-                  <Text size="1" className="text-red-400/70">
-                    Stream type: {streamInfo.label} • Station:{" "}
-                    {currentStation?.name}
-                  </Text>
-                )}
               </Flex>
               {stations.length > 1 && (
                 <Button
@@ -678,25 +669,6 @@ const GlobalPlayer: React.FC = () => {
               )}
             </Flex>
           )}
-
-          {/* Loading indicator */}
-          {audioLoading && !audioError && (
-            <Flex align="center" gap="2" className="mt-2">
-              <div className="w-4 h-4 border-2 border-[#FF914D] border-t-transparent rounded-full animate-spin flex-shrink-0" />
-              <Flex direction="column" gap="0.5">
-                <Text size="2" className="text-slate-400">
-                  Loading {streamInfo.label.toLowerCase()} stream...
-                </Text>
-                {currentStation && (
-                  <Text size="1" className="text-slate-500">
-                    {currentStation.name} • {currentStation.bitrate}kbps{" "}
-                    {currentStation.codec?.toUpperCase()}
-                  </Text>
-                )}
-              </Flex>
-            </Flex>
-          )}
-
           {/* Quality warnings */}
           {stationQuality &&
             (stationQuality.warnings.length > 0 ||
@@ -721,37 +693,6 @@ const GlobalPlayer: React.FC = () => {
                     </Text>
                   )}
                 </Flex>
-              </Flex>
-            )}
-
-          {/* Debug info (development only) */}
-          {process.env.NODE_ENV === "development" &&
-            streamType &&
-            !audioError &&
-            !audioLoading && (
-              <Flex
-                align="center"
-                gap="4"
-                className="mt-2 text-xs text-slate-500 border-t border-slate-700/50 pt-2"
-              >
-                <span>Stream: {streamInfo.label}</span>
-                {latency > 0 && <span>Latency: {formatLatency(latency)}</span>}
-                {currentStation?.codec && (
-                  <span>Codec: {currentStation.codec.toUpperCase()}</span>
-                )}
-                {stationQuality && (
-                  <span>
-                    Quality Score: {Math.round(stationQuality.score)}/100
-                  </span>
-                )}
-                {currentStation?.votes !== undefined && (
-                  <span>Votes: {currentStation.votes}</span>
-                )}
-                <span>
-                  Index: {currentStationIndex + 1}/{stations.length}
-                </span>
-                <span>Vol: {Math.round(volume * 100)}%</span>
-                <span>Muted: {isMuted ? "Yes" : "No"}</span>
               </Flex>
             )}
         </Container>

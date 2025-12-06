@@ -258,7 +258,7 @@ const forceBlur = () => {
   const isCountryDropdownDisabled = isLoadingCountries && countries.length === 0;
 
   return (
-    <Flex gap="3" align="center" className="w-full">
+    <Flex gap="0" align="center" className="w-full">
       {/* Country/Region Dropdown */}
       <Flex align="center" gap="2" className="relative min-w-[180px]">
         <MapPin size={16} className="text-[#ff914d] flex-shrink-0" />
@@ -461,16 +461,6 @@ const forceBlur = () => {
           </Select.Content>
         </Select.Root>
       </Flex>
-
-      {locationGranted && (
-        <div
-          className="hidden lg:flex items-center gap-1 text-xs text-green-400 bg-green-500/10 px-2 py-1 rounded flex-shrink-0"
-          title="Location detected automatically"
-        >
-          <MapPin size={12} />
-          <span>Auto</span>
-        </div>
-      )}
     </Flex>
   );
 };

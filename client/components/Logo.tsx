@@ -1,6 +1,5 @@
 import Image from "next/image";
 import { Flex, Heading } from "@radix-ui/themes";
-import logo from "@/assets/base.png";
 
 interface LogoProps {
   size?: "sm" | "md" | "lg" | "xl";
@@ -37,7 +36,7 @@ const Logo = ({
     return (
       <Flex>
         <Image
-          src={logo}
+          src="/base.png"  // ← Changed from import
           alt="Logo"
           width={imageSize.width}
           height={imageSize.height}
@@ -51,7 +50,7 @@ const Logo = ({
     return (
       <Flex gap="1" direction="column">
         <Image
-          src={logo}
+          src="/base.png"  // ← Changed from import
           alt="Logo"
           width={imageSize.width}
           height={imageSize.height}
@@ -74,7 +73,7 @@ const Logo = ({
   return (
     <Flex direction="row" align="center" gap="1">
       <Image
-        src={logo}
+        src="/base.png"  // ← Changed from import
         alt="Logo"
         width={imageSize.width}
         height={imageSize.height}

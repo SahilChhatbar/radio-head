@@ -23,7 +23,7 @@ interface Tick {
   visible: boolean;
 }
 
-export default function StationGauge({ limit = 100 }: StationGaugeProps) {
+export default function StationGauge({ limit = 50 }: StationGaugeProps) {
   const VIEWBOX_SIZE = 800;
   const CENTER = VIEWBOX_SIZE / 2;
   const INNER_R = 300;

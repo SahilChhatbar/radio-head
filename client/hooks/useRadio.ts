@@ -101,7 +101,7 @@ export const usePopularStations = (
   return useQuery({
     queryKey: [...QUERY_KEYS.popular, limit, enableFiltering],
     queryFn: async () => {
-      const requestLimit = limit ? Math.min(limit * 2, 200) : 100;
+      const requestLimit = limit ? Math.min(limit * 2, 200) : 50;
       const rawStations = await radioApi.getPopularStations(requestLimit);
 
       if (!enableFiltering) {
@@ -130,7 +130,7 @@ export const useStationsByCountry = (
   return useQuery({
     queryKey: [...QUERY_KEYS.country, countryCode, limit, enableFiltering],
     queryFn: async () => {
-      const requestLimit = limit ? Math.min(limit * 2, 200) : 100;
+      const requestLimit = limit ? Math.min(limit * 2, 200) : 50;
       const rawStations = await radioApi.getStationsByCountry(
         countryCode,
         requestLimit
@@ -166,7 +166,7 @@ export const useStationsByTag = (
   return useQuery({
     queryKey: [...QUERY_KEYS.tag, tag, limit, enableFiltering],
     queryFn: async () => {
-      const requestLimit = limit ? Math.min(limit * 2, 200) : 100;
+      const requestLimit = limit ? Math.min(limit * 2, 200) : 50;
       const rawStations = await radioApi.getStationsByTag(tag, requestLimit);
 
       if (!enableFiltering) {
@@ -240,16 +240,12 @@ export const useCuratedStations = (
         ...(popularStations || []),
         ...(recentStations || []),
       ];
-
       if (allStations.length === 0) return [];
-
       const unique = allStations.filter(
         (station, index, self) =>
           self.findIndex((s) => s.stationuuid === station.stationuuid) === index
       );
-
       let curated: RadioStation[];
-
       switch (type) {
         case "high-quality":
           curated = getOptimalStations(unique).filter((station) => {
@@ -259,21 +255,17 @@ export const useCuratedStations = (
             );
           });
           break;
-
         case "popular":
           curated = unique
             .sort((a, b) => (b.clickcount || 0) - (a.clickcount || 0))
             .slice(0, limit * 2);
           curated = getOptimalStations(curated, limit);
           break;
-
         case "mixed":
         default:
           curated = getOptimalStations(unique, limit);
           break;
       }
-
-      console.log(`🎭 Curated ${type} stations: ${curated.length} selected`);
       return curated;
     },
     enabled: !!(popularStations || recentStations),
@@ -282,108 +274,48 @@ export const useCuratedStations = (
   });
 };
 
-/**
- * Custom hook for fetching only Indian stations (top 100 quality)
- * Filters for decent quality audio and playable streams
- */
-export const useIndianAndQualityStations = (
-  limit: number = 100
-): UseQueryResult<RadioStation[], Error> => {
-  return useQuery({
-    queryKey: ["indian-quality-stations", limit],
-    queryFn: async () => {
-      console.log("🇮🇳 Fetching top Indian stations...");
-
-      // Fetch more Indian stations to have a good selection pool
-      const fetchLimit = Math.min(limit * 3, 300);
-      const indianStations = await radioApi.getStationsByCountry("IN", fetchLimit);
-      console.log(`🇮🇳 Found ${indianStations.length} Indian stations`);
-
-      // Apply comprehensive quality filtering
-      const qualityFiltered = indianStations
-        .map((station) => ({
-          station,
-          quality: stationFilterService.getStationQualityInfo(station),
-        }))
-        .filter(({ quality, station }) => {
-          // Only include excellent, good, or acceptable quality
-          const isQualityGood =
-            quality.quality === "excellent" ||
-            quality.quality === "good" ||
-            quality.quality === "acceptable";
-
-          // Ensure minimum bitrate for decent audio quality
-          const hasDecentBitrate = station.bitrate >= 64;
-
-          return isQualityGood && hasDecentBitrate;
-        })
-        .sort((a, b) => {
-          // Sort by quality score first
-          if (b.quality.score !== a.quality.score) {
-            return b.quality.score - a.quality.score;
-          }
-          // Then by bitrate
-          return (b.station.bitrate || 0) - (a.station.bitrate || 0);
-        })
-        .map(({ station }) => station)
-        .slice(0, limit);
-
-      console.log(
-        `✅ Final selection: ${qualityFiltered.length} high-quality Indian stations`
-      );
-
-      return qualityFiltered;
-    },
-    staleTime: 10 * 60 * 1000, // 10 minutes
-    gcTime: 30 * 60 * 1000, // 30 minutes
-    retry: 2,
-    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
-  });
-};
 export const useStationsByCountryWithFilter = (
   countryCode: string,
-  limit: number = 100,
+  limit: number = 50,
   enabled: boolean = true
 ): UseQueryResult<RadioStation[], Error> => {
   return useQuery({
     queryKey: ["stations-by-country-filtered", countryCode, limit],
     queryFn: async () => {
-      console.log(`🌍 Fetching quality stations for ${countryCode}...`);
-
       const fetchLimit = Math.min(limit * 2, 200);
       const countryStations = await radioApi.getStationsByCountry(
         countryCode,
         fetchLimit
       );
-      console.log(`🌍 Found ${countryStations.length} stations for ${countryCode}`);
-
-      // Apply quality filtering
-      const qualityFiltered = countryStations
+      if (countryStations.length === 0) {
+        return [];
+      }
+      const preFiltered = countryStations.filter((station) => {
+        if (!station || !station.url) return false;
+        if (station.bitrate > 0 && station.bitrate < 64) return false;
+        if (station.lastcheckok === 0 && !station.lastcheckoktime) return false;
+        if (station.ssl_error > 0) return false;
+        return true;
+      });
+      const qualityFiltered = preFiltered
         .map((station) => ({
           station,
           quality: stationFilterService.getStationQualityInfo(station),
         }))
-        .filter(({ quality, station }) => {
-          const isQualityGood =
+        .filter(({ quality }) => {
+          return (
             quality.quality === "excellent" ||
             quality.quality === "good" ||
-            quality.quality === "acceptable";
-          const hasDecentBitrate = station.bitrate >= 64 || station.bitrate === 0;
-          return isQualityGood && hasDecentBitrate;
+            quality.quality === "acceptable"
+          );
         })
         .sort((a, b) => {
-          if (b.quality.score !== a.quality.score) {
-            return b.quality.score - a.quality.score;
-          }
+          const scoreDiff = b.quality.score - a.quality.score;
+          if (scoreDiff !== 0) return scoreDiff;
           return (b.station.clickcount || 0) - (a.station.clickcount || 0);
         })
-        .map(({ station }) => station)
-        .slice(0, limit);
-
-      console.log(
-        `✅ Filtered to ${qualityFiltered.length} high-quality stations for ${countryCode}`
-      );
-
+        .slice(0, limit)
+        .map(({ station }) => station);
       return qualityFiltered;
     },
     enabled: enabled && !!countryCode,

@@ -1,10 +1,9 @@
-// server/index.js
 const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
 const session = require('express-session');
 const cookieParser = require('cookie-parser');
-const connectDB = require('./config/database');
+// const connectDB = require('./config/database');
 const radioRoutes = require('./routes/radio');
 const authRoutes = require('./routes/auth');
 
@@ -12,10 +11,10 @@ const authRoutes = require('./routes/auth');
 dotenv.config();
 
 // Connect to MongoDB
-connectDB();
+// connectDB();
 
 // Load passport configuration after env vars are loaded
-const passport = require('./config/passport');
+// const passport = require('./config/passport');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -40,7 +39,6 @@ const corsOptions = {
 
     const allowedOrigins = [
       process.env.CLIENT_URL || 'http://localhost:3000',
-      'http://localhost:3000',
       'http://127.0.0.1:3000',
       'https://127.0.0.1:3000',
       'http://localhost:3001',
@@ -84,9 +82,9 @@ app.use(session({
   }
 }));
 
-// Passport middleware
-app.use(passport.initialize());
-app.use(passport.session());
+// // Passport middleware
+// app.use(passport.initialize());
+// app.use(passport.session());
 
 // Request logging
 app.use((req, res, next) => {
@@ -122,8 +120,8 @@ app.use((req, res, next) => {
   next();
 });
 
-// API Routes
-app.use('/api/auth', authRoutes);
+// // API Routes
+// app.use('/api/auth', authRoutes);
 app.use('/api/radio', radioRoutes);
 
 // Root route
@@ -157,7 +155,7 @@ app.get('/', (req, res) => {
 // Health check
 app.get('/api/health', async (req, res) => {
   const mongoose = require('mongoose');
-  
+
   const healthCheck = {
     status: 'healthy',
     timestamp: new Date().toISOString(),
@@ -403,13 +401,13 @@ const server = app.listen(PORT, () => {
 // Graceful shutdown
 const gracefulShutdown = (signal) => {
   console.log(`\n🔄 Received ${signal}. Starting graceful shutdown...`);
-  
+
   server.close(async (err) => {
     if (err) {
       console.error('❌ Error during server close:', err);
       process.exit(1);
     }
-    
+
     const mongoose = require('mongoose');
     await mongoose.connection.close();
     console.log('✅ Server and database connections closed successfully');

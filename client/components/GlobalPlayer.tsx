@@ -26,6 +26,7 @@ import AudioVisualizer, {
 } from "./AudioVisualizer";
 import { useEnhancedAudioPlayer } from "@/hooks/useAudioPlayer";
 import { getStationQualityInfo } from "@/services/StationFilter";
+import ImmersiveVisualizer from "./ImmersiveMode";
 
 const GlobalPlayer: React.FC = () => {
   const visualizerRef = React.useRef<AudioVisualizerHandle>(null);
@@ -221,48 +222,49 @@ const GlobalPlayer: React.FC = () => {
     }
   }, [audioLoading, previousStation, pauseAudio, playAudio, setError]);
 
- const handlePlayPause = React.useCallback(async () => {
- if (audioLoading || isChangingStationRef.current) { return;
- }
- try {
- if (isPlaying) {
- console.log(`⏸️ Pausing: ${currentStation?.name || 'audio'}`);
- pauseAudio();
- } else {
- let stationToPlay = currentStation;
- if (!stationToPlay && stations.length > 0) {
- stationToPlay = stations[currentStationIndex];
- }
- if (stationToPlay) {
- console.log(`▶️ Starting/Resuming playback: ${stationToPlay.name}`);
- visualizerRef.current?.reset();
- play(stationToPlay); 
- } else {
-  console.warn("Cannot play, no station available.");
- }
- }
+  const handlePlayPause = React.useCallback(async () => {
+    if (audioLoading || isChangingStationRef.current) {
+      return;
+    }
+    try {
+      if (isPlaying) {
+        console.log(`⏸️ Pausing: ${currentStation?.name || 'audio'}`);
+        pauseAudio();
+      } else {
+        let stationToPlay = currentStation;
+        if (!stationToPlay && stations.length > 0) {
+          stationToPlay = stations[currentStationIndex];
+        }
+        if (stationToPlay) {
+          console.log(`▶️ Starting/Resuming playback: ${stationToPlay.name}`);
+          visualizerRef.current?.reset();
+          play(stationToPlay);
+        } else {
+          console.warn("Cannot play, no station available.");
+        }
+      }
 
- } catch (error) {
- console.error("Failed to toggle playback:", error);
- setError("Playback failed - trying next station...");
+    } catch (error) {
+      console.error("Failed to toggle playback:", error);
+      setError("Playback failed - trying next station...");
 
- setTimeout(() => {
- if (stations.length > 1) {
- handleNextStation();
- }
- }, 1000);
- }
- }, [
- currentStation,
- stations,
- currentStationIndex,
- play,
- isPlaying,
- pauseAudio,
- setError,
- handleNextStation,
- audioLoading,
- ]);
+      setTimeout(() => {
+        if (stations.length > 1) {
+          handleNextStation();
+        }
+      }, 1000);
+    }
+  }, [
+    currentStation,
+    stations,
+    currentStationIndex,
+    play,
+    isPlaying,
+    pauseAudio,
+    setError,
+    handleNextStation,
+    audioLoading,
+  ]);
 
   React.useEffect(() => {
     if (currentStation) {
@@ -420,42 +422,42 @@ const GlobalPlayer: React.FC = () => {
             {/* Left: Station Info with Quality Indicators */}
             <Flex align="center" gap="3" className="flex-1 min-w-0">
               <div className="w-12 h-12 bg-[#FF914D]/20 rounded-lg flex items-center justify-center flex-shrink-0 relative">
-<div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
 
-  {/* Loading Icon */}
-  <div
-    className={`
+                  {/* Loading Icon */}
+                  <div
+                    className={`
       absolute inset-0 flex items-center justify-center
       transition-opacity duration-300 ease-in-out
       ${audioLoading ? "opacity-100 scale-100" : "opacity-0 scale-90"}
     `}
-  >
-    <div className="w-6 h-6 border-2 border-[#FF914D] border-t-transparent rounded-full animate-spin" />
-  </div>
+                  >
+                    <div className="w-6 h-6 border-2 border-[#FF914D] border-t-transparent rounded-full animate-spin" />
+                  </div>
 
-  {/* Playing Icon */}
-  <div
-    className={`
+                  {/* Playing Icon */}
+                  <div
+                    className={`
       absolute inset-0 flex items-center justify-center
       transition-opacity duration-300 ease-in-out
       ${!audioLoading && isPlaying ? "opacity-100 scale-100" : "opacity-0 scale-90"}
     `}
-  >
-    <Disc3 size={28} className="text-[#FF914D] animate-spin" />
-  </div>
+                  >
+                    <Disc3 size={28} className="text-[#FF914D] animate-spin" />
+                  </div>
 
-  {/* Paused / Stopped Icon */}
-  <div
-    className={`
+                  {/* Paused / Stopped Icon */}
+                  <div
+                    className={`
       absolute inset-0 flex items-center justify-center
       transition-opacity duration-300 ease-in-out
       ${!audioLoading && !isPlaying ? "opacity-100 scale-100" : "opacity-0 scale-90"}
     `}
-  >
-    <Unplug size={28} className="text-[#FF914D] animate-pulse" />
-  </div>
+                  >
+                    <Unplug size={28} className="text-[#FF914D] animate-pulse" />
+                  </div>
 
-</div>
+                </div>
 
 
                 {/* Stream type indicator with quality badge */}
@@ -474,12 +476,12 @@ const GlobalPlayer: React.FC = () => {
                 {stationQuality && (
                   <div
                     className={`absolute -bottom-1 -left-1 w-4 h-4 rounded-full flex items-center justify-center text-xs font-bold ${stationQuality.quality === "excellent"
-                        ? "bg-green-500"
-                        : stationQuality.quality === "good"
-                          ? "bg-blue-500"
-                          : stationQuality.quality === "acceptable"
-                            ? "bg-yellow-500"
-                            : "bg-red-500"
+                      ? "bg-green-500"
+                      : stationQuality.quality === "good"
+                        ? "bg-blue-500"
+                        : stationQuality.quality === "acceptable"
+                          ? "bg-yellow-500"
+                          : "bg-red-500"
                       }`}
                     title={`Quality: ${stationQuality.quality} (${Math.round(
                       stationQuality.score
@@ -517,30 +519,30 @@ const GlobalPlayer: React.FC = () => {
                 <Flex gap="3" align="center" className="text-xs">
                   {stationQuality && (
                     <Flex gap="1" align="center" className="text-foreground">
-                    <RadioTower size={14} className=""/>
-                    <span
-                      className={`font-medium ${stationQuality.quality === "excellent"
+                      <RadioTower size={14} className="" />
+                      <span
+                        className={`font-medium ${stationQuality.quality === "excellent"
                           ? "text-green-400"
                           : stationQuality.quality === "good"
                             ? "text-blue-400"
                             : stationQuality.quality === "acceptable"
                               ? "text-yellow-400"
                               : "text-red-400"
-                        }`}
-                      title={`Quality Score: ${Math.round(
-                        stationQuality.score
-                      )}/100`}
-                    >
-                      {stationQuality.quality}
-                    </span>
-                  </Flex>)}
+                          }`}
+                        title={`Quality Score: ${Math.round(
+                          stationQuality.score
+                        )}/100`}
+                      >
+                        {stationQuality.quality}
+                      </span>
+                    </Flex>)}
 
                   {latency > 0 && (
                     <Flex gap="1" align="center" className="text-foreground">
                       <Clock size={12} />
                       <span>{formatLatency(latency)}</span>
                     </Flex>
-                )}
+                  )}
                 </Flex>
               </Flex>
             </Flex>
@@ -641,6 +643,7 @@ const GlobalPlayer: React.FC = () => {
                 isLoading={audioLoading}
                 isPaused={!isPlaying}
               />
+              <ImmersiveVisualizer />
             </Flex>
           </Flex>
 

@@ -52,6 +52,10 @@ interface RadioStore extends RadioPlayerState {
   // Centralized volume control
   updateVolume: (volume: number) => void;
   updateMuted: (muted: boolean) => void;
+
+  // Stream type state
+  streamType: "hls" | "tone" | "howler" | null;
+  setStreamType: (type: "hls" | "tone" | "howler" | null) => void;
 }
 
 export const useRadioStore = create<RadioStore>((set, get) => ({
@@ -66,6 +70,7 @@ export const useRadioStore = create<RadioStore>((set, get) => ({
   currentStationIndex: 0,
   showPlayer: false,
   selectedCountry: "IN",
+  streamType: null,
 
   // Audio control callbacks
   audioControls: {
@@ -76,6 +81,7 @@ export const useRadioStore = create<RadioStore>((set, get) => ({
   },
 
   setAudioControls: (controls) => set({ audioControls: controls }),
+  setStreamType: (type) => set({ streamType: type }),
 
   // State setters
   setCurrentStation: (station) => set({ currentStation: station }),

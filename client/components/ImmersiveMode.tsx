@@ -1,6 +1,7 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { Button, Dialog, Flex, Text } from '@radix-ui/themes';
 import { Maximize2, X } from 'lucide-react';
+import { useRadioStore } from '@/store/useRadiostore';
 
 // Global audio context and analyser - persists across all renders
 let globalAudioContext = null;
@@ -8,11 +9,11 @@ let globalAnalyser = null;
 let connectedSource = null;
 
 // Visualizer Canvas Component
-const VisualizerCanvas = ({ isActive, currentStation }) => {
+const VisualizerCanvas = ({ isActive, currentStation, streamType, audioElement }) => {
     const canvasRef = useRef(null);
     const animationRef = useRef(null);
     const [audioStatus, setAudioStatus] = useState('Initializing...');
-    const [streamType, setStreamType] = useState('unknown');
+    const [displayStreamType, setDisplayStreamType] = useState('unknown');
 
     // Initialize global audio context once
     const initAudioContext = useCallback(() => {
@@ -33,7 +34,7 @@ const VisualizerCanvas = ({ isActive, currentStation }) => {
         return globalAudioContext && globalAnalyser;
     }, []);
 
-    // Connect to the active audio source
+    // Connect to the active audio source based on stream type
     const connectAudioSource = useCallback(() => {
         if (!globalAudioContext) {
             console.warn('⚠️ Audio context not initialized');
@@ -42,11 +43,30 @@ const VisualizerCanvas = ({ isActive, currentStation }) => {
         }
 
         try {
-            // --- HOWLER (preferred) ---
-            if (window.Howler && window.Howler.ctx) {
-                console.log('🔍 Trying Howler tap...');
+            let connected = false;
+
+            // Use the stream type from store to connect directly
+            if (streamType === 'hls' && audioElement) {
+                console.log('🔗 Connecting to HLS audio element (from store)');
+                try {
+                    if (connectedSource) {
+                        try { connectedSource.disconnect(); } catch (e) { /* ignore */ }
+                    }
+                    const source = globalAudioContext.createMediaElementSource(audioElement);
+                    source.connect(globalAnalyser);
+                    source.connect(globalAudioContext.destination);
+                    connectedSource = source;
+                    setDisplayStreamType('HLS');
+                    setAudioStatus('✅ Connected (HLS)');
+                    console.log('✅ Connected analyser to HLS audio element');
+                    connected = true;
+                } catch (err) {
+                    console.warn('⚠️ HLS connection failed:', err);
+                }
+            } else if (streamType === 'howler' && window.Howler?.ctx) {
+                console.log('🔗 Connecting to Howler (from store)');
                 const howlerCtx = window.Howler.ctx;
-                // ensure analyser is in same context
+
                 if (howlerCtx !== globalAudioContext) {
                     globalAudioContext = howlerCtx;
                     globalAnalyser = globalAudioContext.createAnalyser();
@@ -56,129 +76,71 @@ const VisualizerCanvas = ({ isActive, currentStation }) => {
                     globalAnalyser.maxDecibels = -10;
                 }
 
-                // Try to find a master gain node exposed by Howler
-                const masterGain = window.Howler.masterGain || window.Howler._masterGain || null;
+                const masterGain = window.Howler.masterGain || window.Howler._masterGain;
                 if (masterGain && typeof masterGain.connect === 'function') {
-                    // Do NOT call masterGain.disconnect() — that sometimes mutes Howler output.
-                    // Instead add an additional connection from masterGain -> tapGain -> analyser.
                     try {
-                        // Disconnect previous connectedSource if any
                         if (connectedSource) {
                             try { connectedSource.disconnect(); } catch (e) { /* ignore */ }
                         }
-
                         const tapGain = globalAudioContext.createGain();
                         tapGain.gain.value = 1.0;
-
-                        // Connect masterGain -> tapGain -> analyser
-                        // Keep existing masterGain connections intact by not calling disconnect()
                         masterGain.connect(tapGain);
                         tapGain.connect(globalAnalyser);
-
                         connectedSource = tapGain;
-                        setStreamType('Howler.js');
+                        setDisplayStreamType('Howler.js');
                         setAudioStatus('✅ Connected (Howler)');
-                        console.log('✅ Connected analyser to Howler (tapGain).');
-                        return true;
+                        console.log('✅ Connected analyser to Howler');
+                        connected = true;
                     } catch (err) {
-                        console.warn('⚠️ Howler tap failed:', err);
+                        console.warn('⚠️ Howler connection failed:', err);
                     }
                 }
-
-                // fallback: try to tap first active sound node
-                if (window.Howler._howls && window.Howler._howls.length) {
-                    const first = window.Howler._howls[0];
-                    try {
-                        // try private nodes which may exist depending on Howler version
-                        const gainNode = first._sounds?.[0]?._node?.gain || first._sounds?.[0]?._panner || null;
-                        if (gainNode && typeof gainNode.connect === 'function') {
-                            if (connectedSource) try { connectedSource.disconnect(); } catch (e) { }
-                            const tap = globalAudioContext.createGain();
-                            gainNode.connect(tap);
-                            tap.connect(globalAnalyser);
-                            connectedSource = tap;
-                            setStreamType('Howler (sound node)');
-                            setAudioStatus('✅ Connected (Howler sound)');
-                            console.log('✅ Connected to Howler sound node.');
-                            return true;
-                        }
-                    } catch (err) {
-                        // ignore, best-effort
-                    }
-                }
-            }
-
-            // --- TONE.JS ---
-            if (window.Tone && window.Tone.context) {
-                console.log('🔍 Trying Tone.js tap...');
+            } else if (streamType === 'tone' && window.Tone?.context) {
+                console.log('🔗 Connecting to Tone.js (from store)');
                 const toneCtx = window.Tone.context;
+
                 if (toneCtx !== globalAudioContext) {
                     globalAudioContext = toneCtx;
                     globalAnalyser = globalAudioContext.createAnalyser();
                     globalAnalyser.fftSize = 1024;
                     globalAnalyser.smoothingTimeConstant = 0.85;
+                    globalAnalyser.minDecibels = -90;
+                    globalAnalyser.maxDecibels = -10;
                 }
 
                 try {
-                    const dest = window.Tone.getDestination && window.Tone.getDestination();
-                    // Tone's destination often has an "input" or is connectable
-                    if (dest && dest.input && typeof dest.input.connect === 'function') {
+                    const dest = window.Tone.getDestination?.();
+                    if (dest?.input && typeof dest.input.connect === 'function') {
                         if (connectedSource) try { connectedSource.disconnect(); } catch (e) { }
                         const splitter = globalAudioContext.createGain();
                         dest.input.connect(splitter);
                         splitter.connect(globalAnalyser);
                         connectedSource = splitter;
-                        setStreamType('Tone.js');
+                        setDisplayStreamType('Tone.js');
                         setAudioStatus('✅ Connected (Tone.js)');
-                        console.log('✅ Connected analyser to Tone.js destination.');
-                        return true;
+                        console.log('✅ Connected analyser to Tone.js');
+                        connected = true;
                     }
                 } catch (err) {
-                    console.warn('⚠️ Tone tap failed:', err);
+                    console.warn('⚠️ Tone.js connection failed:', err);
                 }
             }
 
-            // --- HTML5 <audio> element ---
-            const audioElement = document.querySelector('audio');
-            if (audioElement && audioElement.src) {
-                console.log('🔍 Trying HTML5 audio element tap...');
-                // If already tapped to same element, keep status
-                if (connectedSource && connectedSource._element === audioElement) {
-                    setAudioStatus('✅ Connected (HTML5)');
-                    setStreamType('HLS/HTML5');
-                    return true;
-                }
-
-                try {
-                    if (connectedSource) try { connectedSource.disconnect(); } catch (e) { }
-                    const source = globalAudioContext.createMediaElementSource(audioElement);
-                    source._element = audioElement;
-                    source.connect(globalAnalyser);
-                    // do NOT rewire the destination if it was already playing elsewhere
-                    // ensure we don't break playback graph
-                    connectedSource = source;
-                    setStreamType('HLS/HTML5');
-                    setAudioStatus('✅ Connected (HLS)');
-                    console.log('✅ Connected analyser to HTML audio element.');
-                    return true;
-                } catch (err) {
-                    console.warn('⚠️ createMediaElementSource failed (maybe already connected):', err);
-                    setAudioStatus('⚠️ Shared audio (limited viz)');
-                }
+            if (!connected) {
+                console.warn('⚠️ Could not connect to audio source for type:', streamType);
+                setAudioStatus('⚠️ No audio source');
+                setDisplayStreamType('unknown');
             }
 
-            // nothing found
-            console.warn('⚠️ No active audio source detected (tap failed)');
-            setAudioStatus('⚠️ No audio detected');
-            setStreamType('unknown');
-            return false;
+            return connected;
         } catch (error) {
             console.error('❌ Connection error:', error);
             setAudioStatus('❌ Connection failed');
-            setStreamType('unknown');
+            setDisplayStreamType('unknown');
             return false;
         }
-    }, []);
+    }, [streamType, audioElement]);
+
     // Setup audio pipeline
     useEffect(() => {
         if (!isActive) return;
@@ -216,11 +178,11 @@ const VisualizerCanvas = ({ isActive, currentStation }) => {
         setupAudio();
     }, [isActive, initAudioContext, connectAudioSource]);
 
-    // Re-connect when station changes
+    // Re-connect when station or stream type changes
     useEffect(() => {
         if (!isActive || !currentStation) return;
 
-        console.log('🔄 Station changed, reconnecting...', currentStation);
+        console.log('🔄 Station or stream type changed, reconnecting...', currentStation, streamType);
 
         // Delay to allow audio to initialize
         const timer = setTimeout(() => {
@@ -228,7 +190,7 @@ const VisualizerCanvas = ({ isActive, currentStation }) => {
         }, 800);
 
         return () => clearTimeout(timer);
-    }, [currentStation?.stationuuid, isActive, connectAudioSource]);
+    }, [currentStation?.stationuuid, streamType, isActive, connectAudioSource]);
 
     // Canvas drawing loop
     useEffect(() => {
@@ -399,7 +361,7 @@ const VisualizerCanvas = ({ isActive, currentStation }) => {
                     <strong>Status:</strong> {audioStatus}
                 </div>
                 <div style={{ fontSize: '11px', opacity: 0.8 }}>
-                    <strong>Type:</strong> {streamType}
+                    <strong>Type:</strong> {displayStreamType}
                 </div>
             </div>
         </>
@@ -409,6 +371,16 @@ const VisualizerCanvas = ({ isActive, currentStation }) => {
 // Main Component with Dialog
 const ImmersiveVisualizer = ({ currentStation }) => {
     const [isOpen, setIsOpen] = useState(false);
+    const { streamType } = useRadioStore();
+    const [audioElement, setAudioElement] = useState(null);
+
+    // Get the audio element from the DOM
+    useEffect(() => {
+        const audio = document.querySelector('audio');
+        if (audio) {
+            setAudioElement(audio);
+        }
+    }, [streamType]); // Re-check when stream type changes
 
     return (
         <>
@@ -457,7 +429,12 @@ const ImmersiveVisualizer = ({ currentStation }) => {
                     </Button>
 
                     {/* Visualizer Canvas */}
-                    <VisualizerCanvas isActive={isOpen} currentStation={currentStation} />
+                    <VisualizerCanvas
+                        isActive={isOpen}
+                        currentStation={currentStation}
+                        streamType={streamType}
+                        audioElement={audioElement}
+                    />
 
                     {/* Station Info Overlay */}
                     {currentStation && (

@@ -50,6 +50,7 @@ const GlobalPlayer: React.FC = () => {
     setAudioControls,
     updateVolume,
     updateMuted,
+    setStreamType: setStoreStreamType,
   } = useRadioStore();
 
   const {
@@ -115,6 +116,12 @@ const GlobalPlayer: React.FC = () => {
       setError(audioError);
     }
   }, [audioError, setError]);
+
+  // Sync stream type to store
+  React.useEffect(() => {
+    console.log(`🎵 Stream type changed: ${streamType}`);
+    setStoreStreamType(streamType);
+  }, [streamType, setStoreStreamType]);
 
   // Handle volume change - use store's centralized control
   const handleVolumeChange = React.useCallback((newVolume: number) => {
@@ -643,7 +650,7 @@ const GlobalPlayer: React.FC = () => {
                 isLoading={audioLoading}
                 isPaused={!isPlaying}
               />
-              <ImmersiveVisualizer />
+              <ImmersiveVisualizer currentStation={currentStationIndex} />
             </Flex>
           </Flex>
 

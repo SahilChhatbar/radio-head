@@ -294,3 +294,183 @@ body {
   content: '';
   animation: typing-dots 2s steps(6) infinite;
 }
+
+/* ===============================================
+   IMMERSIVE VISUALIZER - EXACT REFERENCE MATCH
+   =============================================== */
+
+.vz-fullscreen-dialog {
+  background: transparent !important;
+}
+
+/* Main wrapper - TEAL/CYAN gradient like reference */
+.vz-wrapper {
+  position: relative;
+  height: 100vh;
+  width: 100vw;
+  background: radial-gradient(
+    circle at center,
+    #396362 0%,
+    #2d4f4e 40%,
+    #1a3433 70%,
+    #000000 100%
+  );
+  cursor: pointer;
+  overflow: hidden;
+}
+
+/* Subtle static overlay for depth - no animation */
+.vz-wrapper::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: radial-gradient(
+    circle at 50% 50%,
+    rgba(57, 99, 98, 0.15) 0%,
+    transparent 50%,
+    rgba(0, 0, 0, 0.3) 100%
+  );
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Canvas container - full screen */
+.vz-wrapper.-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  box-shadow: none;
+  z-index: 2;
+  pointer-events: none;
+}
+
+/* Canvas element */
+.vz-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  will-change: transform;
+}
+
+/* Close button - styled to match */
+.vz-close-button {
+  position: fixed !important;
+  top: 24px !important;
+  right: 24px !important;
+  z-index: 1001 !important;
+  background: rgba(0, 0, 0, 0.7) !important;
+  backdrop-filter: blur(10px) !important;
+  -webkit-backdrop-filter: blur(10px) !important;
+  border: 1px solid rgba(255, 145, 77, 0.3) !important;
+  border-radius: 10px !important;
+  padding: 12px !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  pointer-events: auto !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5), 
+              0 0 20px rgba(255, 145, 77, 0.1) !important;
+}
+
+.vz-close-button:hover {
+  background: rgba(255, 145, 77, 0.25) !important;
+  border-color: rgba(255, 145, 77, 0.6) !important;
+  transform: scale(1.05) !important;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.6),
+              0 0 30px rgba(255, 145, 77, 0.3) !important;
+}
+
+.vz-close-button:active {
+  transform: scale(0.95) !important;
+}
+
+/* Info overlay at bottom - static styling */
+.vz-info-overlay {
+  position: fixed;
+  bottom: 36px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1001;
+  background: rgba(0, 0, 0, 0.75);
+  padding: 18px 40px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 145, 77, 0.25);
+  text-align: center;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  pointer-events: auto;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6),
+              inset 0 1px 0 rgba(255, 255, 255, 0.05),
+              0 0 40px rgba(255, 145, 77, 0.15);
+}
+
+.vz-help-text {
+  color: var(--accent) !important;
+  opacity: 0.9;
+  font-size: 13px;
+  display: block;
+  font-family: var(--font-roboto), Arial, sans-serif;
+  text-shadow: 0 0 10px rgba(255, 145, 77, 0.3);
+}
+
+/* Responsive */
+@media screen and (max-width: 768px) {
+  .vz-close-button {
+    top: 16px !important;
+    right: 16px !important;
+    padding: 10px !important;
+  }
+  
+  .vz-info-overlay {
+    bottom: 28px;
+    padding: 16px 32px;
+  }
+}
+
+@media screen and (max-width: 480px) {
+  .vz-close-button {
+    top: 12px !important;
+    right: 12px !important;
+    padding: 8px !important;
+  }
+  
+  .vz-info-overlay {
+    bottom: 24px;
+    padding: 14px 28px;
+  }
+  
+  .vz-help-text {
+    font-size: 12px;
+  }
+}
+
+/* Hide Radix defaults */
+[data-radix-dialog-overlay] {
+  background: transparent !important;
+}
+
+.vz-fullscreen-dialog [data-radix-dialog-content] {
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+
+body:has(.vz-wrapper) {
+  overflow: hidden;
+}
+
+/* Performance optimization */
+.vz-canvas,
+.vz-wrapper::before {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}

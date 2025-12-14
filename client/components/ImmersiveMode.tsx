@@ -1,10 +1,9 @@
-// File: components/ImmersiveVisualizer.tsx
-import React, { useRef, useEffect, useState, useCallback } from 'react';
-import { Button, Dialog, Flex, Text } from '@radix-ui/themes';
-import { Maximize2, X } from 'lucide-react';
-import { useRadioStore } from '@/store/useRadiostore';
+import React, { useRef, useEffect, useState, useCallback } from "react";
+import { Button, Dialog, Text } from "@radix-ui/themes";
+import { Maximize2, X } from "lucide-react";
+import { useRadioStore } from "@/store/useRadiostore";
 
-// Global caches to avoid duplicate source creation
+// Global audio context management
 let globalAudioContext: AudioContext | null = null;
 let globalAnalyser: AnalyserNode | null = null;
 let globalSourceNode: AudioNode | null = null;
@@ -12,148 +11,123 @@ const mediaElementSourceMap = new WeakMap<HTMLMediaElement, MediaElementAudioSou
 
 const createAnalyserForContext = (ctx: AudioContext) => {
   const analyser = ctx.createAnalyser();
-  analyser.fftSize = 256;
-  analyser.smoothingTimeConstant = 0.8;
-  analyser.minDecibels = -90;
-  analyser.maxDecibels = -10;
+  analyser.fftSize = 2048; // Doubled from 1024
+  analyser.smoothingTimeConstant = 0.75; // Slightly more smoothing for transitions
+  analyser.minDecibels = -100;
+  analyser.maxDecibels = -20;
   return analyser;
 };
 
+/**
+ * VisualizerCanvas: Dots that transform into bars based on audio
+ */
 const VisualizerCanvas: React.FC<{
   isActive: boolean;
-  streamType: 'hls' | 'tone' | null;
+  streamType: "hls" | "tone" | null;
   audioRefObject?: React.RefObject<HTMLAudioElement | null>;
-}> = ({ isActive, streamType, audioRefObject }) => {
+  stationName?: string;
+}> = ({ isActive, streamType, audioRefObject, stationName }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const animationRef = useRef<number | null>(null);
-  const [audioStatus, setAudioStatus] = useState('Initializing...');
-  const [displayStreamType, setDisplayStreamType] = useState('unknown');
+  const animRef = useRef<number | null>(null);
   const [audioElement, setAudioElement] = useState<HTMLAudioElement | null>(null);
 
   const ensureAnalyser = useCallback((ctx: AudioContext) => {
     if (!globalAnalyser || globalAudioContext !== ctx) {
-      try {
-        if (globalAnalyser) {
-          try { globalAnalyser.disconnect(); } catch (_) {}
-        }
-      } catch (e) {}
+      if (globalAnalyser) {
+        try {
+          globalAnalyser.disconnect();
+        } catch (_) {}
+      }
       globalAudioContext = ctx;
       globalAnalyser = createAnalyserForContext(ctx);
     }
     return globalAnalyser!;
   }, []);
 
+  // Probe for audio element
   useEffect(() => {
     if (!isActive) return;
     let mounted = true;
     let attempts = 0;
-    const maxAttempts = 12;
-
+    const maxAttempts = 15;
     const probe = () => {
       if (!mounted) return;
       attempts++;
-      const el = audioRefObject?.current ?? document.querySelector<HTMLAudioElement>('audio');
-      if (el) {
-        setAudioElement(el);
-      }
-      if (attempts >= maxAttempts) {
-        clearInterval(interval);
-      }
+      const el = audioRefObject?.current ?? document.querySelector<HTMLAudioElement>("audio");
+      if (el) setAudioElement(el);
+      if (attempts >= maxAttempts) clearInterval(interval);
     };
-
     probe();
-    const interval = window.setInterval(probe, 500);
+    const interval = window.setInterval(probe, 400);
     return () => {
       mounted = false;
       clearInterval(interval);
     };
   }, [isActive, audioRefObject]);
 
+  // Connect audio source
   const connectAudioSource = useCallback((): boolean => {
     try {
       const attachAnalyserTo = (sourceNode: AudioNode, ctx: AudioContext) => {
         const analyser = ensureAnalyser(ctx);
         if (globalSourceNode && globalSourceNode !== sourceNode) {
-          try { globalSourceNode.disconnect(); } catch (_) {}
+          try {
+            globalSourceNode.disconnect();
+          } catch (_) {}
         }
         try {
           sourceNode.connect(analyser);
-        } catch (err) {}
+        } catch (_) {}
         try {
           analyser.connect(ctx.destination);
-        } catch (err) {}
+        } catch (_) {}
         globalSourceNode = sourceNode;
         return true;
       };
 
-      // HTMLMediaElement case (HLS/native)
-      if (streamType === 'hls' && audioElement) {
-        setDisplayStreamType('HTMLAudio');
-        setAudioStatus('Attempting HTMLMediaElement tap...');
+      if (streamType === "hls" && audioElement) {
         const ctx = globalAudioContext ?? new (window.AudioContext || (window as any).webkitAudioContext)();
         globalAudioContext = ctx;
-
         let sourceNode = mediaElementSourceMap.get(audioElement);
         if (!sourceNode) {
           try {
             sourceNode = ctx.createMediaElementSource(audioElement);
             mediaElementSourceMap.set(audioElement, sourceNode);
-            console.log('Visualizer: created MediaElementSource for audio element');
           } catch (err) {
-            console.warn('Visualizer: createMediaElementSource failed', err);
-            setAudioStatus('❌ Could not create media source');
             return false;
           }
-        } else {
-          console.log('Visualizer: reusing existing MediaElementSource');
         }
-
         attachAnalyserTo(sourceNode, ctx);
-        setAudioStatus('✅ Connected (MediaElement)');
         return true;
       }
 
-      // Tone.js case
-      if (streamType === 'tone' && (window as any).Tone) {
+      if (streamType === "tone" && (window as any).Tone) {
         try {
           const Tone = (window as any).Tone;
           const toneCtx: AudioContext | undefined = Tone.context || Tone.getContext?.();
-          if (!toneCtx) {
-            setAudioStatus('⚠️ Tone context missing');
-            return false;
-          }
+          if (!toneCtx) return false;
           globalAudioContext = toneCtx;
           const analyser = ensureAnalyser(toneCtx);
-
           const dest = Tone.getDestination ? Tone.getDestination() : Tone.Destination || Tone.destination;
           const destNode = dest?.input || dest?.node || dest;
-          if (destNode && typeof destNode.connect === 'function') {
+          if (destNode && typeof destNode.connect === "function") {
             try {
               try { (destNode as any).disconnect(analyser); } catch (_) {}
               (destNode as any).connect(analyser);
               analyser.connect(toneCtx.destination);
               globalSourceNode = destNode as any;
-              setAudioStatus('✅ Connected (Tone.js)');
-              setDisplayStreamType('Tone.js');
               return true;
             } catch (err) {
-              console.warn('Visualizer: Tone attach failed', err);
+              return false;
             }
           }
-          setAudioStatus('⚠️ Tone: destination not tappable');
           return false;
         } catch (err) {
-          console.warn('Visualizer: Tone connection error', err);
-          setAudioStatus('❌ Tone connect failed');
           return false;
         }
       }
-
-      setAudioStatus('⚠️ No audio source matched yet');
       return false;
     } catch (err) {
-      console.error('Visualizer: connectAudioSource exception', err);
-      setAudioStatus('❌ Connection error');
       return false;
     }
   }, [audioElement, streamType, ensureAnalyser]);
@@ -161,9 +135,8 @@ const VisualizerCanvas: React.FC<{
   useEffect(() => {
     if (!isActive) return;
     let attempts = 0;
-    const maxAttempts = 10;
+    const maxAttempts = 12;
     let timer: number | undefined;
-
     const tryAttach = () => {
       attempts++;
       const ok = connectAudioSource();
@@ -171,158 +144,179 @@ const VisualizerCanvas: React.FC<{
         timer = window.setTimeout(tryAttach, 600);
       }
     };
-
     tryAttach();
-
-    return () => {
-      if (timer) clearTimeout(timer);
-    };
+    return () => { if (timer) clearTimeout(timer); };
   }, [isActive, audioElement, streamType, connectAudioSource]);
 
+  // Main drawing logic - dots transform to bars
   useEffect(() => {
     if (!isActive || !globalAnalyser) return;
     const analyser = globalAnalyser;
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
     const resize = () => {
       const dpr = window.devicePixelRatio || 1;
-      const w = window.innerWidth;
-      const h = window.innerHeight;
-      canvas.width = Math.floor(w * dpr);
-      canvas.height = Math.floor(h * dpr);
-      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      canvas.width = Math.floor(window.innerWidth * dpr);
+      canvas.height = Math.floor(window.innerHeight * dpr);
+      canvas.style.width = `${window.innerWidth}px`;
+      canvas.style.height = `${window.innerHeight}px`;
       ctx.scale(dpr, dpr);
     };
     resize();
-    window.addEventListener('resize', resize);
+    window.addEventListener("resize", resize);
 
     const bufferLength = analyser.frequencyBinCount;
     const dataArray = new Uint8Array(bufferLength);
 
-    const draw = () => {
-      if (!isActive) return;
+    // Total elements around the circle - reduced for more spacing
+    const TOTAL_ELEMENTS = 100;
+    const BAR_THRESHOLD = 45; // When dots start transitioning to bars
+    const FULL_BAR_THRESHOLD = 80; // When fully transformed to bar
+
+    function draw() {
+      analyser.getByteFrequencyData(dataArray);
+
       const WIDTH = window.innerWidth;
       const HEIGHT = window.innerHeight;
       const centerX = WIDTH / 2;
       const centerY = HEIGHT / 2;
 
-      analyser.getByteFrequencyData(dataArray);
+      ctx.clearRect(0, 0, WIDTH, HEIGHT);
 
-      // Background gradient
-      const bgGradient = ctx.createRadialGradient(
-        centerX, centerY, 0,
-        centerX, centerY, Math.max(WIDTH, HEIGHT) / 2
-      );
-      bgGradient.addColorStop(0, '#16283a');
-      bgGradient.addColorStop(1, '#0c1521');
-      ctx.fillStyle = bgGradient;
-      ctx.fillRect(0, 0, WIDTH, HEIGHT);
+      const circleRadius = Math.min(WIDTH, HEIGHT) * 0.28;
 
-      const RADIUS = Math.min(WIDTH, HEIGHT) * 0.25;
-      const BARS = 180;
       ctx.save();
       ctx.translate(centerX, centerY);
 
-      const avg = dataArray.reduce((a, b) => a + b, 0) / bufferLength;
-      const pulse = 1 + (avg / 255) * 0.2;
-
-      ctx.beginPath();
-      ctx.arc(0, 0, RADIUS * pulse, 0, Math.PI * 2);
-      ctx.strokeStyle = 'rgba(255, 145, 77, 0.3)';
-      ctx.lineWidth = 2;
-      ctx.stroke();
-
-      for (let i = 0; i < BARS; i++) {
-        const index = Math.floor((i / BARS) * bufferLength);
+      // Draw all elements around the circle
+      for (let i = 0; i < TOTAL_ELEMENTS; i++) {
+        const angle = (i / TOTAL_ELEMENTS) * Math.PI * 2 - Math.PI / 2;
+        const index = Math.floor((i / TOTAL_ELEMENTS) * bufferLength);
         const value = dataArray[index] || 0;
-        const percent = value / 255;
-        const barHeight = percent * RADIUS * 1.5 * pulse;
-        const innerR = RADIUS * pulse;
-        const outerR = innerR + barHeight;
-        const angle = (i / BARS) * (Math.PI * 2);
 
-        const x1 = innerR * Math.cos(angle);
-        const y1 = innerR * Math.sin(angle);
-        const x2 = outerR * Math.cos(angle);
-        const y2 = outerR * Math.sin(angle);
+        const x = circleRadius * Math.cos(angle);
+        const y = circleRadius * Math.sin(angle);
 
-        ctx.beginPath();
-        ctx.moveTo(x1, y1);
-        ctx.lineTo(x2, y2);
+        // Smooth transition from dot to bar based on value
+        if (value > BAR_THRESHOLD) {
+          // Calculate transition progress (0 to 1)
+          const transitionProgress = Math.min(1, (value - BAR_THRESHOLD) / (FULL_BAR_THRESHOLD - BAR_THRESHOLD));
+          
+          // Smoothly interpolate bar length
+          const maxBarLength = 70;
+          const barLength = (value / 255) * maxBarLength * (0.3 + transitionProgress * 0.7);
+          const halfBar = barLength / 2;
+          
+          // Bar extends both inward and outward from circle line
+          const innerX = (circleRadius - halfBar) * Math.cos(angle);
+          const innerY = (circleRadius - halfBar) * Math.sin(angle);
+          const outerX = (circleRadius + halfBar) * Math.cos(angle);
+          const outerY = (circleRadius + halfBar) * Math.sin(angle);
 
-        if (value > 200) {
-          ctx.strokeStyle = '#ff914d';
-          ctx.lineWidth = 3;
-          ctx.shadowBlur = 8;
-          ctx.shadowColor = '#ff914d';
-        } else if (value > 150) {
-          ctx.strokeStyle = '#ff9d5c';
-          ctx.lineWidth = 2.5;
-          ctx.shadowBlur = 4;
-          ctx.shadowColor = '#ff914d';
-        } else {
-          ctx.strokeStyle = `rgba(255, 145, 77, ${0.4 + percent * 0.6})`;
-          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(innerX, innerY);
+          ctx.lineTo(outerX, outerY);
+          
+          // Smooth color and glow transitions
+          const glowIntensity = (value / 255) * transitionProgress;
+          
+          // Get CSS theme colors
+          const accentColor = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
+          const fgColor = getComputedStyle(document.documentElement).getPropertyValue('--foreground').trim();
+          const accentDark = getComputedStyle(document.documentElement).getPropertyValue('--accent-dark')?.trim() || '#a44a1f';
+          
+          if (value > 200) {
+            ctx.strokeStyle = accentColor;
+            ctx.lineWidth = 2.5 + transitionProgress * 1.5;
+            ctx.shadowBlur = 10 + glowIntensity * 8;
+            ctx.shadowColor = accentColor;
+          } else if (value > 150) {
+            ctx.strokeStyle = fgColor;
+            ctx.lineWidth = 2 + transitionProgress * 1.5;
+            ctx.shadowBlur = 6 + glowIntensity * 6;
+            ctx.shadowColor = `rgba(250, 249, 246, 0.6)`;
+          } else {
+            // Blend between dot and bar appearance
+            const alpha = 0.6 + (value / 255) * 0.4;
+            ctx.strokeStyle = `rgba(250, 249, 246, ${alpha})`;
+            ctx.lineWidth = 1.5 + transitionProgress * 1.5;
+            ctx.shadowBlur = 4 + glowIntensity * 4;
+            ctx.shadowColor = `rgba(250, 249, 246, ${0.3 * transitionProgress})`;
+          }
+          
+          ctx.stroke();
           ctx.shadowBlur = 0;
+        } else {
+          // Draw as dot when audio is low
+          const dotSize = 2.5 + (value / 255) * 2;
+          
+          ctx.beginPath();
+          ctx.arc(x, y, dotSize, 0, Math.PI * 2);
+          
+          // Dots with subtle glow - fade in as value increases
+          const alpha = 0.3 + (value / 255) * 0.5;
+          const fgColor = getComputedStyle(document.documentElement).getPropertyValue('--foreground').trim();
+          ctx.fillStyle = fgColor;
+          ctx.globalAlpha = alpha;
+          ctx.shadowBlur = 3 + (value / 50);
+          ctx.shadowColor = `rgba(250, 249, 246, ${alpha * 0.4})`;
+          ctx.fill();
+          ctx.shadowBlur = 0;
+          ctx.globalAlpha = 1;
         }
-        ctx.stroke();
       }
 
-      ctx.shadowBlur = 0;
       ctx.restore();
 
-      animationRef.current = requestAnimationFrame(draw);
-    };
+      // Draw center text
+      const fgColor = getComputedStyle(document.documentElement).getPropertyValue('--foreground').trim();
+      ctx.fillStyle = fgColor;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      
+      if (stationName) {
+        ctx.font = "bold 32px Arial";
+        ctx.fillText(stationName, centerX, centerY);
+      }
+      
+      const now = new Date();
+      const timeStr = now.toLocaleTimeString('en-US', { 
+        hour: '2-digit', 
+        minute: '2-digit',
+        hour12: false 
+      });
+      ctx.fillStyle = `rgba(250, 249, 246, 0.7)`;
+      ctx.font = "20px Arial";
+      ctx.fillText(timeStr, centerX, centerY + 45);
+
+      animRef.current = requestAnimationFrame(draw);
+    }
 
     draw();
 
     return () => {
-      window.removeEventListener('resize', resize);
-      if (animationRef.current) cancelAnimationFrame(animationRef.current);
+      window.removeEventListener("resize", resize);
+      if (animRef.current) cancelAnimationFrame(animRef.current);
     };
-  }, [isActive]);
+  }, [isActive, stationName]);
 
   return (
-    <>
-      <canvas
-        ref={canvasRef}
-        style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          width: '100%',
-          height: '100%',
-          background: '#16283a',
-        }}
-      />
-      <div style={{
-        position: 'absolute',
-        top: '20px',
-        left: '20px',
-        color: '#ff914d',
-        fontSize: '12px',
-        fontFamily: 'monospace',
-        background: 'rgba(0, 0, 0, 0.7)',
-        padding: '10px 15px',
-        borderRadius: '6px',
-        backdropFilter: 'blur(10px)',
-        border: '1px solid rgba(255, 145, 77, 0.3)',
-      }}>
-        <div><strong>Status:</strong> {audioStatus}</div>
-        <div style={{ fontSize: '11px', opacity: 0.8, marginTop: '4px' }}>
-          <strong>Type:</strong> {displayStreamType}
-        </div>
-      </div>
-    </>
+    <canvas
+      ref={canvasRef}
+      className="vz-canvas"
+    />
   );
 };
 
+/**
+ * ImmersiveVisualizer: Full-screen wrapper
+ */
 const ImmersiveVisualizer: React.FC<{
   currentStation: number | string;
-  streamType?: 'hls' | 'tone' | null;
+  streamType?: "hls" | "tone" | null;
   audioRef?: React.RefObject<HTMLAudioElement | null>;
 }> = ({ currentStation, streamType, audioRef }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -333,6 +327,16 @@ const ImmersiveVisualizer: React.FC<{
     if (!isOpen) {
       globalSourceNode = null;
     }
+  }, [isOpen]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && isOpen) {
+        setIsOpen(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isOpen]);
 
   return (
@@ -349,75 +353,44 @@ const ImmersiveVisualizer: React.FC<{
 
       <Dialog.Root open={isOpen} onOpenChange={setIsOpen}>
         <Dialog.Content
+          className="vz-fullscreen-dialog"
           style={{
-            maxWidth: '100vw',
-            maxHeight: '100vh',
-            width: '100vw',
-            height: '100vh',
+            position: "fixed",
+            inset: 0,
+            zIndex: 1000,
             padding: 0,
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            background: '#16283a',
-            border: 'none',
-            overflow: 'hidden',
+            margin: 0,
+            maxWidth: "100vw",
+            maxHeight: "100vh",
+            overflow: "hidden",
+            border: "none",
+            borderRadius: 0,
           }}
         >
-          <Button
-            variant="ghost"
-            onClick={() => setIsOpen(false)}
-            style={{
-              position: 'absolute',
-              top: '20px',
-              right: '20px',
-              zIndex: 1000,
-              background: 'rgba(255, 145, 77, 0.2)',
-              backdropFilter: 'blur(10px)',
-            }}
-          >
-            <X size={24} color="#FF914D" />
-          </Button>
+          <div className="vz-wrapper">
+            <div className="vz-wrapper -canvas">
+              <VisualizerCanvas
+                isActive={isOpen}
+                streamType={streamType ?? null}
+                audioRefObject={audioRef}
+                stationName={currentStationData?.name}
+              />
+            </div>
 
-          <VisualizerCanvas
-            isActive={isOpen}
-            streamType={streamType ?? null}
-            audioRefObject={audioRef}
-          />
-
-          {currentStationData && (
-            <Flex
-              direction="column"
-              align="center"
-              justify="center"
-              style={{
-                position: 'absolute',
-                bottom: '40px',
-                left: '50%',
-                transform: 'translateX(-50%)',
-                zIndex: 999,
-                background: 'rgba(12, 21, 33, 0.8)',
-                backdropFilter: 'blur(10px)',
-                padding: '20px 40px',
-                borderRadius: '12px',
-                border: '1px solid rgba(255, 145, 77, 0.3)',
-                minWidth: '300px',
-                maxWidth: '600px',
-              }}
-              gap="2"
+            <Button
+              variant="ghost"
+              onClick={() => setIsOpen(false)}
+              className="vz-close-button"
             >
-              <Text size="5" weight="bold" style={{ color: '#FAF9F6', textAlign: 'center' }}>
-                {currentStationData.name || 'Unknown Station'}
+              <X size={28} color="#FF914D" />
+            </Button>
+
+            <div className="vz-info-overlay">
+              <Text size="2" className="vz-help-text">
+                Press ESC or click X to exit immersive mode
               </Text>
-              {currentStationData.country && (
-                <Text size="3" style={{ color: '#ff914d', opacity: 0.9 }}>
-                  {currentStationData.country}
-                </Text>
-              )}
-              <Text size="2" style={{ color: '#ff914d', opacity: 0.7, marginTop: '8px' }}>
-                Press ESC or click X to exit
-              </Text>
-            </Flex>
-          )}
+            </div>
+          </div>
         </Dialog.Content>
       </Dialog.Root>
     </>

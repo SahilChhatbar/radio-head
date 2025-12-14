@@ -9,8 +9,7 @@ import Loader from "@/components/Loader";
 
 const DEFAULT_HERO_CONTENT = {
   title: "Welcome to RadioVerse",
-  subtitle:
-    "Log in or sign up for a more personalized and curated experience!",
+  subtitle: "Log in or sign up for a more personalized and curated experience!",
 };
 
 export default function Home() {

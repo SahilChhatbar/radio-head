@@ -413,7 +413,7 @@ body {
 }
 
 .vz-help-text {
-  color: var(--accent) !important;
+  color: var(--foreground);
   opacity: 0.9;
   font-size: 13px;
   display: block;

@@ -46,7 +46,10 @@ const Header: React.FC<HeaderProps> = ({
               <Logo size="md" priority {...logoProps} />
             </div>
           </Flex>
-          <Flex align="center" className="hidden sm:flex flex-1 justify-center mx-4 max-w-md">
+          <Flex
+            align="center"
+            className="hidden sm:flex flex-1 justify-center mx-4 max-w-md"
+          >
             <LocationSelector />
           </Flex>
           <Flex align="center" gap="3">
@@ -59,9 +62,7 @@ const Header: React.FC<HeaderProps> = ({
                 {displayText}
               </Text>
             </Container>
-            {showSignIn && (
-              <Button size="2">Sign In</Button>
-            )}
+            {showSignIn && <Button size="2">Sign In</Button>}
           </Flex>
         </Flex>
       </Container>
@@ -71,4 +72,3 @@ const Header: React.FC<HeaderProps> = ({
 
 export default Header;
 export type { HeaderProps, LogoProps };
-

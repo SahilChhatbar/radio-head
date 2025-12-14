@@ -36,7 +36,7 @@ export const metadata: Metadata = {
   title: "RadioVerse",
   description: "Radio streaming application",
   icons: {
-    icon: "/base.png",
+    icon: "/base.svg",
   },
 };
 

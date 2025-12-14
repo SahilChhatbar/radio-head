@@ -18,9 +18,7 @@ import { useHotkeys } from "react-hotkeys-hook";
 
 import { useRadioStore } from "@/store/useRadiostore";
 import { useEnhancedAudioPlayer } from "@/hooks/useAudioPlayer";
-import AudioVisualizer, {
-  AudioVisualizerHandle,
-} from "./AudioVisualizer";
+import AudioVisualizer, { AudioVisualizerHandle } from "./AudioVisualizer";
 import ImmersiveVisualizer from "./ImmersiveMode";
 
 const ORANGE = "#FF914D";
@@ -91,7 +89,7 @@ const GlobalPlayer: React.FC = () => {
       play: playAudio,
       pause: pauseAudio,
       setVolume: () => {}, // store is owner
-      setMuted: () => {},  // store is owner
+      setMuted: () => {}, // store is owner
     });
 
     isInitializedRef.current = true;
@@ -168,7 +166,8 @@ const GlobalPlayer: React.FC = () => {
      HOTKEYS (prevent default to stop scrolling)
   ----------------------------- */
 
-  const isDesktop = typeof window !== "undefined" && !("ontouchstart" in window);
+  const isDesktop =
+    typeof window !== "undefined" && !("ontouchstart" in window);
 
   useHotkeys(
     "space",
@@ -244,12 +243,15 @@ const GlobalPlayer: React.FC = () => {
   return (
     <>
       {/* Hidden audio */}
-      <audio ref={audioRef} crossOrigin="anonymous" style={{ display: "none" }} />
+      <audio
+        ref={audioRef}
+        crossOrigin="anonymous"
+        style={{ display: "none" }}
+      />
 
       <Box className="fixed bottom-0 left-0 right-0 z-50 border-t border-gray-700/50 bg-[#0C1521]/95">
         <Container size="4" className="py-3">
           <Flex align="center" justify="between" gap="4">
-
             {/* LEFT */}
             <Flex align="center" gap="3" className="flex-1 min-w-0">
               <div className="w-12 h-12 bg-[#FF914D]/20 rounded-lg flex items-center justify-center">
@@ -332,11 +334,9 @@ const GlobalPlayer: React.FC = () => {
                   <Slider.Thumb className="block w-4 h-4 bg-white rounded-full shadow" />
                 </Slider.Root>
               </div>
-
               <Text size="1" className="text-[#FF914D] min-w-8 hidden lg:block">
                 {Math.round(displayVolume * 100)}%
               </Text>
-
               <AudioVisualizer
                 ref={visualizerRef}
                 barCount={12}
@@ -347,7 +347,6 @@ const GlobalPlayer: React.FC = () => {
                 isLoading={storeIsLoading}
                 isPaused={!isPlaying || storeIsLoading}
               />
-
               <ImmersiveVisualizer
                 currentStation={currentStationIndex}
                 streamType={streamType}

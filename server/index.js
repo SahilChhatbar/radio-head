@@ -52,7 +52,6 @@ const corsOptions = {
     if (allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
-      console.warn(`🚫 CORS: Blocked origin: ${origin}`);
       callback(new Error('Not allowed by CORS'));
     }
   },
@@ -92,10 +91,7 @@ app.use((req, res, next) => {
   const userAgent = req.get('User-Agent') || 'Unknown';
   const ip = req.ip || req.connection.remoteAddress;
 
-  console.log(`📊 [${timestamp}] ${req.method} ${req.url} - IP: ${ip}`);
-
   if (NODE_ENV === 'development') {
-    console.log(`   UA: ${userAgent.substring(0, 100)}${userAgent.length > 100 ? '...' : ''}`);
   }
 
   next();
@@ -111,7 +107,6 @@ app.use((req, res, next) => {
     res.setHeader('X-Response-Time', `${responseTime}ms`);
 
     if (responseTime > 5000) {
-      console.warn(`⚠️ Slow response: ${req.method} ${req.url} took ${responseTime}ms`);
     }
 
     return originalSend.call(this, data);
@@ -367,13 +362,6 @@ app.use((err, req, res, next) => {
   const timestamp = new Date().toISOString();
   const requestId = Math.random().toString(36).substring(2, 15);
 
-  console.error(`🚨 [${timestamp}] Error ${requestId}:`, {
-    error: err.message,
-    stack: err.stack,
-    method: req.method,
-    url: req.url,
-  });
-
   const isDevelopment = NODE_ENV === 'development';
 
   res.status(err.status || 500).json({
@@ -388,34 +376,21 @@ app.use((err, req, res, next) => {
 
 // Start server
 const server = app.listen(PORT, () => {
-  console.log(`🚀 RadioVerse API Server is running!`);
-  console.log(`📡 Environment: ${NODE_ENV}`);
-  console.log(`🌐 Server: http://localhost:${PORT}`);
-  console.log(`📖 Documentation: http://localhost:${PORT}/api/docs`);
-  console.log(`💚 Health Check: http://localhost:${PORT}/api/health`);
-  console.log(`🔐 Auth: http://localhost:${PORT}/api/auth`);
-  console.log(`🎵 Radio API: http://localhost:${PORT}/api/radio`);
-  console.log(`⚡ Ready to serve radio stations from around the world!\n`);
 });
 
 // Graceful shutdown
 const gracefulShutdown = (signal) => {
-  console.log(`\n🔄 Received ${signal}. Starting graceful shutdown...`);
-
   server.close(async (err) => {
     if (err) {
-      console.error('❌ Error during server close:', err);
       process.exit(1);
     }
 
     const mongoose = require('mongoose');
     await mongoose.connection.close();
-    console.log('✅ Server and database connections closed successfully');
     process.exit(0);
   });
 
   setTimeout(() => {
-    console.error('⏰ Could not close server gracefully, forcing shutdown');
     process.exit(1);
   }, 30000);
 };

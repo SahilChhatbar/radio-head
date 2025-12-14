@@ -21,7 +21,6 @@ router.use((req, res, next) => {
   
   res.send = function(data) {
     const duration = Date.now() - start;
-    console.log(`${req.method} ${req.path} - ${res.statusCode} (${duration}ms)`);
     originalSend.call(this, data);
   };
   
@@ -29,7 +28,6 @@ router.use((req, res, next) => {
 });
 
 const handleError = (res, error, context = 'Operation') => {
-  console.error(`❌ ${context} failed:`, error);
   
   const statusCode = error.message.includes('Invalid') || error.message.includes('must be') ? 400 : 500;
   const isClientError = statusCode === 400;
@@ -412,8 +410,6 @@ router.use((req, res, next) => {
 });
 
 router.use((error, req, res, next) => {
-  console.error('🚨 Unhandled route error:', error);
-  
   if (res.headersSent) {
     return next(error);
   }

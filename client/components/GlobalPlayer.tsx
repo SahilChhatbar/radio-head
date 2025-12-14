@@ -334,6 +334,7 @@ const GlobalPlayer: React.FC = () => {
                   <Slider.Thumb className="block w-4 h-4 bg-white rounded-full shadow" />
                 </Slider.Root>
               </div>
+
               <Text size="1" className="text-[#FF914D] min-w-8 hidden lg:block">
                 {Math.round(displayVolume * 100)}%
               </Text>

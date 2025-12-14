@@ -17,7 +17,6 @@ const api = axios.create({
 
 api.interceptors.request.use(
   (config) => {
-    console.log(`Making API request to: ${config.baseURL}${config.url}`);
     return config;
   },
   (error) => {
@@ -28,7 +27,6 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    console.error("API Error:", error.response?.data || error.message);
     return Promise.reject(error);
   }
 );
@@ -41,7 +39,6 @@ export const radioApi = {
       });
       return response.data.data;
     } catch (error) {
-      console.error("Error fetching stations:", error);
       throw error;
     }
   },
@@ -55,7 +52,6 @@ export const radioApi = {
       });
       return response.data.data;
     } catch (error) {
-      console.error("Error searching stations:", error);
       throw error;
     }
   },
@@ -73,7 +69,6 @@ export const radioApi = {
       );
       return response.data.data;
     } catch (error) {
-      console.error("Error fetching stations by country:", error);
       throw error;
     }
   },
@@ -88,7 +83,6 @@ export const radioApi = {
       });
       return response.data.data;
     } catch (error) {
-      console.error("Error fetching stations by tag:", error);
       throw error;
     }
   },
@@ -100,7 +94,6 @@ export const radioApi = {
       });
       return response.data.data;
     } catch (error) {
-      console.error("Error fetching popular stations:", error);
       throw error;
     }
   },
@@ -110,14 +103,11 @@ export const radioApi = {
       await api.get("/health");
       return true;
     } catch (error) {
-      console.error("Health check failed:", error);
       return false;
     }
   },
   getCountries: async () => {
-  const response = await api.get("/radio/countries");
-  return response.data.data;
-}
+    const response = await api.get("/radio/countries");
+    return response.data.data;
+  }
 };
-
-export default radioApi;

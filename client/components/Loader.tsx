@@ -17,7 +17,7 @@ const LoadingScreen: React.FC<LoaderProps> = ({ variant = "default" }) => {
                 <div className="absolute inset-0 rounded-full border-4 border-transparent border-t-[#ff914d] border-r-[#ff914d] animate-spin"></div>
                 <div className="absolute inset-4 flex items-center justify-center">
                   <Image
-                    src="/base.svg"  // ← Changed from import
+                    src="/base.svg" // ← Changed from import
                     width={120}
                     height={120}
                     alt="radioverse"
@@ -37,12 +37,12 @@ const LoadingScreen: React.FC<LoaderProps> = ({ variant = "default" }) => {
       <Box>
         <Flex align="center" justify="center" minHeight={"100vh"}>
           <Flex direction="column" align="center" justify="center" gap="4">
-            <Image 
-              src="/base.svg"  // ← Changed from import
-              width={200} 
+            <Image
+              src="/base.svg" // ← Changed from import
+              width={200}
               height={200}
-              alt="RadioVerse" 
-              className="animate-bounce" 
+              alt="RadioVerse"
+              className="animate-bounce"
             />
             <Heading
               size={{ initial: "6", sm: "8" }}

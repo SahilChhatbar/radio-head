@@ -1,18 +1,18 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import axios from 'axios';
+import React, { createContext, useContext, useState, useEffect } from "react";
+import axios from "axios";
 
 interface User {
   id: string;
   email: string;
   name: string;
   avatar?: string;
-  provider: 'local' | 'google';
+  provider: "local" | "google";
   favoriteStations?: any[];
   recentlyPlayed?: any[];
   preferences?: {
-    theme: 'light' | 'dark';
+    theme: "light" | "dark";
     volume: number;
     autoplay: boolean;
   };
@@ -31,7 +31,7 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -45,7 +45,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const checkAuth = async () => {
     try {
-      const token = localStorage.getItem('radioverse_token');
+      const token = localStorage.getItem("radioverse_token");
       if (!token) {
         setLoading(false);
         return;
@@ -53,18 +53,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       const response = await axios.get(`${API_URL}/auth/me`, {
         headers: {
-          Authorization: `Bearer ${token}`
-        }
+          Authorization: `Bearer ${token}`,
+        },
       });
 
       if (response.data.success) {
         setUser(response.data.user);
       } else {
-        localStorage.removeItem('radioverse_token');
+        localStorage.removeItem("radioverse_token");
       }
     } catch (err: any) {
-      console.error('Auth check failed:', err);
-      localStorage.removeItem('radioverse_token');
+      localStorage.removeItem("radioverse_token");
     } finally {
       setLoading(false);
     }
@@ -77,15 +76,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       const response = await axios.post(`${API_URL}/auth/login`, {
         email,
-        password
+        password,
       });
 
       if (response.data.success) {
-        localStorage.setItem('radioverse_token', response.data.token);
+        localStorage.setItem("radioverse_token", response.data.token);
         setUser(response.data.user);
       }
     } catch (err: any) {
-      const errorMessage = err.response?.data?.message || 'Login failed';
+      const errorMessage = err.response?.data?.message || "Login failed";
       setError(errorMessage);
       throw new Error(errorMessage);
     } finally {
@@ -101,15 +100,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const response = await axios.post(`${API_URL}/auth/register`, {
         email,
         password,
-        name
+        name,
       });
 
       if (response.data.success) {
-        localStorage.setItem('radioverse_token', response.data.token);
+        localStorage.setItem("radioverse_token", response.data.token);
         setUser(response.data.user);
       }
     } catch (err: any) {
-      const errorMessage = err.response?.data?.message || 'Registration failed';
+      const errorMessage = err.response?.data?.message || "Registration failed";
       setError(errorMessage);
       throw new Error(errorMessage);
     } finally {
@@ -122,7 +121,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const logout = () => {
-    localStorage.removeItem('radioverse_token');
+    localStorage.removeItem("radioverse_token");
     setUser(null);
   };
 
@@ -140,7 +139,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         register,
         loginWithGoogle,
         logout,
-        clearError
+        clearError,
       }}
     >
       {children}
@@ -151,7 +150,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 export function useAuth() {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
 }

@@ -61,10 +61,7 @@ const LocationSelector: React.FC<LocationSelectorProps> = ({
       setIsLoadingCountries(true);
       setCountriesError(null);
       try {
-        console.log("🌍 Fetching countries list...");
         const countriesData = await radioApi.getCountries();
-        console.log("✅ Countries raw:", countriesData?.length);
-
         const normalized = (countriesData || []).map((c: any) => ({
           name: c.name,
           stationcount: c.stationcount,
@@ -77,7 +74,6 @@ const LocationSelector: React.FC<LocationSelectorProps> = ({
 
         setCountries(normalized);
       } catch (error) {
-        console.error("❌ Failed to load countries:", error);
         setCountriesError("Failed to load countries");
         setCountries([]);
       } finally {
@@ -93,7 +89,6 @@ const LocationSelector: React.FC<LocationSelectorProps> = ({
       const savedCountry = localStorage.getItem("radioverse-country");
 
       if (savedCountry) {
-        console.log("📍 Using saved country:", savedCountry);
         setSelectedCountry(savedCountry);
         await loadStationsForCountry(savedCountry);
         setIsLoadingLocation(false);
@@ -112,7 +107,6 @@ const LocationSelector: React.FC<LocationSelectorProps> = ({
               const countryCode = data.countryCode;
 
               if (countryCode) {
-                console.log("📍 Location detected:", countryCode);
                 setSelectedCountry(countryCode);
                 setLocationGranted(true);
                 localStorage.setItem("radioverse-country", countryCode);
@@ -121,14 +115,12 @@ const LocationSelector: React.FC<LocationSelectorProps> = ({
                 await loadDefaultStations();
               }
             } catch (error) {
-              console.error("Failed to reverse geocode:", error);
               await loadDefaultStations();
             } finally {
               setIsLoadingLocation(false);
             }
           },
           async (error) => {
-            console.log("Location access denied:", error);
             await loadDefaultStations();
             setIsLoadingLocation(false);
           }
@@ -143,7 +135,6 @@ const LocationSelector: React.FC<LocationSelectorProps> = ({
   }, []);
 
   const loadDefaultStations = async () => {
-    console.log("📻 Loading default stations");
     const defaultCountry = "IN";
     setSelectedCountry(defaultCountry);
     localStorage.setItem("radioverse-country", defaultCountry);
@@ -151,21 +142,18 @@ const LocationSelector: React.FC<LocationSelectorProps> = ({
   };
 
   const loadStationsForCountry = async (countryCode: string) => {
-    console.log("📻 Loading stations for:", countryCode);
     setIsLoadingStations(true);
     try {
-      const stationsData = await radioApi.getStationsByCountry(countryCode, 100);
-      console.log(
-        `✅ Loaded ${stationsData?.length ?? 0} stations for ${countryCode}`
+      const stationsData = await radioApi.getStationsByCountry(
+        countryCode,
+        100
       );
       setStations(stationsData || []);
     } catch (error) {
-      console.error("❌ Failed to load stations:", error);
       try {
         const popularStations = await radioApi.getPopularStations(50);
         setStations(popularStations || []);
       } catch (fallbackError) {
-        console.error("❌ Failed to load fallback stations:", fallbackError);
         setStations([]);
       }
     } finally {
@@ -191,41 +179,33 @@ const LocationSelector: React.FC<LocationSelectorProps> = ({
     );
   }, [stations, searchStation]);
 
-  useEffect(() => {
-    console.log("🔎 filteredStations.length:", filteredStations.length);
-  }, [filteredStations.length]);
+  useEffect(() => {}, [filteredStations.length]);
 
   useEffect(() => {
     if (filteredStations.length > 0 && !selectedStation) {
-      console.log(`📻 Auto-selecting first station: ${filteredStations[0].name}`);
       setSelectedStation(filteredStations[0].stationuuid);
     }
   }, [filteredStations, selectedStation]);
-const forceBlur = () => {
-    // Multiple attempts with increasing delays to catch Radix's focus restoration
-    [0, 10, 50, 100].forEach(delay => {
+  const forceBlur = () => {
+    [0, 10, 50, 100].forEach((delay) => {
       setTimeout(() => {
         try {
           const focused = document.activeElement as HTMLElement;
-          if (focused && (
-            focused.hasAttribute('data-radix-select-trigger') ||
-            focused.getAttribute('role') === 'combobox' ||
-            focused.tagName === 'BUTTON'
-          )) {
+          if (
+            focused &&
+            (focused.hasAttribute("data-radix-select-trigger") ||
+              focused.getAttribute("role") === "combobox" ||
+              focused.tagName === "BUTTON")
+          ) {
             focused.blur();
           }
-        } catch (err) {
-          console.error('Blur error:', err);
-        }
+        } catch (err) {}
       }, delay);
     });
   };
 
   const handleCountryChange = async (countryCode: string) => {
-    console.log("🌍 Country changed to:", countryCode);
     setSelectedCountry(countryCode);
-
-    // close the menu and then blur (onOpenChange will also blur when it closes)
     setCountryOpen(false);
     forceBlur();
 
@@ -236,10 +216,8 @@ const forceBlur = () => {
   };
 
   const handleStationChange = (stationUuid: string) => {
-    console.log("🎧 Station selected:", stationUuid);
     setSelectedStation(stationUuid);
 
-    // close the menu and blur
     setStationOpen(false);
     forceBlur();
 
@@ -255,7 +233,8 @@ const forceBlur = () => {
     (s) => s.stationuuid === selectedStation
   );
 
-  const isCountryDropdownDisabled = isLoadingCountries && countries.length === 0;
+  const isCountryDropdownDisabled =
+    isLoadingCountries && countries.length === 0;
 
   return (
     <Flex gap="0" align="center" className="w-full">
@@ -270,7 +249,6 @@ const forceBlur = () => {
           onOpenChange={(open) => {
             setCountryOpen(open);
             if (!open) {
-              // blur after Radix finishes closing
               requestAnimationFrame(() => {
                 try {
                   countryTriggerRef.current?.blur?.();
@@ -346,7 +324,9 @@ const forceBlur = () => {
               ))}
 
               {filteredCountries.length === 0 && !isLoadingCountries && (
-                <div className="px-3 py-2 text-gray-500 text-sm">No countries found</div>
+                <div className="px-3 py-2 text-gray-500 text-sm">
+                  No countries found
+                </div>
               )}
 
               {isLoadingCountries && (
@@ -438,13 +418,17 @@ const forceBlur = () => {
                       {station.name}
                     </Text>
                     <Flex align="center" gap="2" className="text-gray-500">
-                      {station.bitrate > 0 && <Text size="1">{station.bitrate}kbps</Text>}
+                      {station.bitrate > 0 && (
+                        <Text size="1">{station.bitrate}kbps</Text>
+                      )}
                       {station.codec && (
                         <Text size="1" className="uppercase">
                           {station.codec}
                         </Text>
                       )}
-                      {station.votes > 0 && <Text size="1">👍 {station.votes}</Text>}
+                      {station.votes > 0 && (
+                        <Text size="1">👍 {station.votes}</Text>
+                      )}
                     </Flex>
                   </Flex>
                 </Select.Item>
@@ -453,7 +437,9 @@ const forceBlur = () => {
               {filteredStations.length === 0 && !isLoadingStations && (
                 <div className="px-3 py-2 text-gray-500 text-sm">
                   {selectedCountry
-                    ? `No stations found in ${selectedCountryData?.name || selectedCountry}`
+                    ? `No stations found in ${
+                        selectedCountryData?.name || selectedCountry
+                      }`
                     : "Please select a country first"}
                 </div>
               )}

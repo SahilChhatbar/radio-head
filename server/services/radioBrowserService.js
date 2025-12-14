@@ -43,7 +43,6 @@ class RadioBrowserService {
    */
   async discoverServersViaSRV() {
     try {
-      console.log('🔍 Discovering servers via SRV records...');
       const srvRecords = await dns.resolveSrv('_api._tcp.radio-browser.info');
 
       if (!srvRecords || srvRecords.length === 0) {
@@ -55,10 +54,8 @@ class RadioBrowserService {
         .map(record => `https://${record.name}`)
         .filter(server => server.includes('api.radio-browser.info'));
 
-      console.log(`✅ Discovered ${discoveredServers.length} servers via SRV records`);
       return discoveredServers;
     } catch (error) {
-      console.warn('⚠️ SRV record discovery failed:', error.message);
       return null;
     }
   }
@@ -68,7 +65,6 @@ class RadioBrowserService {
    */
   async discoverServersViaA() {
     try {
-      console.log('🔍 Discovering servers via A records...');
       const aRecords = await dns.resolve4('all.api.radio-browser.info');
 
       if (!aRecords || aRecords.length === 0) {
@@ -89,10 +85,8 @@ class RadioBrowserService {
       });
 
       const discoveredServers = await Promise.all(reversePromises);
-      console.log(`✅ Discovered ${discoveredServers.length} servers via A records`);
       return discoveredServers;
     } catch (error) {
-      console.warn('⚠️ A record discovery failed:', error.message);
       return null;
     }
   }
@@ -128,7 +122,6 @@ class RadioBrowserService {
 
     // Final fallback to hardcoded servers
     if (!servers || servers.length === 0) {
-      console.warn('🚨 DNS discovery failed completely, using fallback servers');
       return [...CONFIG.FALLBACK_SERVERS];
     }
 
@@ -179,7 +172,6 @@ class RadioBrowserService {
   async getBestWorkingServer(forceRefresh = false) {
     try {
       const servers = await this.discoverServers();
-      console.log(`🏥 Testing ${servers.length} servers for health and response time...`);
 
       // Test all servers in parallel with timeout
       const healthCheckPromises = servers.map(server =>
@@ -208,21 +200,17 @@ class RadioBrowserService {
       }
 
       const bestServer = healthyServers[0];
-      console.log(`🎯 Selected server: ${bestServer.server} (${bestServer.responseTime}ms)`);
 
       // Store backup servers for failover
       serverCache.servers = healthyServers.slice(0, 3); // Keep top 3
 
       return bestServer.server;
     } catch (error) {
-      console.error('💥 Error finding best server:', error.message);
-
       // Try fallback servers as last resort
       for (const fallbackServer of CONFIG.FALLBACK_SERVERS) {
         try {
           const healthResult = await this.testServerHealth(fallbackServer);
           if (healthResult.healthy) {
-            console.log(`🔄 Using fallback server: ${fallbackServer}`);
             return fallbackServer;
           }
         } catch (fallbackError) {
@@ -243,15 +231,12 @@ class RadioBrowserService {
 
     // Check if we need to refresh
     if (forceRefresh || !serverCache.selectedServer || isExpired) {
-      console.log('🔄 Refreshing server cache...');
-
       try {
         serverCache.selectedServer = await this.getBestWorkingServer(forceRefresh);
         serverCache.timestamp = now;
       } catch (error) {
         // If refresh fails and we have a cached server, use it
         if (serverCache.selectedServer && !forceRefresh) {
-          console.warn('⚠️ Server refresh failed, using cached server');
           return serverCache.selectedServer;
         }
         throw error;
@@ -308,22 +293,15 @@ class RadioBrowserService {
         }
 
         // Reset retry count on success
-        if (retryCount > 0) {
-          console.log(`✅ Request succeeded after ${retryCount} retries`);
-        }
-
         return response.data;
 
       } catch (error) {
         lastError = error;
         retryCount++;
 
-        console.warn(`⚠️ Request failed (attempt ${retryCount}/${maxRetries + 1}):`, error.message);
-
         if (retryCount <= maxRetries) {
           // Calculate exponential backoff delay
           const delay = CONFIG.RETRY_DELAY * Math.pow(CONFIG.BACKOFF_MULTIPLIER, retryCount - 1);
-          console.log(`⏳ Retrying in ${delay}ms...`);
 
           await new Promise(resolve => setTimeout(resolve, delay));
           continue;
@@ -334,7 +312,6 @@ class RadioBrowserService {
     }
 
     // All retries failed
-    console.error('💥 All retry attempts failed:', lastError?.message);
     throw new Error(`Failed to execute request after ${maxRetries + 1} attempts: ${lastError?.message}`);
   }
 
@@ -398,8 +375,6 @@ class RadioBrowserService {
       offset: params.offset || 0
     });
 
-    console.log('🎵 Fetching radio stations with params:', validatedParams);
-
     return await this.executeRequest(async (api) => {
       const queryString = this.buildQueryParams(validatedParams);
       const response = await api.get(`/stations/search?${queryString}`);
@@ -409,7 +384,6 @@ class RadioBrowserService {
         throw new Error('Invalid response format: expected array');
       }
 
-      console.log(`✅ Successfully fetched ${response.data.length} stations`);
       return response;
     });
   }
@@ -459,8 +433,6 @@ async getStationsByCountry(countryCode, limit = 50) {
     CONFIG.MAX_LIMIT
   );
 
-  console.log(`🎯 Fetching stations for country ${normalizedCode} (limit=${safeLimit})`);
-
   return await this.executeRequest(async (api) => {
     const response = await api.get(
       `/stations/bycountrycodeexact/${encodeURIComponent(normalizedCode)}`,
@@ -478,10 +450,6 @@ async getStationsByCountry(countryCode, limit = 50) {
     if (!Array.isArray(response.data)) {
       throw new Error("Invalid response format for getStationsByCountry");
     }
-
-    console.log(
-      `✅ Successfully fetched ${response.data.length} stations for ${normalizedCode}`
-    );
 
     // executeRequest will return response.data to the caller
     return response;
@@ -524,8 +492,6 @@ async getStationsByCountry(countryCode, limit = 50) {
    * Get countries list for UI dropdowns
    */
   async getCountries() {
-    console.log('🌍 Fetching countries list...');
-
     return await this.executeRequest(async (api) => {
       const response = await api.get('/countries');
 
@@ -533,7 +499,6 @@ async getStationsByCountry(countryCode, limit = 50) {
         throw new Error('Invalid countries response format');
       }
 
-      console.log(`✅ Successfully fetched ${response.data.length} countries`);
       return response;
     });
   }
@@ -542,8 +507,6 @@ async getStationsByCountry(countryCode, limit = 50) {
    * Get tags list for UI dropdowns
    */
   async getTags(limit = 100) {
-    console.log('🏷️ Fetching tags list...');
-
     return await this.executeRequest(async (api) => {
       const queryString = limit ? `?limit=${limit}` : '';
       const response = await api.get(`/tags${queryString}`);
@@ -552,7 +515,6 @@ async getStationsByCountry(countryCode, limit = 50) {
         throw new Error('Invalid tags response format');
       }
 
-      console.log(`✅ Successfully fetched ${response.data.length} tags`);
       return response;
     });
   }
@@ -563,7 +525,6 @@ async getStationsByCountry(countryCode, limit = 50) {
    */
   async recordStationClick(stationUuid) {
     if (!stationUuid) {
-      console.warn('⚠️ Cannot record click: missing station UUID');
       return false;
     }
 
@@ -572,10 +533,8 @@ async getStationsByCountry(countryCode, limit = 50) {
         return await api.get(`/url/${stationUuid}`);
       });
 
-      console.log(`📊 Recorded click for station: ${stationUuid}`);
       return true;
     } catch (error) {
-      console.error('Failed to record station click:', error.message);
       return false;
     }
   }
@@ -607,7 +566,6 @@ async getStationsByCountry(countryCode, limit = 50) {
    * Manually refresh server cache (for admin/maintenance use)
    */
   async refreshServerCache() {
-    console.log('🔄 Manual server cache refresh requested...');
     return await this.getCachedServer(true);
   }
 

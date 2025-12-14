@@ -272,8 +272,8 @@ const VisualizerCanvas: React.FC<{
       ctx.restore();
 
       // Draw center text
-      const fgColor = getComputedStyle(document.documentElement).getPropertyValue('--foreground').trim();
-      ctx.fillStyle = fgColor;
+      const bgDark = getComputedStyle(document.documentElement).getPropertyValue('--secondary-dark').trim();
+      ctx.fillStyle = bgDark;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
       
@@ -288,9 +288,11 @@ const VisualizerCanvas: React.FC<{
         minute: '2-digit',
         hour12: false 
       });
-      ctx.fillStyle = `rgba(250, 249, 246, 0.7)`;
+      ctx.fillStyle = bgDark;
+      ctx.globalAlpha = 0.7;
       ctx.font = "20px Arial";
       ctx.fillText(timeStr, centerX, centerY + 45);
+      ctx.globalAlpha = 1;
 
       animRef.current = requestAnimationFrame(draw);
     }

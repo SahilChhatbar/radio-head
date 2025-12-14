@@ -303,7 +303,7 @@ body {
   background: transparent !important;
 }
 
-/* Main wrapper - TEAL/CYAN gradient like reference */
+/* Main wrapper */
 .vz-wrapper {
   position: relative;
   height: 100vh;
@@ -311,9 +311,9 @@ body {
   background: radial-gradient(
     circle at center,
     #396362 0%,
-    #2d4f4e 40%,
-    #1a3433 70%,
-    #000000 100%
+    var(--color-cyan-900) 30%,
+    var(--color-background) 60%,
+    var(--secondary-dark) 100%
   );
   cursor: pointer;
   overflow: hidden;
@@ -467,10 +467,9 @@ body:has(.vz-wrapper) {
   overflow: hidden;
 }
 
-/* Performance optimization */
 .vz-canvas,
 .vz-wrapper::before {
   transform: translateZ(0);
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
-}
+} 

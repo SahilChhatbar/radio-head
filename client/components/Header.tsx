@@ -37,28 +37,19 @@ const Header: React.FC<HeaderProps> = ({
   return (
     <header className={`p-3 ${className}`}>
       <Container size="4">
-        {/* Single Row Layout */}
         <Flex align="center" justify="between" className="h-16 px-6">
-          {/* Left: Logo */}
           <Flex align="center">
-            {/* Mobile: icon-only */}
             <div className="block md:hidden">
               <Logo size="md" priority variant="icon-only" {...logoProps} />
             </div>
-            {/* Desktop: default variant */}
             <div className="hidden md:block">
               <Logo size="md" priority {...logoProps} />
             </div>
           </Flex>
-
-          {/* Center: Location Selectors (Hidden on very small screens) */}
           <Flex align="center" className="hidden sm:flex flex-1 justify-center mx-4 max-w-md">
             <LocationSelector />
           </Flex>
-
-          {/* Right: Now Playing & Sign In */}
           <Flex align="center" gap="3">
-            {/* Now Playing - Hidden on mobile */}
             <Container className="hidden lg:block bg-gray-900/60 border border-gray-700/50 rounded-lg px-3 py-1.5 backdrop-blur-sm">
               <Text
                 size="1"
@@ -73,9 +64,6 @@ const Header: React.FC<HeaderProps> = ({
             )}
           </Flex>
         </Flex>
-
-        {/* Mobile: Show location selectors below on small screens */}
-
       </Container>
     </header>
   );

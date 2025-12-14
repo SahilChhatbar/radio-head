@@ -1,8 +1,8 @@
+// File: hooks/useEnhancedAudioPlayer.ts
 import { useRef, useEffect, useCallback, useState } from "react";
 import { RadioStation } from "@/types/index";
 import * as Tone from "tone";
 import Hls from "hls.js";
-import { Howl } from "howler";
 
 interface UseEnhancedAudioPlayerOptions {
   volume?: number;
@@ -24,103 +24,71 @@ interface UseEnhancedAudioPlayerReturn {
   duration: number;
   currentTime: number;
   error: string | null;
-  streamType: "hls" | "tone" | "howler" | null;
+  streamType: "hls" | "tone" | null;
   latency: number;
   play: (station?: RadioStation) => Promise<void>;
   pause: () => void;
   stop: () => void;
   setVolume: (volume: number) => void;
   setMuted: (muted: boolean) => void;
-  load: (station: RadioStation) => void;
+  load: (station: RadioStation) => Promise<"hls" | "tone">;
 }
 
-export type StreamType = "hls" | "tone" | "howler";
+export type StreamType = "hls" | "tone";
 
 const HLS_INDICATORS = [
-  ".m3u8",
-  "m3u8",
-  "/hls/",
-  "/hls-",
-  "hls.",
-  "apple",
-  "manifest.m3u",
-  "playlist.m3u",
-  "/live/",
-  "stream.m3u",
+  ".m3u8", "m3u8", "/hls/", "/hls-", "hls.", "apple",
+  "manifest.m3u", "playlist.m3u", "/live/", "stream.m3u",
 ];
 const HIGH_QUALITY_INDICATORS = ["320", "256", "flac", "wav"];
-const HOWLER_FORMATS = [
-  "mp3",
-  "mpeg",
-  "opus",
-  "ogg",
-  "oga",
-  "wav",
-  "aac",
-  "m4a",
-  "mp4",
-  "weba",
-  "webm",
-  "flac",
-];
-const STREAM_FORMATS = ["icecast", "shoutcast", "pls", "stream"];
 
-// Global state to ensure only one audio stream plays at a time
 let globalAudioInstance: {
-  howl: Howl | null;
   hls: Hls | null;
   tone: Tone.Player | null;
   audio: HTMLAudioElement | null;
 } = {
-  howl: null,
   hls: null,
   tone: null,
   audio: null,
 };
 
-// Global cleanup function to stop all audio
 const stopAllGlobalAudio = () => {
-  console.log("🛑 Stopping all global audio instances...");
-
-  if (globalAudioInstance.howl) {
-    try {
-      globalAudioInstance.howl.stop();
-      globalAudioInstance.howl.unload();
-    } catch (e) {
-      console.warn("Error stopping Howl:", e);
-    }
-    globalAudioInstance.howl = null;
-  }
-
+  console.log("🛑 Stopping all global audio instances (native/Tone/HLS)...");
   if (globalAudioInstance.hls) {
-    try {
-      globalAudioInstance.hls.destroy();
-    } catch (e) {
-      console.warn("Error stopping HLS:", e);
-    }
+    try { globalAudioInstance.hls.destroy(); }
+    catch (e) { console.warn("Error stopping HLS:", e); }
     globalAudioInstance.hls = null;
   }
-
   if (globalAudioInstance.tone) {
-    try {
-      globalAudioInstance.tone.stop();
-      globalAudioInstance.tone.dispose();
-    } catch (e) {
-      console.warn("Error stopping Tone:", e);
-    }
+    try { globalAudioInstance.tone.stop(); globalAudioInstance.tone.dispose(); }
+    catch (e) { console.warn("Error stopping Tone:", e); }
     globalAudioInstance.tone = null;
   }
-
   if (globalAudioInstance.audio) {
     try {
       globalAudioInstance.audio.pause();
       globalAudioInstance.audio.currentTime = 0;
       globalAudioInstance.audio.src = "";
       globalAudioInstance.audio.load();
-    } catch (e) {
-      console.warn("Error stopping audio element:", e);
+    } catch (e) { console.warn("Error stopping audio element:", e); }
+    globalAudioInstance.audio = null;
+  }
+};
+
+const exposeToneContext = () => {
+  if (typeof window !== 'undefined' && Tone) {
+    try {
+      (window as any).Tone = Tone;
+      console.log('🎵 Tone.js context exposed:', {
+        context: !!Tone.context,
+        destination: !!Tone.getDestination?.(),
+      });
+      return true;
+    } catch (error) {
+      console.warn('Could not expose Tone context:', error);
     }
   }
+  return false;
 };
 
 export const useEnhancedAudioPlayer = (
@@ -128,7 +96,6 @@ export const useEnhancedAudioPlayer = (
 ): UseEnhancedAudioPlayerReturn => {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [audioElement, setAudioElement] = useState<HTMLAudioElement | null>(null);
-
   const [isLoading, setIsLoading] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [duration, setDuration] = useState(0);
@@ -139,293 +106,171 @@ export const useEnhancedAudioPlayer = (
 
   const hlsRef = useRef<Hls | null>(null);
   const tonePlayerRef = useRef<Tone.Player | null>(null);
-  const howlRef = useRef<Howl | null>(null);
   const currentStationRef = useRef<RadioStation | null>(null);
   const loadStartTimeRef = useRef<number>(0);
   const isCleaningUpRef = useRef(false);
   const volumeRef = useRef(options.volume ?? 0.7);
   const mutedRef = useRef(options.muted ?? false);
-  // Track stream type with a ref for immediate access (state updates are async)
   const streamTypeRef = useRef<StreamType | null>(null);
 
-  // Keep refs in sync with options
   useEffect(() => {
-    volumeRef.current = options.volume ?? 0.7;
-  }, [options.volume]);
-
-  useEffect(() => {
-    mutedRef.current = options.muted ?? false;
-  }, [options.muted]);
-
-  const detectStreamType = useCallback((station: RadioStation): StreamType => {
-    const url = (station.url_resolved || station.url).toLowerCase();
-    const codec = station.codec?.toLowerCase() || "";
-
-    // Check for HLS streams first (most specific)
-    if (HLS_INDICATORS.some((indicator) => url.includes(indicator))) {
-      console.log(`🎵 Detected HLS stream: ${station.name}`);
-      return "hls";
-    }
-
-    // Check for high-quality lossless formats (use Tone.js for better quality)
-    if (
-      codec === "flac" ||
-      codec === "wav" ||
-      (HIGH_QUALITY_INDICATORS.some((indicator) => url.includes(indicator)) &&
-        station.bitrate >= 256)
-    ) {
-      console.log(`🎵 Detected high-quality stream: ${station.name} (${codec})`);
-      return "tone";
-    }
-
-    // Check for common streaming formats and codecs
-    if (
-      HOWLER_FORMATS.some((format) => url.includes(`.${format}`)) ||
-      HOWLER_FORMATS.includes(codec) ||
-      STREAM_FORMATS.some((format) => url.includes(format)) ||
-      station.bitrate > 0
-    ) {
-      console.log(`🎵 Detected standard stream: ${station.name} (${codec})`);
-      return "howler";
-    }
-
-    // Default to Howler (most compatible)
-    console.log(`🎵 Using default player for: ${station.name}`);
-    return "howler";
+    exposeToneContext();
   }, []);
 
-  const setupHLSPlayer = useCallback(
-    async (url: string) => {
-      if (!audioRef.current || !Hls.isSupported()) {
-        throw new Error("HLS not supported");
+  // -------------------------
+  // apply volume/muted to players
+  // -------------------------
+  const setVolume = useCallback((volume: number) => {
+    const clampedVolume = Math.max(0, Math.min(1, volume));
+    volumeRef.current = clampedVolume;
+    console.log(`🔊 setVolume -> ${clampedVolume} (muted=${mutedRef.current})`);
+    const effective = mutedRef.current ? 0 : clampedVolume;
+    try {
+      if (audioRef.current) audioRef.current.volume = effective;
+      if (tonePlayerRef.current) tonePlayerRef.current.volume.value = Tone.gainToDb(effective);
+    } catch (err) {
+      console.warn("Error applying volume:", err);
+    }
+  }, []);
+
+  const setMuted = useCallback((muted: boolean) => {
+    mutedRef.current = muted;
+    console.log(`🔇 setMuted -> ${muted} (volume=${volumeRef.current})`);
+    const effective = muted ? 0 : volumeRef.current;
+    try {
+      if (audioRef.current) { audioRef.current.muted = muted; audioRef.current.volume = effective; }
+      if (tonePlayerRef.current) { tonePlayerRef.current.mute = muted; tonePlayerRef.current.volume.value = Tone.gainToDb(effective); }
+    } catch (err) {
+      console.warn("Error applying mute:", err);
+    }
+  }, []);
+
+  // sync incoming options -> apply to players (single source of truth: parent/store)
+  useEffect(() => {
+    if (typeof options.volume === "number") {
+      setVolume(options.volume);
+    }
+  }, [options.volume, setVolume]);
+
+  useEffect(() => {
+    if (typeof options.muted === "boolean") {
+      setMuted(options.muted);
+    }
+  }, [options.muted, setMuted]);
+
+  const detectStreamType = useCallback((station: RadioStation): StreamType => {
+    const url = (station.url_resolved || station.url || "").toLowerCase();
+    const codec = station.codec?.toLowerCase() || "";
+
+    if (HLS_INDICATORS.some((indicator) => url.includes(indicator))) {
+      return "hls";
+    }
+    if (codec === "flac" || codec === "wav" ||
+        (HIGH_QUALITY_INDICATORS.some((indicator) => url.includes(indicator)) && (station.bitrate || 0) >= 256)) {
+      return "tone";
+    }
+    return "hls";
+  }, []);
+
+  const setupHLSPlayer = useCallback(async (url: string) => {
+    if (!audioRef.current || !Hls.isSupported()) throw new Error("HLS not supported");
+    const hls = new Hls({ xhrSetup: (xhr) => xhr.setRequestHeader("User-Agent", "RadioVerse/1.0") });
+    hlsRef.current = hls;
+    globalAudioInstance.hls = hls;
+    globalAudioInstance.audio = audioRef.current;
+
+    hls.on(Hls.Events.MANIFEST_PARSED, () => {
+      const loadTime = Date.now() - loadStartTimeRef.current;
+      setLatency(loadTime / 1000);
+      // don't assume fully playable yet — let media 'canplay'/'playing' finalize it
+      options.onCanPlay?.();
+    });
+
+    hls.on(Hls.Events.ERROR, (event, data) => {
+      console.error("HLS Error:", data);
+      if (data.fatal) {
+        const errorMsg = `HLS Error: ${data.type} - ${data.details}`;
+        setError(errorMsg);
+        options.onError?.(errorMsg);
       }
+    });
 
-      const hls = new Hls({
-        lowLatencyMode: false,
-        backBufferLength: 90,
-        maxBufferLength: 60,
-        maxMaxBufferLength: 120,
-        fragLoadingTimeOut: 20000,
-        manifestLoadingTimeOut: 20000,
-        levelLoadingTimeOut: 20000,
-        fragLoadingMaxRetry: 4,
-        manifestLoadingMaxRetry: 4,
-        levelLoadingMaxRetry: 4,
-        startLevel: -1,
-        autoStartLoad: true,
-        enableWorker: true,
-        enableSoftwareAES: true,
-        maxLoadingDelay: 4,
-        maxBufferSize: 60 * 1000 * 1000,
-        maxBufferHole: 0.5,
-        highBufferWatchdogPeriod: 3,
-        nudgeMaxRetry: 10,
-        xhrSetup: (xhr) => {
-          xhr.setRequestHeader("User-Agent", "RadioVerse/1.0");
-        },
-        debug: process.env.NODE_ENV === "development",
-      });
+    hls.loadSource(url);
+    hls.attachMedia(audioRef.current);
+    audioRef.current.volume = mutedRef.current ? 0 : volumeRef.current;
+    audioRef.current.muted = mutedRef.current;
 
-      hlsRef.current = hls;
-      globalAudioInstance.hls = hls;
-      globalAudioInstance.audio = audioRef.current;
+    streamTypeRef.current = "hls";
+    setStreamType("hls");
+    setAudioElement(audioRef.current);
+  }, [options]);
 
-      hls.on(Hls.Events.MANIFEST_PARSED, async () => {
-        const loadTime = Date.now() - loadStartTimeRef.current;
-        setLatency(loadTime / 1000);
-        setIsLoading(false);
-        options.onCanPlay?.();
-      });
+  const setupNativeAudioPlayer = useCallback(async (url: string) => {
+    if (!audioRef.current) throw new Error("No audio element available for native playback");
+    const audio = audioRef.current;
+    audio.src = url;
+    audio.crossOrigin = "anonymous";
+    audio.preload = "auto";
+    audio.volume = mutedRef.current ? 0 : volumeRef.current;
+    audio.muted = mutedRef.current;
 
-      hls.on(Hls.Events.ERROR, (event, data) => {
-        console.error("HLS Error:", data);
-        if (data.fatal) {
-          const errorMsg = `HLS Error: ${data.type} - ${data.details}`;
-          setError(errorMsg);
-          options.onError?.(errorMsg);
-
-          switch (data.type) {
-            case Hls.ErrorTypes.NETWORK_ERROR:
-              console.log("🔄 Network error, attempting HLS recovery...");
-              hls.startLoad();
-              break;
-            case Hls.ErrorTypes.MEDIA_ERROR:
-              console.log("🔄 Media error, attempting HLS recovery...");
-              hls.recoverMediaError();
-              break;
-            default:
-              console.warn("❌ Fatal HLS error");
-              if (hlsRef.current) {
-                hlsRef.current.destroy();
-                hlsRef.current = null;
-                globalAudioInstance.hls = null;
-              }
-              setIsLoading(false);
-              setIsPlaying(false);
-              break;
-          }
-        }
-      });
-
-      hls.loadSource(url);
-      hls.attachMedia(audioRef.current);
-
-      // Apply volume and mute settings
-      audioRef.current.volume = mutedRef.current ? 0 : volumeRef.current;
-      audioRef.current.muted = mutedRef.current;
-
+    try {
+      // load() is synchronous in API but network fetch happens async; rely on media events
+      audio.load();
       streamTypeRef.current = "hls";
       setStreamType("hls");
-      setAudioElement(audioRef.current);
-    },
-    [options]
-  );
+      setAudioElement(audio);
+      globalAudioInstance.audio = audio;
+    } catch (err) {
+      console.error("Native audio load error:", err);
+      throw err;
+    }
+  }, [options]);
 
-  const setupTonePlayer = useCallback(
-    async (url: string) => {
-      try {
-        if (Tone.context.state === "suspended") {
-          await Tone.start();
-        }
+  const setupTonePlayer = useCallback(async (url: string) => {
+    try {
+      if (Tone.context.state === "suspended") await Tone.start();
+      Tone.context.lookAhead = 0.1;
+      Tone.context.latencyHint = "playback";
 
-        Tone.context.lookAhead = 0.1;
-        Tone.context.latencyHint = "playback";
-
-        const player = new Tone.Player({
-          url,
-          autostart: false,
-          loop: false,
-          fadeIn: 0,
-          fadeOut: 0.05,
-          playbackRate: 1,
-        });
-
-        const effectiveVolume = mutedRef.current ? 0 : volumeRef.current;
-        player.volume.value = Tone.gainToDb(effectiveVolume);
-        player.mute = mutedRef.current;
-        player.toDestination();
-
-        await Tone.loaded();
-
-        const loadTime = Date.now() - loadStartTimeRef.current;
-        setLatency(loadTime / 1000);
-        tonePlayerRef.current = player;
-        globalAudioInstance.tone = player;
-        streamTypeRef.current = "tone";
-        setStreamType("tone");
-        setIsLoading(false);
-        options.onCanPlay?.();
-      } catch (error) {
-        console.error("Tone Player Error:", error);
-        throw new Error("Failed to setup Tone.js player");
-      }
-    },
-    [options]
-  );
-
-  const setupHowlerPlayer = useCallback(
-    async (url: string, station: RadioStation): Promise<void> => {
-      return new Promise((resolve, reject) => {
-        console.log(`🎵 Setting up Howler player for ${station.name}`);
-
-        const effectiveVolume = mutedRef.current ? 0 : volumeRef.current;
-
-        const howlOptions: any = {
-          src: [url],
-          html5: true,
-          preload: true,
-          volume: effectiveVolume,
-          mute: mutedRef.current,
-          pool: 1,
-          autoplay: false,
-          loop: false,
-          xhr: {
-            method: "GET",
-            headers: {
-              "User-Agent": "RadioVerse/1.0",
-            },
-            withCredentials: false,
-          },
-
-          onload: () => {
-            const loadTime = Date.now() - loadStartTimeRef.current;
-            setLatency(loadTime / 1000);
-            setIsLoading(false);
-            options.onCanPlay?.();
-            console.log(`✅ Howler loaded ${station.name} in ${loadTime}ms`);
-            resolve();
-          },
-
-          onloaderror: (id: number, error: any) => {
-            console.error("Howler Load Error:", error);
-            const errorMsg = `Failed to load stream: ${error}`;
-            setError(errorMsg);
-            setIsLoading(false);
-            options.onError?.(errorMsg);
-            reject(new Error(errorMsg));
-          },
-
-          onplayerror: (id: number, error: any) => {
-            console.error("Howler Play Error:", error);
-            const errorMsg = `Playback failed: ${error}`;
-            setError(errorMsg);
-            options.onError?.(errorMsg);
-          },
-
-          onplay: () => {
-            setIsPlaying(true);
-            options.onPlay?.();
-            console.log(`▶️ Playing ${station.name} via Howler`);
-          },
-
-          onpause: () => {
-            setIsPlaying(false);
-            options.onPause?.();
-            console.log(`⏸️ Paused ${station.name} via Howler`);
-          },
-
-          onstop: () => {
-            setIsPlaying(false);
-            setCurrentTime(0);
-            console.log(`⏹️ Stopped ${station.name} via Howler`);
-          },
-
-          onend: () => {
-            console.log("Howler stream ended unexpectedly");
-            options.onEnded?.();
-          },
-        };
-
-        const codec = station.codec?.toLowerCase();
-        if (codec && HOWLER_FORMATS.includes(codec)) {
-          howlOptions.format = [codec];
-        }
-
-        const howl = new Howl(howlOptions);
-        howlRef.current = howl;
-        globalAudioInstance.howl = howl;
-        howl.load();
-        streamTypeRef.current = "howler";
-        setStreamType("howler");
+      const player = new Tone.Player({
+        url,
+        autostart: false,
+        loop: false,
+        fadeIn: 0,
+        fadeOut: 0.05,
+        playbackRate: 1,
       });
-    },
-    [options]
-  );
+
+      const effectiveVolume = mutedRef.current ? 0 : volumeRef.current;
+      player.volume.value = Tone.gainToDb(effectiveVolume);
+      player.mute = mutedRef.current;
+      player.toDestination();
+      await Tone.loaded();
+
+      const loadTime = Date.now() - loadStartTimeRef.current;
+      setLatency(loadTime / 1000);
+      tonePlayerRef.current = player;
+      globalAudioInstance.tone = player;
+      streamTypeRef.current = "tone";
+      setStreamType("tone");
+      exposeToneContext();
+      setIsLoading(false);
+      options.onCanPlay?.();
+    } catch (error) {
+      console.error("Tone Player Error:", error);
+      throw new Error("Failed to setup Tone.js player");
+    }
+  }, [options]);
 
   const cleanup = useCallback(async () => {
     if (isCleaningUpRef.current) {
-      console.log("🔄 Cleanup already in progress, waiting...");
       await new Promise(resolve => setTimeout(resolve, 100));
       return;
     }
-
     isCleaningUpRef.current = true;
-    console.log("🧹 Cleaning up all audio players...");
-
-    // Stop global audio first
     stopAllGlobalAudio();
 
-    // ALWAYS stop the HTML audio element first (critical for preventing echo)
     if (audioRef.current) {
       try {
         audioRef.current.pause();
@@ -433,113 +278,44 @@ export const useEnhancedAudioPlayer = (
         audioRef.current.src = "";
         audioRef.current.load();
         audioRef.current.removeAttribute("src");
-      } catch (e) {
-        console.warn("Audio element cleanup error:", e);
-      }
+      } catch (e) { console.warn("Audio element cleanup error:", e); }
     }
-
-    // Stop and cleanup HLS
     if (hlsRef.current) {
-      try {
-        hlsRef.current.destroy();
-        hlsRef.current = null;
-      } catch (e) {
-        console.warn("HLS cleanup error:", e);
-      }
+      try { hlsRef.current.destroy(); hlsRef.current = null; }
+      catch (e) { console.warn("HLS cleanup error:", e); }
     }
-
-    // Stop and cleanup Tone.js
     if (tonePlayerRef.current) {
-      try {
-        tonePlayerRef.current.stop();
-        tonePlayerRef.current.dispose();
-        tonePlayerRef.current = null;
-      } catch (e) {
-        console.warn("Tone cleanup error:", e);
-      }
+      try { tonePlayerRef.current.stop(); tonePlayerRef.current.dispose(); tonePlayerRef.current = null; }
+      catch (e) { console.warn("Tone cleanup error:", e); }
     }
-
-    // Stop and cleanup Howler
-    if (howlRef.current) {
-      try {
-        howlRef.current.stop();
-        howlRef.current.unload();
-        howlRef.current = null;
-      } catch (e) {
-        console.warn("Howler cleanup error:", e);
-      }
-    }
-
     setIsPlaying(false);
     streamTypeRef.current = null;
     setStreamType(null);
     isCleaningUpRef.current = false;
   }, []);
 
-  // FIXED: Improved pause function that properly handles all stream types
   const pause = useCallback(() => {
     try {
-      console.log(`⏸️ Pausing audio... (streamType: ${streamTypeRef.current})`);
-
-      // Pause based on current stream type for more targeted control
-      const currentStreamType = streamTypeRef.current;
-
-      // Always try to pause the HTML audio element (used by HLS)
       if (audioRef.current) {
-        try {
-          audioRef.current.pause();
-          console.log("⏸️ HTML audio element paused");
-        } catch (e) {
-          console.warn("Error pausing audio element:", e);
-        }
+        try { audioRef.current.pause(); } catch (e) { console.warn("Error pausing audio element:", e); }
       }
-
-      // Pause Tone.js player if active
       if (tonePlayerRef.current) {
-        try {
-          tonePlayerRef.current.stop();
-          console.log("⏸️ Tone.js player stopped");
-        } catch (e) {
-          console.warn("Error stopping Tone player:", e);
-        }
+        try { tonePlayerRef.current.stop(); } catch (e) { console.warn("Error stopping Tone player:", e); }
       }
-
-      // Pause Howler if active
-      if (howlRef.current) {
-        try {
-          howlRef.current.pause();
-          console.log("⏸️ Howler paused");
-        } catch (e) {
-          console.warn("Error pausing Howler:", e);
-        }
-      }
-
-      // Update state
       setIsPlaying(false);
-      
-      // Call the onPause callback
       options.onPause?.();
-      
-      console.log("⏸️ Pause complete");
     } catch (error) {
       console.error("Error pausing audio:", error);
-      // Still try to update state even if there was an error
       setIsPlaying(false);
       options.onPause?.();
     }
   }, [options]);
 
   const load = useCallback(
-    async (station: RadioStation): Promise<StreamType> => {
+    async (station: RadioStation): Promise<"hls" | "tone"> => {
       if (!station) throw new Error("No station provided");
-
-      console.log(`🔄 Loading new station: ${station.name}`);
-
-      // CRITICAL: Stop and cleanup ALL previous audio before loading new station
       await cleanup();
-
-      // Wait for cleanup to complete
-      await new Promise((resolve) => setTimeout(resolve, 200));
+      await new Promise((resolve) => setTimeout(resolve, 160));
 
       setError(null);
       setIsLoading(true);
@@ -549,90 +325,55 @@ export const useEnhancedAudioPlayer = (
       const audioUrl = station.url_resolved || station.url;
       const preferredType = detectStreamType(station);
 
-      console.log(
-        `🎵 Loading ${station.name} as ${preferredType} stream (${station.codec}, ${station.bitrate}kbps)`
-      );
-
       try {
-        switch (preferredType) {
-          case "hls":
-            if (Hls.isSupported()) {
-              await setupHLSPlayer(audioUrl);
-              return "hls";
-            } else {
-              console.warn(
-                "HLS not supported in this browser, falling back to Howler"
-              );
-              await setupHowlerPlayer(audioUrl, station);
-              return "howler";
-            }
-          case "tone":
-            try {
-              await setupTonePlayer(audioUrl);
-              return "tone";
-            } catch (toneError) {
-              console.warn(
-                "Tone.js failed, falling back to Howler:",
-                toneError
-              );
-              await setupHowlerPlayer(audioUrl, station);
-              return "howler";
-            }
-          case "howler":
-          default:
-            await setupHowlerPlayer(audioUrl, station);
-            return "howler";
+        if (preferredType === "tone") {
+          await setupTonePlayer(audioUrl);
+          return "tone";
+        } else {
+          const isLikelyHls = HLS_INDICATORS.some((i) => (audioUrl || '').toLowerCase().includes(i));
+          if (isLikelyHls && Hls.isSupported()) {
+            await setupHLSPlayer(audioUrl);
+            return "hls";
+          } else {
+            await setupNativeAudioPlayer(audioUrl);
+            return "hls";
+          }
         }
       } catch (error) {
-        console.error("Failed to load audio:", error);
-        const errorMessage =
-          error instanceof Error ? error.message : "Failed to load audio";
+        const errorMessage = error instanceof Error ? error.message : "Failed to load audio";
         setError(errorMessage);
         setIsLoading(false);
         options.onError?.(errorMessage);
         throw error;
       }
     },
-    [
-      cleanup,
-      detectStreamType,
-      setupHLSPlayer,
-      setupTonePlayer,
-      setupHowlerPlayer,
-      options,
-    ]
+    [cleanup, detectStreamType, setupHLSPlayer, setupNativeAudioPlayer, setupTonePlayer, options]
   );
 
   const play = useCallback(
     async (station?: RadioStation): Promise<void> => {
       try {
         let currentStreamType = streamTypeRef.current;
-        
-        // If a new station is provided and different from current, load it first
-        if (
-          station &&
-          station.stationuuid !== currentStationRef.current?.stationuuid
-        ) {
-          console.log(`▶️ Loading and playing new station: ${station.name}`);
+        if (station && station.stationuuid !== currentStationRef.current?.stationuuid) {
           currentStreamType = await load(station);
-          // Small additional delay to ensure everything is ready
           await new Promise((resolve) => setTimeout(resolve, 100));
         }
 
-        console.log(`▶️ Starting playback, streamType: ${currentStreamType}`);
-
-        // Play based on current stream type (use ref for immediate value)
         switch (currentStreamType) {
           case "hls":
             if (audioRef.current) {
               audioRef.current.volume = mutedRef.current ? 0 : volumeRef.current;
               audioRef.current.muted = mutedRef.current;
+              // best-effort: call onLoadStart
+              setIsLoading(true);
+              options.onLoadStart?.();
               await audioRef.current.play();
+              // once play() resolves, the media typically is playing or will fire 'playing'
+              setIsLoading(false);
               setIsPlaying(true);
               options.onPlay?.();
             }
             break;
-
           case "tone":
             if (tonePlayerRef.current) {
               const effectiveVolume = mutedRef.current ? 0 : volumeRef.current;
@@ -641,26 +382,15 @@ export const useEnhancedAudioPlayer = (
               tonePlayerRef.current.start();
               setIsPlaying(true);
               options.onPlay?.();
+              exposeToneContext();
             }
             break;
-
-          case "howler":
-            if (howlRef.current) {
-              const effectiveVolume = mutedRef.current ? 0 : volumeRef.current;
-              howlRef.current.volume(effectiveVolume);
-              howlRef.current.mute(mutedRef.current);
-              howlRef.current.play();
-              // isPlaying is set in onplay callback
-            }
-            break;
-
           default:
-            console.warn("No stream type available for playback, streamType:", currentStreamType);
+            console.warn("No stream type available for playback");
             break;
         }
       } catch (error) {
-        const errorMessage =
-          error instanceof Error ? error.message : "Failed to play audio";
+        const errorMessage = error instanceof Error ? error.message : "Failed to play audio";
         setError(errorMessage);
         options.onError?.(errorMessage);
         throw error;
@@ -671,82 +401,14 @@ export const useEnhancedAudioPlayer = (
 
   const stop = useCallback(() => {
     try {
-      console.log("⏹️ Stopping audio...");
-
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current.currentTime = 0;
-      }
-
-      if (tonePlayerRef.current) {
-        tonePlayerRef.current.stop();
-      }
-
-      if (howlRef.current) {
-        howlRef.current.stop();
-      }
-
+      if (audioRef.current) { audioRef.current.pause(); audioRef.current.currentTime = 0; }
+      if (tonePlayerRef.current) tonePlayerRef.current.stop();
       setIsPlaying(false);
       setCurrentTime(0);
-    } catch (error) {
-      console.error("Error stopping audio:", error);
-    }
+    } catch (error) { console.error("Error stopping audio:", error); }
   }, []);
 
-  const setVolume = useCallback((volume: number) => {
-    const clampedVolume = Math.max(0, Math.min(1, volume));
-    volumeRef.current = clampedVolume;
-
-    console.log(`🔊 Setting volume to: ${clampedVolume}, muted: ${mutedRef.current}`);
-
-    const effectiveVolume = mutedRef.current ? 0 : clampedVolume;
-
-    try {
-      // Apply to all possible audio sources
-      if (audioRef.current) {
-        audioRef.current.volume = effectiveVolume;
-      }
-
-      if (tonePlayerRef.current) {
-        tonePlayerRef.current.volume.value = Tone.gainToDb(effectiveVolume);
-      }
-
-      if (howlRef.current) {
-        howlRef.current.volume(effectiveVolume);
-      }
-    } catch (error) {
-      console.error("Error setting volume:", error);
-    }
-  }, []);
-
-  const setMuted = useCallback((muted: boolean) => {
-    mutedRef.current = muted;
-
-    console.log(`🔇 Setting muted to: ${muted}, volume: ${volumeRef.current}`);
-
-    const effectiveVolume = muted ? 0 : volumeRef.current;
-
-    try {
-      // Apply to all possible audio sources
-      if (audioRef.current) {
-        audioRef.current.muted = muted;
-        audioRef.current.volume = effectiveVolume;
-      }
-
-      if (tonePlayerRef.current) {
-        tonePlayerRef.current.mute = muted;
-        tonePlayerRef.current.volume.value = Tone.gainToDb(effectiveVolume);
-      }
-
-      if (howlRef.current) {
-        howlRef.current.mute(muted);
-        howlRef.current.volume(effectiveVolume);
-      }
-    } catch (error) {
-      console.error("Error setting mute:", error);
-    }
-  }, []);
-
+  // Keep audioElement state and global refs in sync
   useEffect(() => {
     if (audioRef.current && audioRef.current !== audioElement) {
       setAudioElement(audioRef.current);
@@ -754,51 +416,58 @@ export const useEnhancedAudioPlayer = (
     }
   }, [audioElement]);
 
+  // --- Crucial: media event listeners for HLS/native
   useEffect(() => {
     const audio = audioRef.current;
-    if (!audio || streamTypeRef.current !== "hls") return;
+    // we only care for audio events when using the HTMLMediaElement (HLS/native)
+    if (!audio) return;
 
     const handlePlay = () => {
+      // browser 'play' sometimes fires before actual playback starts
       setIsPlaying(true);
       options.onPlay?.();
+      // do not set isLoading=false here (wait for 'playing' / 'canplay')
     };
-
+    const handlePlaying = () => {
+      // media has started rendering; loading is finished
+      setIsLoading(false);
+      setIsPlaying(true);
+      options.onCanPlay?.();
+      options.onPlay?.();
+    };
+    const handleCanPlay = () => {
+      setIsLoading(false);
+      options.onCanPlay?.();
+    };
+    const handleWaiting = () => {
+      // buffering
+      setIsLoading(true);
+      options.onLoadStart?.();
+    };
     const handlePause = () => {
       setIsPlaying(false);
       options.onPause?.();
     };
-
-    const handleTimeUpdate = () => {
-      setCurrentTime(audio.currentTime);
+    const handleTimeUpdate = () => setCurrentTime(audio.currentTime);
+    const handleDurationChange = () => setDuration(audio.duration || 0);
+    const handleEnded = () => {
+      setIsPlaying(false);
+      options.onEnded?.();
     };
-
-    const handleDurationChange = () => {
-      setDuration(audio.duration || 0);
-    };
-
     const handleLoadStart = () => {
       setIsLoading(true);
       loadStartTimeRef.current = Date.now();
       options.onLoadStart?.();
     };
-
     const handleError = (event: Event) => {
       const target = event.target as HTMLAudioElement;
       let errorMessage = "Audio playback error";
-
       if (target?.error) {
         switch (target.error.code) {
-          case MediaError.MEDIA_ERR_NETWORK:
-            errorMessage = "Network error - check internet connection";
-            break;
-          case MediaError.MEDIA_ERR_DECODE:
-            errorMessage = "Audio format not supported";
-            break;
-          case MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED:
-            errorMessage = "Stream source not available";
-            break;
-          default:
-            errorMessage = "Unknown audio error";
+          case MediaError.MEDIA_ERR_NETWORK: errorMessage = "Network error - check internet connection"; break;
+          case MediaError.MEDIA_ERR_DECODE: errorMessage = "Audio format not supported"; break;
+          case MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED: errorMessage = "Stream source not available"; break;
+          default: errorMessage = "Unknown audio error";
         }
       }
       setError(errorMessage);
@@ -807,44 +476,43 @@ export const useEnhancedAudioPlayer = (
       options.onError?.(errorMessage);
     };
 
+    // attach
     audio.addEventListener("play", handlePlay);
+    audio.addEventListener("playing", handlePlaying);
+    audio.addEventListener("canplay", handleCanPlay);
+    audio.addEventListener("waiting", handleWaiting);
     audio.addEventListener("pause", handlePause);
     audio.addEventListener("timeupdate", handleTimeUpdate);
     audio.addEventListener("durationchange", handleDurationChange);
     audio.addEventListener("loadstart", handleLoadStart);
+    audio.addEventListener("ended", handleEnded);
     audio.addEventListener("error", handleError);
 
     return () => {
       audio.removeEventListener("play", handlePlay);
+      audio.removeEventListener("playing", handlePlaying);
+      audio.removeEventListener("canplay", handleCanPlay);
+      audio.removeEventListener("waiting", handleWaiting);
       audio.removeEventListener("pause", handlePause);
       audio.removeEventListener("timeupdate", handleTimeUpdate);
       audio.removeEventListener("durationchange", handleDurationChange);
       audio.removeEventListener("loadstart", handleLoadStart);
+      audio.removeEventListener("ended", handleEnded);
       audio.removeEventListener("error", handleError);
     };
-  }, [options, streamType]);
+  }, [options]);
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
-      console.log("🧹 Component unmounting, cleaning up...");
       stopAllGlobalAudio();
-
-      if (hlsRef.current) {
-        hlsRef.current.destroy();
-      }
-      if (tonePlayerRef.current) {
-        tonePlayerRef.current.dispose();
-      }
-      if (howlRef.current) {
-        howlRef.current.unload();
-      }
+      if (hlsRef.current) hlsRef.current.destroy();
+      if (tonePlayerRef.current) tonePlayerRef.current.dispose();
     };
   }, []);
 
   return {
     audioRef,
-    audioElement: streamType === "hls" ? audioRef.current : null,
+    audioElement: audioRef.current,
     isLoading,
     isPlaying,
     duration,

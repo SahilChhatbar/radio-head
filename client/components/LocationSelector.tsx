@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, memo } from "react";
 import { Select, Flex, Text } from "@radix-ui/themes";
 import { MapPin, Radio, Loader2 } from "lucide-react";
 import { useRadioStore } from "@/store/useRadiostore";
@@ -17,442 +17,477 @@ interface LocationSelectorProps {
   onStationChange?: (stationId: string) => void;
 }
 
-const LocationSelector: React.FC<LocationSelectorProps> = ({
-  onCountryChange,
-  onStationChange,
-}) => {
-  const { stations, currentStation, setStations, play } = useRadioStore();
-  const countryTriggerRef = React.useRef<HTMLButtonElement>(null);
-  const stationTriggerRef = React.useRef<HTMLButtonElement>(null);
+const CountryItem = memo(
+  ({ country, emoji }: { country: Country; emoji: string }) => (
+    <Flex align="center" justify="between" gap="2">
+      <Flex align="center" gap="2">
+        <span>{emoji}</span>
+        <Text size="2">{country.name}</Text>
+      </Flex>
+      <Text size="1" className="text-gray-500">
+        {country.stationcount}
+      </Text>
+    </Flex>
+  )
+);
+CountryItem.displayName = "CountryItem";
 
-  const [countries, setCountries] = useState<Country[]>([]);
-  const [selectedCountry, setSelectedCountry] = useState("");
+const StationItem = memo(
+  ({
+    station,
+    isCurrentStation,
+  }: {
+    station: any;
+    isCurrentStation: boolean;
+  }) => (
+    <Flex direction="column" gap="1">
+      <Text
+        size="2"
+        className={`truncate ${
+          isCurrentStation ? "text-[#ff914d] font-medium" : ""
+        }`}
+      >
+        {station.name}
+      </Text>
+      <Flex align="center" gap="2" className="text-gray-500">
+        {station.bitrate > 0 && <Text size="1">{station.bitrate}kbps</Text>}
+        {station.codec && (
+          <Text size="1" className="uppercase">
+            {station.codec}
+          </Text>
+        )}
+        {station.votes > 0 && <Text size="1">👍 {station.votes}</Text>}
+      </Flex>
+    </Flex>
+  )
+);
+StationItem.displayName = "StationItem";
 
-  const [isLoadingLocation, setIsLoadingLocation] = useState(true);
-  const [isLoadingCountries, setIsLoadingCountries] = useState(false);
-  const [isLoadingStations, setIsLoadingStations] = useState(false);
-  const [countriesError, setCountriesError] = useState<string | null>(null);
+const LocationSelector: React.FC<LocationSelectorProps> = memo(
+  ({ onCountryChange, onStationChange }) => {
+    const stations = useRadioStore((state) => state.stations);
+    const currentStation = useRadioStore((state) => state.currentStation);
+    const setStations = useRadioStore((state) => state.setStations);
+    const play = useRadioStore((state) => state.play);
 
-  const [searchCountry, setSearchCountry] = useState("");
-  const [searchStation, setSearchStation] = useState("");
+    const countryTriggerRef = React.useRef<HTMLButtonElement>(null);
+    const stationTriggerRef = React.useRef<HTMLButtonElement>(null);
 
-  const [countryOpen, setCountryOpen] = useState(false);
-  const [stationOpen, setStationOpen] = useState(false);
+    const [countries, setCountries] = useState<Country[]>([]);
+    const [selectedCountry, setSelectedCountry] = useState("");
 
-  const getCountryEmoji = useCallback((countryCode: string) => {
-    try {
-      const codePoints = countryCode
-        .toUpperCase()
-        .split("")
-        .map((char) => 127397 + char.charCodeAt(0));
-      return String.fromCodePoint(...codePoints);
-    } catch {
-      return "🌍";
-    }
-  }, []);
+    const [isLoadingLocation, setIsLoadingLocation] = useState(true);
+    const [isLoadingCountries, setIsLoadingCountries] = useState(false);
+    const [isLoadingStations, setIsLoadingStations] = useState(false);
+    const [countriesError, setCountriesError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const fetchCountries = async () => {
-      setIsLoadingCountries(true);
-      setCountriesError(null);
+    const [searchCountry, setSearchCountry] = useState("");
+    const [searchStation, setSearchStation] = useState("");
+
+    const [countryOpen, setCountryOpen] = useState(false);
+    const [stationOpen, setStationOpen] = useState(false);
+
+    const getCountryEmoji = useCallback((countryCode: string) => {
       try {
-        const countriesData = await radioApi.getCountries();
-        const normalized = (countriesData || []).map((c: any) => ({
-          name: c.name,
-          stationcount: c.stationcount,
-          code:
-            c.countrycode?.toUpperCase() ||
-            c.iso_3166_1?.toUpperCase() ||
-            c.code?.toUpperCase() ||
-            String(c.name).slice(0, 2).toUpperCase(),
-        }));
-
-        setCountries(normalized);
-      } catch (error) {
-        setCountriesError("Failed to load countries");
-        setCountries([]);
-      } finally {
-        setIsLoadingCountries(false);
+        const codePoints = countryCode
+          .toUpperCase()
+          .split("")
+          .map((char) => 127397 + char.charCodeAt(0));
+        return String.fromCodePoint(...codePoints);
+      } catch {
+        return "🌍";
       }
-    };
+    }, []);
 
-    fetchCountries();
-  }, []);
-
-  const loadStationsForCountry = useCallback(
-    async (countryCode: string) => {
-      setIsLoadingStations(true);
-      try {
-        const stationsData = await radioApi.getStationsByCountry(
-          countryCode,
-          100
-        );
-        setStations(stationsData || []);
-      } catch (error) {
+    useEffect(() => {
+      const fetchCountries = async () => {
+        setIsLoadingCountries(true);
+        setCountriesError(null);
         try {
-          const popularStations = await radioApi.getPopularStations(50);
-          setStations(popularStations || []);
-        } catch (fallbackError) {
-          setStations([]);
+          const countriesData = await radioApi.getCountries();
+          const normalized = (countriesData || []).map((c: any) => ({
+            name: c.name,
+            stationcount: c.stationcount,
+            code:
+              c.countrycode?.toUpperCase() ||
+              c.iso_3166_1?.toUpperCase() ||
+              c.code?.toUpperCase() ||
+              String(c.name).slice(0, 2).toUpperCase(),
+          }));
+
+          setCountries(normalized);
+        } catch (error) {
+          setCountriesError("Failed to load countries");
+          setCountries([]);
+        } finally {
+          setIsLoadingCountries(false);
         }
-      } finally {
-        setIsLoadingStations(false);
-      }
-    },
-    [setStations]
-  );
+      };
 
-  useEffect(() => {
-    const initializeLocation = async () => {
-      const savedCountry = localStorage.getItem("radioverse-country");
+      fetchCountries();
+    }, []);
 
-      if (savedCountry) {
-        setSelectedCountry(savedCountry);
-        await loadStationsForCountry(savedCountry);
-        setIsLoadingLocation(false);
-        return;
-      }
+    const loadStationsForCountry = useCallback(
+      async (countryCode: string) => {
+        setIsLoadingStations(true);
+        try {
+          const stationsData = await radioApi.getStationsByCountry(
+            countryCode,
+            100
+          );
+          setStations(stationsData || []);
+        } catch (error) {
+          try {
+            const popularStations = await radioApi.getPopularStations(50);
+            setStations(popularStations || []);
+          } catch (fallbackError) {
+            setStations([]);
+          }
+        } finally {
+          setIsLoadingStations(false);
+        }
+      },
+      [setStations]
+    );
 
-      if ("geolocation" in navigator) {
-        navigator.geolocation.getCurrentPosition(
-          async (position) => {
-            try {
-              const response = await fetch(
-                `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${position.coords.latitude}&longitude=${position.coords.longitude}&localityLanguage=en`
-              );
-              const data = await response.json();
-              const countryCode = data.countryCode;
+    useEffect(() => {
+      const initializeLocation = async () => {
+        const savedCountry = localStorage.getItem("radioverse-country");
 
-              if (countryCode) {
-                setSelectedCountry(countryCode);
-                localStorage.setItem("radioverse-country", countryCode);
-                await loadStationsForCountry(countryCode);
-              } else {
+        if (savedCountry) {
+          setSelectedCountry(savedCountry);
+          await loadStationsForCountry(savedCountry);
+          setIsLoadingLocation(false);
+          return;
+        }
+
+        if ("geolocation" in navigator) {
+          navigator.geolocation.getCurrentPosition(
+            async (position) => {
+              try {
+                const response = await fetch(
+                  `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${position.coords.latitude}&longitude=${position.coords.longitude}&localityLanguage=en`
+                );
+                const data = await response.json();
+                const countryCode = data.countryCode;
+
+                if (countryCode) {
+                  setSelectedCountry(countryCode);
+                  localStorage.setItem("radioverse-country", countryCode);
+                  await loadStationsForCountry(countryCode);
+                } else {
+                  const defaultCountry = "IN";
+                  setSelectedCountry(defaultCountry);
+                  localStorage.setItem("radioverse-country", defaultCountry);
+                  await loadStationsForCountry(defaultCountry);
+                }
+              } catch (error) {
                 const defaultCountry = "IN";
                 setSelectedCountry(defaultCountry);
                 localStorage.setItem("radioverse-country", defaultCountry);
                 await loadStationsForCountry(defaultCountry);
+              } finally {
+                setIsLoadingLocation(false);
               }
-            } catch (error) {
+            },
+            async (error) => {
               const defaultCountry = "IN";
               setSelectedCountry(defaultCountry);
               localStorage.setItem("radioverse-country", defaultCountry);
               await loadStationsForCountry(defaultCountry);
-            } finally {
               setIsLoadingLocation(false);
             }
-          },
-          async (error) => {
-            const defaultCountry = "IN";
-            setSelectedCountry(defaultCountry);
-            localStorage.setItem("radioverse-country", defaultCountry);
-            await loadStationsForCountry(defaultCountry);
-            setIsLoadingLocation(false);
-          }
-        );
-      } else {
-        const defaultCountry = "IN";
-        setSelectedCountry(defaultCountry);
-        localStorage.setItem("radioverse-country", defaultCountry);
-        await loadStationsForCountry(defaultCountry);
-        setIsLoadingLocation(false);
-      }
-    };
+          );
+        } else {
+          const defaultCountry = "IN";
+          setSelectedCountry(defaultCountry);
+          localStorage.setItem("radioverse-country", defaultCountry);
+          await loadStationsForCountry(defaultCountry);
+          setIsLoadingLocation(false);
+        }
+      };
 
-    initializeLocation();
-  }, [loadStationsForCountry]);
+      initializeLocation();
+    }, [loadStationsForCountry]);
 
-  const filteredCountries = useMemo(() => {
-    if (!searchCountry) return countries;
-    return countries.filter(
-      (country) =>
-        country.name.toLowerCase().includes(searchCountry.toLowerCase()) ||
-        (country.code &&
-          country.code.toLowerCase().includes(searchCountry.toLowerCase()))
-    );
-  }, [countries, searchCountry]);
-
-  const filteredStations = useMemo(() => {
-    if (!stations || stations.length === 0) return [];
-    if (!searchStation) return stations;
-    return stations.filter((station) =>
-      station.name?.toLowerCase().includes(searchStation.toLowerCase())
-    );
-  }, [stations, searchStation]);
-
-  const selectedStationUuid = useMemo(() => {
-    return currentStation?.stationuuid || "";
-  }, [currentStation?.stationuuid]);
-
-  const forceBlur = useCallback(() => {
-    [0, 10, 50, 100].forEach((delay) => {
-      setTimeout(() => {
-        try {
-          const focused = document.activeElement as HTMLElement;
-          if (
-            focused &&
-            (focused.hasAttribute("data-radix-select-trigger") ||
-              focused.getAttribute("role") === "combobox" ||
-              focused.tagName === "BUTTON")
-          ) {
-            focused.blur();
-          }
-        } catch (err) {}
-      }, delay);
-    });
-  }, []);
-
-  const handleCountryChange = useCallback(
-    async (countryCode: string) => {
-      setSelectedCountry(countryCode);
-      setCountryOpen(false);
-      forceBlur();
-      await loadStationsForCountry(countryCode);
-      onCountryChange?.(countryCode);
-    },
-    [forceBlur, loadStationsForCountry, onCountryChange]
-  );
-
-  const handleStationChange = useCallback(
-    (stationUuid: string) => {
-      setStationOpen(false);
-      forceBlur();
-
-      const station = filteredStations.find(
-        (s) => s.stationuuid === stationUuid
+    const filteredCountries = useMemo(() => {
+      if (!searchCountry) return countries;
+      const search = searchCountry.toLowerCase();
+      return countries.filter(
+        (country) =>
+          country.name.toLowerCase().includes(search) ||
+          (country.code && country.code.toLowerCase().includes(search))
       );
-      if (station) {
-        play(station);
-      }
-      onStationChange?.(stationUuid);
-    },
-    [filteredStations, forceBlur, play, onStationChange]
-  );
+    }, [countries, searchCountry]);
 
-  const selectedCountryData = useMemo(
-    () => countries.find((c) => c.code === selectedCountry),
-    [countries, selectedCountry]
-  );
+    const filteredStations = useMemo(() => {
+      if (!stations || stations.length === 0) return [];
+      if (!searchStation) return stations;
+      const search = searchStation.toLowerCase();
+      return stations.filter((station) =>
+        station.name?.toLowerCase().includes(search)
+      );
+    }, [stations, searchStation]);
 
-  const selectedStationData = useMemo(
-    () => filteredStations.find((s) => s.stationuuid === selectedStationUuid),
-    [filteredStations, selectedStationUuid]
-  );
+    const selectedStationUuid = useMemo(() => {
+      return currentStation?.stationuuid || "";
+    }, [currentStation?.stationuuid]);
 
-  const isCountryDropdownDisabled =
-    isLoadingCountries && countries.length === 0;
-
-  return (
-    <Flex gap="0" align="center" className="w-full">
-      <Flex align="center" gap="2" className="relative min-w-[180px]">
-        <MapPin size={16} className="text-[#ff914d] flex-shrink-0" />
-        <Select.Root
-          value={selectedCountry}
-          onValueChange={handleCountryChange}
-          disabled={isCountryDropdownDisabled}
-          open={countryOpen}
-          onOpenChange={(open) => {
-            setCountryOpen(open);
-            if (!open) {
-              requestAnimationFrame(() => {
-                try {
-                  countryTriggerRef.current?.blur?.();
-                } catch {
-                  (document.activeElement as HTMLElement | null)?.blur?.();
-                }
-              });
+    const forceBlur = useCallback(() => {
+      [0, 10, 50, 100].forEach((delay) => {
+        setTimeout(() => {
+          try {
+            const focused = document.activeElement as HTMLElement;
+            if (
+              focused &&
+              (focused.hasAttribute("data-radix-select-trigger") ||
+                focused.getAttribute("role") === "combobox" ||
+                focused.tagName === "BUTTON")
+            ) {
+              focused.blur();
             }
-          }}
-        >
-          <Select.Trigger
-            ref={countryTriggerRef}
-            className="w-full bg-[#0C1521] border border-gray-700/50 rounded-lg px-3 py-2 hover:border-[#ff914d]/50 transition-colors"
+          } catch (err) {}
+        }, delay);
+      });
+    }, []);
+
+    const handleCountryChange = useCallback(
+      async (countryCode: string) => {
+        setSelectedCountry(countryCode);
+        setCountryOpen(false);
+        forceBlur();
+        await loadStationsForCountry(countryCode);
+        onCountryChange?.(countryCode);
+      },
+      [forceBlur, loadStationsForCountry, onCountryChange]
+    );
+
+    const handleStationChange = useCallback(
+      (stationUuid: string) => {
+        setStationOpen(false);
+        forceBlur();
+
+        const station = filteredStations.find(
+          (s) => s.stationuuid === stationUuid
+        );
+        if (station) {
+          play(station);
+        }
+        onStationChange?.(stationUuid);
+      },
+      [filteredStations, forceBlur, play, onStationChange]
+    );
+
+    const selectedCountryData = useMemo(
+      () => countries.find((c) => c.code === selectedCountry),
+      [countries, selectedCountry]
+    );
+
+    const selectedStationData = useMemo(
+      () => filteredStations.find((s) => s.stationuuid === selectedStationUuid),
+      [filteredStations, selectedStationUuid]
+    );
+
+    const isCountryDropdownDisabled =
+      isLoadingCountries && countries.length === 0;
+
+    return (
+      <Flex gap="0" align="center" className="w-full">
+        <Flex align="center" gap="2" className="relative min-w-[180px]">
+          <MapPin size={16} className="text-[#ff914d] flex-shrink-0" />
+          <Select.Root
+            value={selectedCountry}
+            onValueChange={handleCountryChange}
+            disabled={isCountryDropdownDisabled}
+            open={countryOpen}
+            onOpenChange={(open) => {
+              setCountryOpen(open);
+              if (!open) {
+                requestAnimationFrame(() => {
+                  try {
+                    countryTriggerRef.current?.blur?.();
+                  } catch {
+                    (document.activeElement as HTMLElement | null)?.blur?.();
+                  }
+                });
+              }
+            }}
           >
-            {isLoadingLocation && !selectedCountryData ? (
-              <Flex align="center" gap="2">
-                <Loader2 size={14} className="animate-spin" />
-                <Text size="2" className="text-gray-400">
-                  Detecting...
-                </Text>
-              </Flex>
-            ) : selectedCountryData ? (
-              <Flex align="center" gap="2">
-                <Text size="2" className="truncate">
-                  {selectedCountryData.name}
-                </Text>
-              </Flex>
-            ) : selectedCountry && countries.length > 0 ? (
-              <Flex align="center" gap="2">
-                <Text size="2" className="truncate">
-                  {selectedCountry}
-                </Text>
-              </Flex>
-            ) : countriesError ? (
-              <Text size="2" className="text-red-400">
-                Error loading regions
-              </Text>
-            ) : (
-              <Text size="2" className="text-gray-400">
-                {isLoadingCountries ? "Loading regions..." : "Select region"}
-              </Text>
-            )}
-          </Select.Trigger>
-
-          <Select.Content className="bg-[#0C1521] border border-gray-700/50 rounded-lg p-2 max-h-[300px] overflow-y-auto z-50">
-            <div className="px-2 py-2 sticky top-0 bg-[#0C1521] border-b border-gray-700/50 mb-2 z-10">
-              <input
-                type="text"
-                placeholder="Search countries..."
-                value={searchCountry}
-                onChange={(e) => setSearchCountry(e.target.value)}
-                className="w-full bg-[#16283a] border border-gray-700/50 rounded px-2 py-1 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-[#ff914d]/50"
-                onClick={(e) => e.stopPropagation()}
-              />
-            </div>
-            <Select.Group>
-              {filteredCountries.map((country) => (
-                <Select.Item
-                  key={country.code}
-                  value={country.code}
-                  className="px-3 py-2 rounded hover:bg-[#ff914d]/10 cursor-pointer transition-colors"
-                >
-                  <Flex align="center" justify="between" gap="2">
-                    <Flex align="center" gap="2">
-                      <span>{getCountryEmoji(country.code)}</span>
-                      <Text size="2">{country.name}</Text>
-                    </Flex>
-                    <Text size="1" className="text-gray-500">
-                      {country.stationcount}
-                    </Text>
-                  </Flex>
-                </Select.Item>
-              ))}
-
-              {filteredCountries.length === 0 && !isLoadingCountries && (
-                <div className="px-3 py-2 text-gray-500 text-sm">
-                  No countries found
-                </div>
-              )}
-
-              {isLoadingCountries && (
-                <div className="px-3 py-2 text-gray-500 text-sm flex items-center gap-2">
+            <Select.Trigger
+              ref={countryTriggerRef}
+              className="w-full bg-[#0C1521] border border-gray-700/50 rounded-lg px-3 py-2 hover:border-[#ff914d]/50 transition-colors"
+            >
+              {isLoadingLocation && !selectedCountryData ? (
+                <Flex align="center" gap="2">
                   <Loader2 size={14} className="animate-spin" />
-                  Loading countries...
-                </div>
-              )}
-            </Select.Group>
-          </Select.Content>
-        </Select.Root>
-      </Flex>
-
-      <Flex align="center" gap="2" className="relative flex-1 min-w-0">
-        <Radio size={16} className="text-[#ff914d] flex-shrink-0" />
-        <Select.Root
-          value={selectedStationUuid}
-          onValueChange={handleStationChange}
-          disabled={!selectedCountry || isLoadingStations}
-          open={stationOpen}
-          onOpenChange={(open) => {
-            setStationOpen(open);
-            if (!open) {
-              requestAnimationFrame(() => {
-                try {
-                  stationTriggerRef.current?.blur?.();
-                } catch {
-                  (document.activeElement as HTMLElement | null)?.blur?.();
-                }
-              });
-            }
-          }}
-        >
-          <Select.Trigger
-            ref={stationTriggerRef}
-            className="w-full bg-[#0C1521] border border-gray-700/50 rounded-lg px-3 py-2 hover:border-[#ff914d]/50 transition-colors min-w-0"
-            placeholder="Select station"
-          >
-            {isLoadingStations ? (
-              <Flex align="center" gap="2">
-                <Loader2 size={14} className="animate-spin" />
-                <Text size="2" className="text-gray-400">
-                  Loading...
-                </Text>
-              </Flex>
-            ) : selectedStationData ? (
-              <Flex align="center" gap="2" className="w-full min-w-0">
-                <Text size="2" className="flex-1 truncate text-left">
-                  {selectedStationData.name}
-                </Text>
-                {selectedStationData.bitrate > 0 && (
-                  <Text size="1" className="text-gray-500 flex-shrink-0">
-                    {selectedStationData.bitrate}k
+                  <Text size="2" className="text-gray-400">
+                    Detecting...
                   </Text>
-                )}
-              </Flex>
-            ) : (
-              <Text size="2" className="text-gray-400 truncate">
-                {!selectedCountry
-                  ? "Please select region"
-                  : filteredStations.length === 0
-                  ? "No stations available"
-                  : "Select station"}
-              </Text>
-            )}
-          </Select.Trigger>
-
-          <Select.Content className="bg-[#0C1521] border border-gray-700/50 rounded-lg p-2 max-h-[400px] overflow-y-auto min-w-full w-[320px] z-50">
-            <div className="px-2 py-2 sticky top-0 bg-[#0C1521] border-b border-gray-700/50 mb-2 z-10">
-              <input
-                type="text"
-                placeholder="Search stations..."
-                value={searchStation}
-                onChange={(e) => setSearchStation(e.target.value)}
-                className="w-full bg-[#16283a] border border-gray-700/50 rounded px-2 py-1 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-[#ff914d]/50"
-                onClick={(e) => e.stopPropagation()}
-              />
-            </div>
-            <Select.Group>
-              {filteredStations.map((station) => (
-                <Select.Item
-                  key={station.stationuuid}
-                  value={station.stationuuid}
-                  className="px-3 py-2 rounded hover:bg-[#ff914d]/10 cursor-pointer transition-colors"
-                >
-                  <Flex direction="column" gap="1">
-                    <Text size="2" className="truncate">
-                      {station.name}
-                    </Text>
-                    <Flex align="center" gap="2" className="text-gray-500">
-                      {station.bitrate > 0 && (
-                        <Text size="1">{station.bitrate}kbps</Text>
-                      )}
-                      {station.codec && (
-                        <Text size="1" className="uppercase">
-                          {station.codec}
-                        </Text>
-                      )}
-                      {station.votes > 0 && (
-                        <Text size="1">👍 {station.votes}</Text>
-                      )}
-                    </Flex>
-                  </Flex>
-                </Select.Item>
-              ))}
-
-              {filteredStations.length === 0 && !isLoadingStations && (
-                <div className="px-3 py-2 text-gray-500 text-sm">
-                  {selectedCountry
-                    ? `No stations found in ${
-                        selectedCountryData?.name || selectedCountry
-                      }`
-                    : "Please select a country first"}
-                </div>
+                </Flex>
+              ) : selectedCountryData ? (
+                <Flex align="center" gap="2">
+                  <Text size="2" className="truncate">
+                    {selectedCountryData.name}
+                  </Text>
+                </Flex>
+              ) : selectedCountry && countries.length > 0 ? (
+                <Flex align="center" gap="2">
+                  <Text size="2" className="truncate">
+                    {selectedCountry}
+                  </Text>
+                </Flex>
+              ) : countriesError ? (
+                <Text size="2" className="text-red-400">
+                  Error loading regions
+                </Text>
+              ) : (
+                <Text size="2" className="text-gray-400">
+                  {isLoadingCountries ? "Loading regions..." : "Select region"}
+                </Text>
               )}
-            </Select.Group>
-          </Select.Content>
-        </Select.Root>
+            </Select.Trigger>
+
+            <Select.Content className="bg-[#0C1521] border border-gray-700/50 rounded-lg p-2 max-h-[300px] overflow-y-auto z-50">
+              <div className="px-2 py-2 sticky top-0 bg-[#0C1521] border-b border-gray-700/50 mb-2 z-10">
+                <input
+                  type="text"
+                  placeholder="Search countries..."
+                  value={searchCountry}
+                  onChange={(e) => setSearchCountry(e.target.value)}
+                  className="w-full bg-[#16283a] border border-gray-700/50 rounded px-2 py-1 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-[#ff914d]/50"
+                  onClick={(e) => e.stopPropagation()}
+                />
+              </div>
+              <Select.Group>
+                {filteredCountries.map((country) => (
+                  <Select.Item
+                    key={country.code}
+                    value={country.code}
+                    className="px-3 py-2 rounded hover:bg-[#ff914d]/10 cursor-pointer transition-colors"
+                  >
+                    <CountryItem
+                      country={country}
+                      emoji={getCountryEmoji(country.code)}
+                    />
+                  </Select.Item>
+                ))}
+
+                {filteredCountries.length === 0 && !isLoadingCountries && (
+                  <div className="px-3 py-2 text-gray-500 text-sm">
+                    No countries found
+                  </div>
+                )}
+
+                {isLoadingCountries && (
+                  <div className="px-3 py-2 text-gray-500 text-sm flex items-center gap-2">
+                    <Loader2 size={14} className="animate-spin" />
+                    Loading countries...
+                  </div>
+                )}
+              </Select.Group>
+            </Select.Content>
+          </Select.Root>
+        </Flex>
+
+        <Flex align="center" gap="2" className="relative flex-1 min-w-0">
+          <Radio size={16} className="text-[#ff914d] flex-shrink-0" />
+          <Select.Root
+            value={selectedStationUuid}
+            onValueChange={handleStationChange}
+            disabled={!selectedCountry || isLoadingStations}
+            open={stationOpen}
+            onOpenChange={(open) => {
+              setStationOpen(open);
+              if (!open) {
+                requestAnimationFrame(() => {
+                  try {
+                    stationTriggerRef.current?.blur?.();
+                  } catch {
+                    (document.activeElement as HTMLElement | null)?.blur?.();
+                  }
+                });
+              }
+            }}
+          >
+            <Select.Trigger
+              ref={stationTriggerRef}
+              className="w-full bg-[#0C1521] border border-gray-700/50 rounded-lg px-3 py-2 hover:border-[#ff914d]/50 transition-colors min-w-0"
+              placeholder="Select station"
+            >
+              {isLoadingStations ? (
+                <Flex align="center" gap="2">
+                  <Loader2 size={14} className="animate-spin" />
+                  <Text size="2" className="text-gray-400">
+                    Loading...
+                  </Text>
+                </Flex>
+              ) : selectedStationData ? (
+                <Flex align="center" gap="2" className="w-full min-w-0">
+                  <Text size="2" className="flex-1 truncate text-left">
+                    {selectedStationData.name}
+                  </Text>
+                  {selectedStationData.bitrate > 0 && (
+                    <Text size="1" className="text-gray-500 flex-shrink-0">
+                      {selectedStationData.bitrate}k
+                    </Text>
+                  )}
+                </Flex>
+              ) : (
+                <Text size="2" className="text-gray-400 truncate">
+                  {!selectedCountry
+                    ? "Please select region"
+                    : filteredStations.length === 0
+                    ? "No stations available"
+                    : "Select station"}
+                </Text>
+              )}
+            </Select.Trigger>
+
+            <Select.Content className="bg-[#0C1521] border border-gray-700/50 rounded-lg p-2 max-h-[400px] overflow-y-auto min-w-full w-[320px] z-50">
+              <div className="px-2 py-2 sticky top-0 bg-[#0C1521] border-b border-gray-700/50 mb-2 z-10">
+                <input
+                  type="text"
+                  placeholder="Search stations..."
+                  value={searchStation}
+                  onChange={(e) => setSearchStation(e.target.value)}
+                  className="w-full bg-[#16283a] border border-gray-700/50 rounded px-2 py-1 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-[#ff914d]/50"
+                  onClick={(e) => e.stopPropagation()}
+                />
+              </div>
+              <Select.Group>
+                {filteredStations.map((station) => (
+                  <Select.Item
+                    key={station.stationuuid}
+                    value={station.stationuuid}
+                    className="px-3 py-2 rounded hover:bg-[#ff914d]/10 cursor-pointer transition-colors"
+                  >
+                    <StationItem
+                      station={station}
+                      isCurrentStation={
+                        currentStation?.stationuuid === station.stationuuid
+                      }
+                    />
+                  </Select.Item>
+                ))}
+
+                {filteredStations.length === 0 && !isLoadingStations && (
+                  <div className="px-3 py-2 text-gray-500 text-sm">
+                    {selectedCountry
+                      ? `No stations found in ${
+                          selectedCountryData?.name || selectedCountry
+                        }`
+                      : "Please select a country first"}
+                  </div>
+                )}
+              </Select.Group>
+            </Select.Content>
+          </Select.Root>
+        </Flex>
       </Flex>
-    </Flex>
-  );
-};
+    );
+  }
+);
+
+LocationSelector.displayName = "LocationSelector";
 
 export default LocationSelector;

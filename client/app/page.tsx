@@ -1,10 +1,15 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, memo, useMemo } from "react";
 import { Container, Flex, Heading, Text, Section, Box } from "@radix-ui/themes";
 import Header from "@/components/Header";
 import StationSelector from "@/components/StationSelector";
-import { useRadioStore } from "@/store/useRadiostore";
+import {
+  useShowPlayer,
+  useIsPlaying,
+  useCurrentStation,
+  useStations,
+} from "@/store/useRadiostore";
 import Loader from "@/components/Loader";
 
 const DEFAULT_HERO_CONTENT = {
@@ -12,20 +17,45 @@ const DEFAULT_HERO_CONTENT = {
   subtitle: "Log in or sign up for a more personalized and curated experience!",
 };
 
-export default function Home() {
-  const { showPlayer, isPlaying, currentStation, stations } = useRadioStore();
-  const [isInitialLoading, setIsInitialLoading] = useState(true);
+const StatusText = memo(
+  ({
+    showPlayer,
+    currentStation,
+    isPlaying,
+  }: {
+    showPlayer: boolean;
+    currentStation: any;
+    isPlaying: boolean;
+  }) => {
+    const text = useMemo(() => {
+      if (showPlayer && currentStation) {
+        return isPlaying ? "" : "PAUSED - Click gauge again to stop";
+      }
+      return "Select a region and station to start listening →";
+    }, [showPlayer, currentStation, isPlaying]);
 
-  const getStatusText = () => {
-    if (showPlayer && currentStation) {
-      return isPlaying ? "" : "PAUSED - Click gauge again to stop";
-    }
-    return "Select a region and station to start listening →";
-  };
+    return (
+      <Text
+        size="3"
+        className="mt-4 transition-colors duration-300 text-[#ff914d]"
+      >
+        {text}
+      </Text>
+    );
+  }
+);
+StatusText.displayName = "StatusText";
+
+const Home = memo(() => {
+  const showPlayer = useShowPlayer();
+  const isPlaying = useIsPlaying();
+  const currentStation = useCurrentStation();
+  const stations = useStations();
+
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
 
   const heroContent = DEFAULT_HERO_CONTENT;
 
-  // Handle loading state - wait for stations to load
   useEffect(() => {
     const maxLoadingTimer = setTimeout(() => {
       setIsInitialLoading(false);
@@ -74,7 +104,6 @@ export default function Home() {
               gap="10"
               className="text-center max-w-6xl mx-auto w-full"
             >
-              {/* Left: Hero Content */}
               <Flex direction="column" gap="6" className="flex-1 items-center">
                 <Flex direction="column" gap="4">
                   <Heading size={{ initial: "8", sm: "9" }} weight="bold">
@@ -84,14 +113,12 @@ export default function Home() {
                     {heroContent.subtitle}
                   </Text>
                 </Flex>
-                <Text
-                  size="3"
-                  className="mt-4 transition-colors duration-300 text-[#ff914d]"
-                >
-                  {getStatusText()}
-                </Text>
+                <StatusText
+                  showPlayer={showPlayer}
+                  currentStation={currentStation}
+                  isPlaying={isPlaying}
+                />
               </Flex>
-              {/* Right: Station Selector */}
               <Box className="flex-1 flex justify-center md:justify-end w-full">
                 <StationSelector />
               </Box>
@@ -101,4 +128,8 @@ export default function Home() {
       </Flex>
     </div>
   );
-}
+});
+
+Home.displayName = "Home";
+
+export default Home;

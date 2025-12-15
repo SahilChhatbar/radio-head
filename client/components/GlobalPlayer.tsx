@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useCallback } from "react";
+import React, { useMemo, useCallback, memo } from "react";
 import { Button, Flex, Text, Box, Container } from "@radix-ui/themes";
 import {
   SkipBack,
@@ -23,37 +23,132 @@ import ImmersiveVisualizer from "./ImmersiveMode";
 
 const ORANGE = "#FF914D";
 
+// Memoized icon component - prevents re-render on volume change
+const StationIcon = memo(
+  ({ isLoading, isPlaying }: { isLoading: boolean; isPlaying: boolean }) => {
+    if (isLoading) {
+      return (
+        <div className="w-6 h-6 border-2 border-[#FF914D] border-t-transparent rounded-full animate-spin" />
+      );
+    }
+    if (isPlaying) {
+      return <Disc3 size={26} className="text-[#FF914D] animate-spin" />;
+    }
+    return <Unplug size={26} className="text-[#FF914D]" />;
+  }
+);
+StationIcon.displayName = "StationIcon";
+
+// Memoized station info - prevents re-render on volume change
+const StationInfo = memo(
+  ({ name, latency }: { name: string; latency: number }) => (
+    <Flex direction="column" gap="1" className="min-w-0">
+      <Text size="3" weight="medium" className="truncate">
+        {name}
+      </Text>
+      {latency > 0 && (
+        <Flex gap="2" align="center" className="text-xs text-slate-400">
+          <Clock size={12} />
+          <span>
+            {latency < 1
+              ? `${Math.round(latency * 1000)}ms`
+              : `${latency.toFixed(1)}s`}
+          </span>
+        </Flex>
+      )}
+    </Flex>
+  )
+);
+StationInfo.displayName = "StationInfo";
+
+// Memoized volume control - only this re-renders on volume change
+const VolumeControl = memo(
+  ({
+    isMuted,
+    volume,
+    displayVolume,
+    onMuteToggle,
+    onVolumeChange,
+  }: {
+    isMuted: boolean;
+    volume: number;
+    displayVolume: number;
+    onMuteToggle: () => void;
+    onVolumeChange: (v: number[]) => void;
+  }) => (
+    <>
+      <Button
+        variant="ghost"
+        onClick={onMuteToggle}
+        className="hover:bg-[#FF914D]/10"
+      >
+        {isMuted || volume === 0 ? (
+          <VolumeX size={20} color={ORANGE} />
+        ) : (
+          <Volume2 size={20} color={ORANGE} />
+        )}
+      </Button>
+
+      <div className="w-20 hidden md:block">
+        <Slider.Root
+          min={0}
+          max={1}
+          step={0.01}
+          value={[displayVolume]}
+          onValueChange={onVolumeChange}
+          className="relative flex items-center w-full h-5"
+        >
+          <Slider.Track className="relative w-full h-1 bg-slate-700 rounded-lg">
+            <Slider.Range
+              className="absolute h-full rounded-lg"
+              style={{ background: ORANGE }}
+            />
+          </Slider.Track>
+          <Slider.Thumb className="block w-4 h-4 bg-white rounded-full shadow" />
+        </Slider.Root>
+      </div>
+
+      <Text size="1" className="text-[#FF914D] min-w-8 hidden lg:block">
+        {Math.round(displayVolume * 100)}%
+      </Text>
+    </>
+  )
+);
+VolumeControl.displayName = "VolumeControl";
+
 const GlobalPlayer: React.FC = () => {
   const visualizerRef = React.useRef<AudioVisualizerHandle>(null);
   const isChangingStationRef = React.useRef(false);
   const isInitializedRef = React.useRef(false);
 
-  const {
-    stations,
-    currentStation,
-    currentStationIndex,
-    isPlaying,
-    isLoading: storeIsLoading,
-    volume,
-    isMuted,
-    showPlayer,
-    play,
-    nextStation,
-    previousStation,
-    updateVolume,
-    updateMuted,
-    setAudioControls,
-    setIsPlaying,
-    setIsLoading,
-    setError,
-    setStreamType,
-  } = useRadioStore();
+  // Granular subscriptions - only subscribe to what we need
+  const stations = useRadioStore((state) => state.stations);
+  const currentStation = useRadioStore((state) => state.currentStation);
+  const currentStationIndex = useRadioStore(
+    (state) => state.currentStationIndex
+  );
+  const isPlaying = useRadioStore((state) => state.isPlaying);
+  const storeIsLoading = useRadioStore((state) => state.isLoading);
+  const volume = useRadioStore((state) => state.volume);
+  const isMuted = useRadioStore((state) => state.isMuted);
+  const showPlayer = useRadioStore((state) => state.showPlayer);
+
+  // Get actions from store (these don't cause re-renders)
+  const play = useRadioStore((state) => state.play);
+  const nextStation = useRadioStore((state) => state.nextStation);
+  const previousStation = useRadioStore((state) => state.previousStation);
+  const updateVolume = useRadioStore((state) => state.updateVolume);
+  const updateMuted = useRadioStore((state) => state.updateMuted);
+  const setAudioControls = useRadioStore((state) => state.setAudioControls);
+  const setIsPlaying = useRadioStore((state) => state.setIsPlaying);
+  const setIsLoading = useRadioStore((state) => state.setIsLoading);
+  const setError = useRadioStore((state) => state.setError);
+  const setStreamType = useRadioStore((state) => state.setStreamType);
 
   const {
     audioRef,
     play: playAudio,
     pause: pauseAudio,
-    error: hookError,
     streamType,
     latency,
   } = useEnhancedAudioPlayer({
@@ -73,7 +168,7 @@ const GlobalPlayer: React.FC = () => {
     }, [setIsLoading]),
     onCanPlay: useCallback(() => setIsLoading(false), [setIsLoading]),
     onError: useCallback(
-      (err) => {
+      (err: string) => {
         setError(err);
         setIsPlaying(false);
         visualizerRef.current?.pause();
@@ -246,6 +341,19 @@ const GlobalPlayer: React.FC = () => {
     [storeIsLoading, isPlaying]
   );
 
+  // Memoize volume change handler to prevent recreation
+  const handleVolumeChange = useCallback(
+    (v: number[]) => {
+      updateVolume(+v[0].toFixed(2));
+    },
+    [updateVolume]
+  );
+
+  // Memoize mute toggle
+  const handleMuteToggle = useCallback(() => {
+    updateMuted(!isMuted);
+  }, [isMuted, updateMuted]);
+
   if (!showPlayer || stations.length === 0) return null;
 
   return (
@@ -261,32 +369,13 @@ const GlobalPlayer: React.FC = () => {
           <Flex align="center" justify="between" gap="4">
             <Flex align="center" gap="3" className="flex-1 min-w-0">
               <div className="w-12 h-12 bg-[#FF914D]/20 rounded-lg flex items-center justify-center">
-                {storeIsLoading ? (
-                  <div className="w-6 h-6 border-2 border-[#FF914D] border-t-transparent rounded-full animate-spin" />
-                ) : isPlaying ? (
-                  <Disc3 size={26} className="text-[#FF914D] animate-spin" />
-                ) : (
-                  <Unplug size={26} className="text-[#FF914D]" />
-                )}
+                <StationIcon isLoading={storeIsLoading} isPlaying={isPlaying} />
               </div>
 
-              <Flex direction="column" gap="1" className="min-w-0">
-                <Text size="3" weight="medium" className="truncate">
-                  {currentStation?.name ?? "No Station"}
-                </Text>
-                <Flex gap="2" align="center" className="text-xs text-slate-400">
-                  {latency > 0 && (
-                    <>
-                      <Clock size={12} />
-                      <span>
-                        {latency < 1
-                          ? `${Math.round(latency * 1000)}ms`
-                          : `${latency.toFixed(1)}s`}
-                      </span>
-                    </>
-                  )}
-                </Flex>
-              </Flex>
+              <StationInfo
+                name={currentStation?.name ?? "No Station"}
+                latency={latency}
+              />
             </Flex>
 
             <Flex align="center" gap="2">
@@ -308,41 +397,15 @@ const GlobalPlayer: React.FC = () => {
             </Flex>
 
             <Flex align="center" gap="3">
-              <Button
-                variant="ghost"
-                onClick={() => updateMuted(!isMuted)}
-                className="hover:bg-[#FF914D]/10"
-              >
-                {isMuted || volume === 0 ? (
-                  <VolumeX size={20} color={ORANGE} />
-                ) : (
-                  <Volume2 size={20} color={ORANGE} />
-                )}
-              </Button>
-
-              <div className="w-20 hidden md:block">
-                <Slider.Root
-                  min={0}
-                  max={1}
-                  step={0.01}
-                  value={[displayVolume]}
-                  onValueChange={(v) => updateVolume(+v[0].toFixed(2))}
-                  className="relative flex items-center w-full h-5"
-                >
-                  <Slider.Track className="relative w-full h-1 bg-slate-700 rounded-lg">
-                    <Slider.Range
-                      className="absolute h-full rounded-lg"
-                      style={{ background: ORANGE }}
-                    />
-                  </Slider.Track>
-                  <Slider.Thumb className="block w-4 h-4 bg-white rounded-full shadow" />
-                </Slider.Root>
-              </div>
-
-              <Text size="1" className="text-[#FF914D] min-w-8 hidden lg:block">
-                {Math.round(displayVolume * 100)}%
-              </Text>
+              <VolumeControl
+                isMuted={isMuted}
+                volume={volume}
+                displayVolume={displayVolume}
+                onMuteToggle={handleMuteToggle}
+                onVolumeChange={handleVolumeChange}
+              />
               <AudioVisualizer
+                ref={visualizerRef}
                 isLoading={visualizerState.isLoading}
                 isPaused={visualizerState.isPaused}
               />
@@ -359,4 +422,4 @@ const GlobalPlayer: React.FC = () => {
   );
 };
 
-export default GlobalPlayer;
+export default memo(GlobalPlayer);

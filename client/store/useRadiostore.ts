@@ -114,24 +114,29 @@ export const useRadioStore = create<RadioStore>((set, get) => ({
     const { audioControls, isMuted } = get();
     const clamped = Math.max(0, Math.min(1, volume));
 
-    set({ volume: clamped });
+    // Direct update without triggering re-renders
     audioControls.setVolume?.(clamped);
-
+    
+    // Batch state updates
+    const updates: Partial<RadioStore> = { volume: clamped };
+    
     if (clamped > 0 && isMuted) {
-      set({ isMuted: false });
+      updates.isMuted = false;
       audioControls.setMuted?.(false);
     }
 
     if (clamped === 0 && !isMuted) {
-      set({ isMuted: true });
+      updates.isMuted = true;
       audioControls.setMuted?.(true);
     }
+
+    set(updates);
   },
 
   updateMuted: (muted) => {
     const { audioControls } = get();
-    set({ isMuted: muted });
     audioControls.setMuted?.(muted);
+    set({ isMuted: muted });
   },
 
   play: (station) => {
@@ -223,3 +228,13 @@ export const useRadioStore = create<RadioStore>((set, get) => ({
     }
   },
 }));
+
+// Optimized selectors to prevent unnecessary re-renders
+export const useIsPlaying = () => useRadioStore((state) => state.isPlaying);
+export const useCurrentStation = () => useRadioStore((state) => state.currentStation);
+export const useVolume = () => useRadioStore((state) => state.volume);
+export const useIsMuted = () => useRadioStore((state) => state.isMuted);
+export const useIsLoading = () => useRadioStore((state) => state.isLoading);
+export const useShowPlayer = () => useRadioStore((state) => state.showPlayer);
+export const useStations = () => useRadioStore((state) => state.stations);
+export const useCurrentStationIndex = () => useRadioStore((state) => state.currentStationIndex);

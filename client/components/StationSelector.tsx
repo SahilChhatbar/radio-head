@@ -1,8 +1,15 @@
 "use client";
 
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, memo, useCallback } from "react";
 import { Flex, Text } from "@radix-ui/themes";
-import { useRadioStore } from "@/store/useRadiostore";
+import {
+  useRadioStore,
+  useStations,
+  useCurrentStationIndex,
+  useShowPlayer,
+  useIsPlaying,
+  useCurrentStation,
+} from "@/store/useRadiostore";
 import { radioApi } from "@/api/index";
 import { getStationQualityInfo } from "@/services/StationFilter";
 import Loader from "./Loader";
@@ -20,7 +27,7 @@ interface Tick {
   visible: boolean;
 }
 
-export default function StationGauge({ limit = 50 }: StationGaugeProps) {
+const StationGauge = memo(({ limit = 50 }: StationGaugeProps) => {
   const VIEWBOX_SIZE = 800;
   const CENTER = VIEWBOX_SIZE / 2;
   const INNER_R = 300;
@@ -29,27 +36,26 @@ export default function StationGauge({ limit = 50 }: StationGaugeProps) {
   const gaugeRef = useRef<SVGGElement>(null);
   const prevAngleRef = useRef<number>(180);
 
-  const {
-    stations,
-    currentStationIndex,
-    showPlayer,
-    isPlaying,
-    currentStation,
-    setStations,
-    nextStation,
-    previousStation,
-    play,
-    stop,
-    setShowPlayer,
-    selectedCountry,
-  } = useRadioStore();
+  // Use optimized selectors
+  const stations = useStations();
+  const currentStationIndex = useCurrentStationIndex();
+  const showPlayer = useShowPlayer();
+  const isPlaying = useIsPlaying();
+  const currentStation = useCurrentStation();
 
-  // Track if we need to load initial data
+  // Get actions
+  const setStations = useRadioStore((state) => state.setStations);
+  const nextStation = useRadioStore((state) => state.nextStation);
+  const previousStation = useRadioStore((state) => state.previousStation);
+  const play = useRadioStore((state) => state.play);
+  const stop = useRadioStore((state) => state.stop);
+  const setShowPlayer = useRadioStore((state) => state.setShowPlayer);
+  const selectedCountry = useRadioStore((state) => state.selectedCountry);
+
   const [isInitializing, setIsInitializing] = React.useState(true);
   const [isLoadingStations, setIsLoadingStations] = React.useState(false);
   const [loadingError, setLoadingError] = React.useState<string | null>(null);
 
-  // Initialize with default country stations if store is empty
   useEffect(() => {
     const initializeStations = async () => {
       if (stations.length === 0 && isInitializing) {
@@ -71,10 +77,14 @@ export default function StationGauge({ limit = 50 }: StationGaugeProps) {
 
     initializeStations();
   }, [isInitializing, selectedCountry, stations.length, setStations, limit]);
-  const indexToAngle = (index: number) => {
-    if (stations.length === 0) return 180;
-    return 180 + (index / Math.max(stations.length - 1, 1)) * 270;
-  };
+
+  const indexToAngle = useCallback(
+    (index: number) => {
+      if (stations.length === 0) return 180;
+      return 180 + (index / Math.max(stations.length - 1, 1)) * 270;
+    },
+    [stations.length]
+  );
 
   useEffect(() => {
     if (!gaugeRef.current) return;
@@ -91,29 +101,31 @@ export default function StationGauge({ limit = 50 }: StationGaugeProps) {
     gaugeRef.current.style.transformOrigin = `${CENTER}px ${CENTER}px`;
     gaugeRef.current.style.transition = "transform 0.3s ease-in-out";
     prevAngleRef.current = finalAngle;
-  }, [currentStationIndex, stations.length]);
+  }, [currentStationIndex, indexToAngle, CENTER]);
 
-  const ticks: Tick[] = Array.from({ length: 136 }).map((_, i) => {
-    const angleDeg = 90 + i * 2;
-    const rad = (angleDeg * Math.PI) / 180;
-    const isMajor = i % 10 === 0;
-    const r1 = INNER_R + (isMajor ? 0 : 20);
-    const r2 = OUTER_R;
+  const ticks: Tick[] = React.useMemo(() => {
+    return Array.from({ length: 136 }).map((_, i) => {
+      const angleDeg = 90 + i * 2;
+      const rad = (angleDeg * Math.PI) / 180;
+      const isMajor = i % 10 === 0;
+      const r1 = INNER_R + (isMajor ? 0 : 20);
+      const r2 = OUTER_R;
 
-    if (i <= 135) {
-      return {
-        x1: CENTER + Math.cos(rad) * r1,
-        y1: CENTER + Math.sin(rad) * r1,
-        x2: CENTER + Math.cos(rad) * r2,
-        y2: CENTER + Math.sin(rad) * r2,
-        strokeWidth: isMajor ? 3 : 1,
-        visible: true,
-      };
-    }
-    return { visible: false };
-  });
+      if (i <= 135) {
+        return {
+          x1: CENTER + Math.cos(rad) * r1,
+          y1: CENTER + Math.sin(rad) * r1,
+          x2: CENTER + Math.cos(rad) * r2,
+          y2: CENTER + Math.sin(rad) * r2,
+          strokeWidth: isMajor ? 3 : 1,
+          visible: true,
+        };
+      }
+      return { visible: false };
+    });
+  }, [CENTER, INNER_R, OUTER_R]);
 
-  const getCurrentStationInfo = () => {
+  const stationInfo = React.useMemo(() => {
     if (loadingError) return { display: "Error loading", quality: null };
     if (stations.length === 0) return { display: "No stations", quality: null };
 
@@ -129,9 +141,9 @@ export default function StationGauge({ limit = 50 }: StationGaugeProps) {
       bitrate: station.bitrate,
       country: station.country,
     };
-  };
+  }, [loadingError, stations, currentStationIndex]);
 
-  const handleGaugeClick = async () => {
+  const handleGaugeClick = useCallback(async () => {
     if (stations.length > 0) {
       const currentStationData = stations[currentStationIndex];
 
@@ -155,25 +167,39 @@ export default function StationGauge({ limit = 50 }: StationGaugeProps) {
         }
       }
     }
-  };
+  }, [
+    stations,
+    currentStationIndex,
+    showPlayer,
+    currentStation,
+    isPlaying,
+    stop,
+    setShowPlayer,
+    play,
+    nextStation,
+  ]);
 
-  const handleKeyDown = (event: React.KeyboardEvent) => {
-    switch (event.code) {
-      case "ArrowLeft":
-        event.preventDefault();
-        previousStation();
-        break;
-      case "ArrowRight":
-        event.preventDefault();
-        nextStation();
-        break;
-      case "Enter":
-      case "Space":
-        event.preventDefault();
-        handleGaugeClick();
-        break;
-    }
-  };
+  const handleKeyDown = useCallback(
+    (event: React.KeyboardEvent) => {
+      switch (event.code) {
+        case "ArrowLeft":
+          event.preventDefault();
+          previousStation();
+          break;
+        case "ArrowRight":
+          event.preventDefault();
+          nextStation();
+          break;
+        case "Enter":
+        case "Space":
+          event.preventDefault();
+          handleGaugeClick();
+          break;
+      }
+    },
+    [previousStation, nextStation, handleGaugeClick]
+  );
+
   if (isLoadingStations || isInitializing) {
     return (
       <div className="flex flex-col items-center gap-4 p-8">
@@ -199,8 +225,6 @@ export default function StationGauge({ limit = 50 }: StationGaugeProps) {
       </div>
     );
   }
-
-  const stationInfo = getCurrentStationInfo();
 
   return (
     <div className="flex flex-col items-center gap-4 p-8 bg-transparent">
@@ -405,4 +429,8 @@ export default function StationGauge({ limit = 50 }: StationGaugeProps) {
       </Flex>
     </div>
   );
-}
+});
+
+StationGauge.displayName = "StationGauge";
+
+export default StationGauge;

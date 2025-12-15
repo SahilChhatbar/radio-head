@@ -35,7 +35,6 @@ export const useStations = (
       enableRealTimeValidation,
     ],
     queryFn: async () => {
-      console.log("🎵 Fetching stations with enhanced filtering...");
       const rawStations = await radioApi.getStations(queryParams);
 
       if (!enableFiltering) {
@@ -45,13 +44,11 @@ export const useStations = (
       let filteredStations = getOptimalStations(rawStations, queryParams.limit);
 
       if (enableRealTimeValidation && filteredStations.length > 0) {
-        console.log("🧪 Applying real-time validation...");
-        filteredStations = await stationFilterService.validateStationsRealtime(
+       filteredStations = await stationFilterService.validateStationsRealtime(
           filteredStations.slice(0, 20),
           3
         );
       }
-      console.log(`✅ Returning ${filteredStations.length} filtered stations`);
       return filteredStations;
     },
     staleTime: 5 * 60 * 1000,
@@ -81,9 +78,6 @@ export const useSearchStations = (
         query,
         limit
       );
-      console.log(
-        `🔍 Search "${query}": ${filteredStations.length}/${rawStations.length} stations after filtering`
-      );
       return filteredStations;
     },
     enabled: query.length > 2,
@@ -109,10 +103,6 @@ export const usePopularStations = (
       }
 
       const filteredStations = getOptimalStations(rawStations, limit);
-      console.log(
-        `🌟 Popular stations: ${filteredStations.length} high-quality stations selected`
-      );
-
       return filteredStations;
     },
     staleTime: 10 * 60 * 1000,
@@ -145,10 +135,7 @@ export const useStationsByCountry = (
         countryCode,
         limit
       );
-      console.log(
-        `🌍 Country ${countryCode}: ${filteredStations.length} stations after filtering`
-      );
-      return filteredStations;
+    return filteredStations;
     },
     enabled: !!countryCode,
     staleTime: 10 * 60 * 1000,
@@ -174,10 +161,6 @@ export const useStationsByTag = (
       }
 
       const filteredStations = getOptimalStations(rawStations, limit);
-      console.log(
-        `🏷️ Tag "${tag}": ${filteredStations.length} stations after filtering`
-      );
-
       return filteredStations;
     },
     enabled: !!tag,
@@ -197,9 +180,7 @@ export const useValidatedStations = (
     ],
     queryFn: async () => {
       if (!stations.length) return [];
-
-      console.log("🧪 Starting real-time validation...");
-      const validatedStations =
+   const validatedStations =
         await stationFilterService.validateStationsRealtime(
           stations.slice(0, 15),
           4

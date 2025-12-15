@@ -29,10 +29,10 @@ const AudioVisualizer = forwardRef<AudioVisualizerHandle, AudioVisualizerProps>(
   (
     {
       className = "",
-      barCount = 8,
-      barWidth = 2,
-      barSpacing = 3,
-      maxHeight = 24,
+      barCount = 12,
+      barWidth = 6,
+      barSpacing = 2,
+      maxHeight = 40,
       minHeight = 2,
       decay = 0.88,
       isLoading = false,

@@ -247,6 +247,36 @@ body {
 }
 
 /* ===============================================
+   RADIX DROPDOWN MENU STYLES
+   =============================================== */
+
+[data-radix-dropdown-menu-content] {
+  animation: slideDownAndFade 200ms cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 10px 38px -10px rgba(0, 0, 0, 0.35), 0 10px 20px -15px rgba(0, 0, 0, 0.2);
+}
+
+@keyframes slideDownAndFade {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+[data-radix-dropdown-menu-item] {
+  outline: none;
+  user-select: none;
+}
+
+[data-radix-dropdown-menu-item][data-highlighted] {
+  background-color: rgba(255, 145, 77, 0.1) !important;
+  outline: none;
+}
+
+/* ===============================================
    SCROLLING TEXT ANIMATION
    =============================================== */
 
@@ -472,4 +502,4 @@ body:has(.vz-wrapper) {
   transform: translateZ(0);
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
-} 
+}

@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useMemo, useCallback } from "react";
 import { Button, Flex, Text, Box, Container } from "@radix-ui/themes";
 import {
   SkipBack,
@@ -49,8 +49,6 @@ const GlobalPlayer: React.FC = () => {
     setStreamType,
   } = useRadioStore();
 
-  // Use hook BUT do NOT rely on hook's isLoading/isPlaying for UI state.
-  // Store is the single source of truth for UI.
   const {
     audioRef,
     play: playAudio,
@@ -61,47 +59,47 @@ const GlobalPlayer: React.FC = () => {
   } = useEnhancedAudioPlayer({
     volume,
     muted: isMuted,
-    onPlay: () => {
+    onPlay: useCallback(() => {
       setIsPlaying(true);
       visualizerRef.current?.resume();
-    },
-    onPause: () => {
+    }, [setIsPlaying]),
+    onPause: useCallback(() => {
       setIsPlaying(false);
       visualizerRef.current?.pause();
-    },
-    onLoadStart: () => {
+    }, [setIsPlaying]),
+    onLoadStart: useCallback(() => {
       setIsLoading(true);
       visualizerRef.current?.reset();
-    },
-    onCanPlay: () => setIsLoading(false),
-    onError: (err) => {
-      setError(err);
-      setIsPlaying(false);
-      visualizerRef.current?.pause();
-    },
+    }, [setIsLoading]),
+    onCanPlay: useCallback(() => setIsLoading(false), [setIsLoading]),
+    onError: useCallback(
+      (err) => {
+        setError(err);
+        setIsPlaying(false);
+        visualizerRef.current?.pause();
+      },
+      [setError, setIsPlaying]
+    ),
   });
 
-  // Register audio controls ONCE
   React.useEffect(() => {
     if (isInitializedRef.current) return;
 
     setAudioControls({
       play: playAudio,
       pause: pauseAudio,
-      setVolume: () => {}, // store is owner
-      setMuted: () => {}, // store is owner
+      setVolume: () => {},
+      setMuted: () => {},
     });
 
     isInitializedRef.current = true;
   }, [setAudioControls, playAudio, pauseAudio]);
 
   React.useEffect(() => {
-    // reflect hook streamType into store
     setStreamType(streamType);
   }, [streamType, setStreamType]);
 
-  // Ignore hotkeys when typing in inputs
-  const ignoreIfFormElement = (e: KeyboardEvent) => {
+  const ignoreIfFormElement = useCallback((e: KeyboardEvent) => {
     const target = e.target as HTMLElement | null;
     if (!target) return false;
     const tag = target.tagName;
@@ -111,13 +109,9 @@ const GlobalPlayer: React.FC = () => {
       tag === "SELECT" ||
       (target as HTMLElement).isContentEditable
     );
-  };
+  }, []);
 
-  /* -----------------------------
-     CONTROLS
-  ----------------------------- */
-
-  const handlePlayPause = async () => {
+  const handlePlayPause = useCallback(async () => {
     if (storeIsLoading || isChangingStationRef.current) return;
 
     if (isPlaying) {
@@ -130,9 +124,17 @@ const GlobalPlayer: React.FC = () => {
 
     visualizerRef.current?.reset();
     play(station);
-  };
+  }, [
+    storeIsLoading,
+    isPlaying,
+    currentStation,
+    stations,
+    currentStationIndex,
+    pauseAudio,
+    play,
+  ]);
 
-  const handleNext = async () => {
+  const handleNext = useCallback(async () => {
     if (storeIsLoading || isChangingStationRef.current) return;
     isChangingStationRef.current = true;
 
@@ -145,9 +147,9 @@ const GlobalPlayer: React.FC = () => {
     } finally {
       isChangingStationRef.current = false;
     }
-  };
+  }, [storeIsLoading, pauseAudio, nextStation, playAudio]);
 
-  const handlePrevious = async () => {
+  const handlePrevious = useCallback(async () => {
     if (storeIsLoading || isChangingStationRef.current) return;
     isChangingStationRef.current = true;
 
@@ -160,11 +162,7 @@ const GlobalPlayer: React.FC = () => {
     } finally {
       isChangingStationRef.current = false;
     }
-  };
-
-  /* -----------------------------
-     HOTKEYS (prevent default to stop scrolling)
-  ----------------------------- */
+  }, [storeIsLoading, pauseAudio, previousStation, playAudio]);
 
   const isDesktop =
     typeof window !== "undefined" && !("ontouchstart" in window);
@@ -235,14 +233,23 @@ const GlobalPlayer: React.FC = () => {
     [isMuted, updateMuted]
   );
 
-  if (!showPlayer || stations.length === 0) return null;
+  const displayVolume = useMemo(
+    () => (isMuted ? 0 : volume),
+    [isMuted, volume]
+  );
 
-  // Display volume: visual should show 0 when muted (familiar UX)
-  const displayVolume = isMuted ? 0 : volume;
+  const visualizerState = useMemo(
+    () => ({
+      isLoading: storeIsLoading,
+      isPaused: !isPlaying || storeIsLoading,
+    }),
+    [storeIsLoading, isPlaying]
+  );
+
+  if (!showPlayer || stations.length === 0) return null;
 
   return (
     <>
-      {/* Hidden audio */}
       <audio
         ref={audioRef}
         crossOrigin="anonymous"
@@ -252,7 +259,6 @@ const GlobalPlayer: React.FC = () => {
       <Box className="fixed bottom-0 left-0 right-0 z-50 border-t border-gray-700/50 bg-[#0C1521]/95">
         <Container size="4" className="py-3">
           <Flex align="center" justify="between" gap="4">
-            {/* LEFT */}
             <Flex align="center" gap="3" className="flex-1 min-w-0">
               <div className="w-12 h-12 bg-[#FF914D]/20 rounded-lg flex items-center justify-center">
                 {storeIsLoading ? (
@@ -283,7 +289,6 @@ const GlobalPlayer: React.FC = () => {
               </Flex>
             </Flex>
 
-            {/* CENTER */}
             <Flex align="center" gap="2">
               <Button onClick={handlePrevious}>
                 <SkipBack size={18} />
@@ -302,7 +307,6 @@ const GlobalPlayer: React.FC = () => {
               </Button>
             </Flex>
 
-            {/* RIGHT — OLD VOLUME UI */}
             <Flex align="center" gap="3">
               <Button
                 variant="ghost"
@@ -339,14 +343,8 @@ const GlobalPlayer: React.FC = () => {
                 {Math.round(displayVolume * 100)}%
               </Text>
               <AudioVisualizer
-                ref={visualizerRef}
-                barCount={12}
-                barWidth={6}
-                barSpacing={2}
-                maxHeight={40}
-                decay={0.88}
-                isLoading={storeIsLoading}
-                isPaused={!isPlaying || storeIsLoading}
+                isLoading={visualizerState.isLoading}
+                isPaused={visualizerState.isPaused}
               />
               <ImmersiveVisualizer
                 currentStation={currentStationIndex}

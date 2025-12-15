@@ -1,5 +1,3 @@
-// File: client/components/LocationSelector.tsx
-// Fixed version with proper value display and immediate station loading
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";

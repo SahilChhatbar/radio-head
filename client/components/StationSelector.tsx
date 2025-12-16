@@ -52,31 +52,16 @@ const StationGauge = memo(({ limit = 50 }: StationGaugeProps) => {
   const setShowPlayer = useRadioStore((state) => state.setShowPlayer);
   const selectedCountry = useRadioStore((state) => state.selectedCountry);
 
-  const [isInitializing, setIsInitializing] = React.useState(true);
+  const [isInitializing, setIsInitializing] = React.useState(false);
   const [isLoadingStations, setIsLoadingStations] = React.useState(false);
-  const [loadingError, setLoadingError] = React.useState<string | null>(null);
 
+  // Don't initialize stations here - they come from LocationSelector
   useEffect(() => {
-    const initializeStations = async () => {
-      if (stations.length === 0 && isInitializing) {
-        setIsLoadingStations(true);
-        try {
-          const countryStations = await radioApi.getStationsByCountry(
-            selectedCountry,
-            limit
-          );
-          setStations(countryStations);
-        } catch (err) {
-          setLoadingError(String(err));
-        } finally {
-          setIsLoadingStations(false);
-          setIsInitializing(false);
-        }
-      }
-    };
-
-    initializeStations();
-  }, [isInitializing, selectedCountry, stations.length, setStations, limit]);
+    // Only set initializing to false if we have stations
+    if (stations.length > 0 && isInitializing) {
+      setIsInitializing(false);
+    }
+  }, [stations.length, isInitializing]);
 
   const indexToAngle = useCallback(
     (index: number) => {
@@ -126,7 +111,6 @@ const StationGauge = memo(({ limit = 50 }: StationGaugeProps) => {
   }, [CENTER, INNER_R, OUTER_R]);
 
   const stationInfo = React.useMemo(() => {
-    if (loadingError) return { display: "Error loading", quality: null };
     if (stations.length === 0) return { display: "No stations", quality: null };
 
     const station = stations[currentStationIndex];
@@ -141,7 +125,7 @@ const StationGauge = memo(({ limit = 50 }: StationGaugeProps) => {
       bitrate: station.bitrate,
       country: station.country,
     };
-  }, [loadingError, stations, currentStationIndex]);
+  }, [stations, currentStationIndex]);
 
   const handleGaugeClick = useCallback(async () => {
     if (stations.length > 0) {
@@ -200,7 +184,7 @@ const StationGauge = memo(({ limit = 50 }: StationGaugeProps) => {
     [previousStation, nextStation, handleGaugeClick]
   );
 
-  if (isLoadingStations || isInitializing) {
+  if (isLoadingStations || (isInitializing && stations.length === 0)) {
     return (
       <div className="flex flex-col items-center gap-4 p-8">
         <Loader variant="spinner" />
@@ -211,66 +195,48 @@ const StationGauge = memo(({ limit = 50 }: StationGaugeProps) => {
     );
   }
 
-  if (loadingError) {
+  if (stations.length === 0) {
     return (
       <div className="flex flex-col items-center gap-4 p-8">
-        <div className="w-112 aspect-square flex items-center justify-center">
-          <Text size="4" className="text-red-400">
-            Error loading stations
+        <div className="w-full max-w-110 aspect-square flex items-center justify-center">
+          <Text size="3" className="text-slate-400 text-center">
+            Select a region to load stations
           </Text>
         </div>
-        <Text size="2" className="text-red-400/70">
-          Failed to load radio stations. Please try again.
-        </Text>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col items-center gap-4 p-8 bg-transparent">
+    <div className="flex flex-col items-center gap-4 p-8 bg-transparent max-w-130 mx-auto">
       <div
-        className="w-82 aspect-square cursor-pointer transition-all duration-300 hover:scale-105 focus:outline-none rounded-full"
+        className="w-full aspect-square cursor-pointer transition-all duration-300 hover:scale-105 focus:outline-none rounded-full"
         style={{ position: "relative" }}
         onClick={handleGaugeClick}
         onKeyDown={handleKeyDown}
         tabIndex={0}
         role="button"
-        aria-label={`Radio gauge. Current station: ${
-          stationInfo.display
-        }. Quality: ${
-          stationInfo.quality || "unknown"
-        }. Use left/right arrows to change station, Enter or Space to toggle play.`}
-        title={`${stationInfo.display}${
-          stationInfo.quality ? ` (${stationInfo.quality} quality)` : ""
-        }\n\nClick to toggle play\nUse ←→ keys to change station\nEnter/Space to toggle`}
+        aria-label={`Radio gauge. Current station: ${stationInfo.display
+          }. Quality: ${stationInfo.quality || "unknown"
+          }. Use left/right arrows to change station, Enter or Space to toggle play.`}
+        title={`${stationInfo.display}${stationInfo.quality ? ` (${stationInfo.quality} quality)` : ""
+          }\n\nClick to toggle play\nUse ←→ keys to change station\nEnter/Space to toggle`}
       >
         <svg
           viewBox={`0 0 ${VIEWBOX_SIZE} ${VIEWBOX_SIZE}`}
           className="w-full h-full drop-shadow-lg"
           style={{ position: "relative" }}
         >
-          <circle
-            cx={CENTER}
-            cy={CENTER}
-            r={OUTER_R}
-            fill="none"
-            stroke="#ff914d"
-            strokeWidth={3}
-            strokeDasharray="10 5"
-            opacity={0.8}
-          />
           {stationInfo.quality && (
             <circle
               cx={CENTER}
               cy={CENTER}
               r={OUTER_R + 15}
               fill="none"
-              stroke="#ff914d"
-              strokeWidth={2}
               strokeDasharray={`${(stationInfo.score / 100) * 31.4159} 31.4159`}
               strokeLinecap="round"
               transform={`rotate(-90 ${CENTER} ${CENTER})`}
-              opacity={0.6}
+              opacity={0.5}
             />
           )}
           {ticks.map(({ x1, y1, x2, y2, strokeWidth, visible }, idx) =>
@@ -283,7 +249,7 @@ const StationGauge = memo(({ limit = 50 }: StationGaugeProps) => {
                 y2={y2}
                 stroke="#ff914d"
                 strokeWidth={strokeWidth}
-                opacity={0.7}
+                opacity={0.8}
               />
             ) : null
           )}
@@ -311,7 +277,7 @@ const StationGauge = memo(({ limit = 50 }: StationGaugeProps) => {
             x={CENTER + 30}
             y={CENTER + 80}
             width={Math.min(240, VIEWBOX_SIZE * 0.35)}
-            height={120}
+            height="20%"
           >
             <div
               style={{
@@ -328,29 +294,9 @@ const StationGauge = memo(({ limit = 50 }: StationGaugeProps) => {
               }}
             >
               <span
-                style={{
-                  color: "#ff914d",
-                  fontFamily: "var(--font-roboto), monospace",
-                  fontWeight: 600,
-                  fontSize: "0.95rem",
-                  background: "rgba(30,30,30,0.9)",
-                  borderRadius: "8px",
-                  border: `1px solid #ff914d40`,
-                  padding: "8px 12px",
-                  width: "100%",
-                  overflow: "hidden",
-                  textOverflow: "clip",
-                  whiteSpace: "normal",
-                  wordBreak: "break-word",
-                  overflowWrap: "anywhere",
-                  display: "block",
-                  lineHeight: 1.2,
-                  textAlign: "center",
-                  boxShadow: "0 2px 8px rgba(0,0,0,0.3)",
-                }}
-                title={`${stationInfo.display}${
-                  stationInfo.country ? ` - ${stationInfo.country}` : ""
-                }`}
+                className="w-full block text-center text-[#ff914d] font-bold text-base sm:text-lg md:text-xl lg:text-2xl xl:text-3xl leading-normal overflow-hidden"
+                title={`${stationInfo.display}${stationInfo.country ? ` - ${stationInfo.country}` : ""
+                  }`}
               >
                 {(() => {
                   const s = stationInfo.display || "";
@@ -360,73 +306,10 @@ const StationGauge = memo(({ limit = 50 }: StationGaugeProps) => {
                     : s;
                 })()}
               </span>
-              {(stationInfo.codec ||
-                stationInfo.bitrate ||
-                stationInfo.quality) && (
-                <div
-                  style={{
-                    display: "flex",
-                    gap: "6px",
-                    fontSize: "0.7rem",
-                    color: "#94a3b8",
-                    fontFamily: "var(--font-roboto), monospace",
-                    flexWrap: "wrap",
-                    justifyContent: "center",
-                    alignItems: "center",
-                  }}
-                >
-                  {stationInfo.quality && (
-                    <span
-                      style={{
-                        backgroundColor: "#ff914d20",
-                        color: "#ff914d",
-                        padding: "2px 6px",
-                        borderRadius: "4px",
-                        fontSize: "0.65rem",
-                        fontWeight: 500,
-                        border: "1px solid #ff914d40",
-                      }}
-                    >
-                      {stationInfo.quality.toUpperCase()}
-                    </span>
-                  )}
-                  {stationInfo.codec && (
-                    <span>{stationInfo.codec.toUpperCase()}</span>
-                  )}
-                  {stationInfo.bitrate && stationInfo.bitrate > 0 && (
-                    <span>{stationInfo.bitrate}k</span>
-                  )}
-                </div>
-              )}
             </div>
           </foreignObject>
         </svg>
       </div>
-      <Flex direction="column" align="center" gap="2">
-        <Text size="2" className="text-slate-500">
-          {stations.length} high-quality stations available
-        </Text>
-        {process.env.NODE_ENV === "development" && stations.length > 0 && (
-          <Text size="1" className="text-slate-600">
-            Station {currentStationIndex + 1}/{stations.length}
-            {stationInfo.score &&
-              ` • Quality Score: ${Math.round(stationInfo.score)}/100`}
-          </Text>
-        )}
-        {showPlayer && currentStation && (
-          <Flex align="center" gap="2">
-            <div
-              className={`w-2 h-2 rounded-full ${
-                isPlaying ? "bg-green-400 animate-pulse" : "bg-yellow-400"
-              }`}
-              title={isPlaying ? "Playing" : "Paused"}
-            />
-            <Text size="1" className="text-slate-400">
-              {isPlaying ? "Now Playing" : "Paused"}
-            </Text>
-          </Flex>
-        )}
-      </Flex>
     </div>
   );
 });

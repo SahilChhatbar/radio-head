@@ -8,9 +8,11 @@ import {
   useShowPlayer,
   useIsPlaying,
   useCurrentStation,
+  useIsLoading,
   useStations,
 } from "@/store/useRadiostore";
 import Loader from "@/components/Loader";
+import { RadioStation } from "@/types";
 
 const DEFAULT_HERO_CONTENT = {
   title: "Welcome to RadioVerse",
@@ -22,22 +24,31 @@ const StatusText = memo(
     showPlayer,
     currentStation,
     isPlaying,
+    isLoading,
   }: {
     showPlayer: boolean;
-    currentStation: any;
+    currentStation: RadioStation | null;
     isPlaying: boolean;
+    isLoading: boolean;
   }) => {
     const text = useMemo(() => {
+      if (isLoading) {
+        return "Loading...";
+      }
+
       if (showPlayer && currentStation) {
         return isPlaying ? "" : "PAUSED - Click gauge again to stop";
       }
+
       return "Select a region and station to start listening →";
-    }, [showPlayer, currentStation, isPlaying]);
+    }, [showPlayer, currentStation, isPlaying, isLoading]);
 
     return (
       <Text
         size="3"
         className="mt-4 transition-colors duration-300 text-[#ff914d]"
+        role="status"
+        aria-live="polite"
       >
         {text}
       </Text>
@@ -50,6 +61,7 @@ const Home = memo(() => {
   const showPlayer = useShowPlayer();
   const isPlaying = useIsPlaying();
   const currentStation = useCurrentStation();
+  const isLoading = useIsLoading();
   const stations = useStations();
 
   const [isInitialLoading, setIsInitialLoading] = useState(true);
@@ -117,6 +129,7 @@ const Home = memo(() => {
                   showPlayer={showPlayer}
                   currentStation={currentStation}
                   isPlaying={isPlaying}
+                  isLoading={isLoading}
                 />
               </Flex>
               <Box className="flex-1 flex justify-center md:justify-end w-full">

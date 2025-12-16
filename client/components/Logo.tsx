@@ -36,7 +36,7 @@ const Logo = ({
     return (
       <Flex>
         <Image
-          src="/base.svg" // ← Changed from import
+          src="/base.svg"
           alt="Logo"
           width={imageSize.width}
           height={imageSize.height}
@@ -50,7 +50,7 @@ const Logo = ({
     return (
       <Flex gap="1" direction="column">
         <Image
-          src="/base.svg" // ← Changed from import
+          src="/base.svg"
           alt="Logo"
           width={imageSize.width}
           height={imageSize.height}

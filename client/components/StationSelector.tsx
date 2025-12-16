@@ -216,11 +216,14 @@ const StationGauge = memo(({ limit = 50 }: StationGaugeProps) => {
         onKeyDown={handleKeyDown}
         tabIndex={0}
         role="button"
-        aria-label={`Radio gauge. Current station: ${stationInfo.display
-          }. Quality: ${stationInfo.quality || "unknown"
-          }. Use left/right arrows to change station, Enter or Space to toggle play.`}
-        title={`${stationInfo.display}${stationInfo.quality ? ` (${stationInfo.quality} quality)` : ""
-          }\n\nClick to toggle play\nUse ←→ keys to change station\nEnter/Space to toggle`}
+        aria-label={`Radio gauge. Current station: ${
+          stationInfo.display
+        }. Quality: ${
+          stationInfo.quality || "unknown"
+        }. Use left/right arrows to change station, Enter or Space to toggle play.`}
+        title={`${stationInfo.display}${
+          stationInfo.quality ? ` (${stationInfo.quality} quality)` : ""
+        }\n\nClick to toggle play\nUse ←→ keys to change station\nEnter/Space to toggle`}
       >
         <svg
           viewBox={`0 0 ${VIEWBOX_SIZE} ${VIEWBOX_SIZE}`}
@@ -294,17 +297,23 @@ const StationGauge = memo(({ limit = 50 }: StationGaugeProps) => {
               }}
             >
               <span
-                className="w-full block text-center text-[#ff914d] font-bold text-base sm:text-lg md:text-xl lg:text-2xl xl:text-3xl leading-normal overflow-hidden"
-                title={`${stationInfo.display}${stationInfo.country ? ` - ${stationInfo.country}` : ""
-                  }`}
+                className="w-full block text-center text-[#ff914d] font-bungee text-sm sm:text-base md:text-lg lg:text-xl xl:text-2xl leading-normal rounded-xl px-3 py-2 bg-[rgba(12,21,33,0.8)] border border-[rgba(255,145,77,0.3)] shadow-[0_0_12px_rgba(255,145,77,0.2)] transition-all duration-150 ease-out overflow-hidden"
+                title={`${stationInfo.display}${
+                  stationInfo.country ? ` - ${stationInfo.country}` : ""
+                }`}
+                style={{
+                  textShadow: "0 0 6px rgba(255, 145, 77, 0.4)",
+                }}
               >
-                {(() => {
-                  const s = stationInfo.display || "";
-                  const chunk = 20;
-                  return s.length > chunk
-                    ? s.replace(new RegExp(`(.{${chunk}})`, "g"), "$1​")
-                    : s;
-                })()}
+                <span className="scrolling-text inline-block whitespace-nowrap">
+                  {(() => {
+                    const s = stationInfo.display || "";
+                    const chunk = 20;
+                    return s.length > chunk
+                      ? s.replace(new RegExp(`(.{${chunk}})`, "g"), "$1\u200B")
+                      : s;
+                  })()}
+                </span>
               </span>
             </div>
           </foreignObject>

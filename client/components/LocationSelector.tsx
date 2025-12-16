@@ -12,6 +12,15 @@ interface Country {
   code: string;
 }
 
+interface Station {
+  stationuuid: string;
+  name: string;
+  bitrate?: number;
+  codec?: string;
+  votes?: number;
+  country?: string;
+}
+
 interface LocationSelectorProps {
   onCountryChange?: (countryCode: string) => void;
   onStationChange?: (stationId: string) => void;
@@ -22,9 +31,11 @@ const CountryItem = memo(
     <Flex align="center" justify="between" gap="2">
       <Flex align="center" gap="2">
         <span>{emoji}</span>
-        <Text size="2">{country.name}</Text>
+        <Text size="2" className="text-white">
+          {country.name}
+        </Text>
       </Flex>
-      <Text size="1" className="text-gray-500">
+      <Text size="1" className="text-white">
         {country.stationcount}
       </Text>
     </Flex>
@@ -37,27 +48,27 @@ const StationItem = memo(
     station,
     isCurrentStation,
   }: {
-    station: any;
+    station: Station;
     isCurrentStation: boolean;
   }) => (
-    <Flex direction="column" gap="1">
+    <Flex
+      direction="row"
+      gap="1"
+      align="center"
+      justify="between"
+      className="w-full"
+    >
       <Text
         size="2"
-        className={`truncate ${
-          isCurrentStation ? "text-[#ff914d] font-medium" : ""
-        }`}
+        style={{
+          textShadow: isCurrentStation
+            ? "0 0 8px rgba(239, 68, 68, 0.6)"
+            : "0 0 4px rgba(239, 68, 68, 0.3)",
+        }}
       >
         {station.name}
       </Text>
-      <Flex align="center" gap="2" className="text-gray-500">
-        {station.bitrate > 0 && <Text size="1">{station.bitrate}kbps</Text>}
-        {station.codec && (
-          <Text size="1" className="uppercase">
-            {station.codec}
-          </Text>
-        )}
-        {station.votes > 0 && <Text size="1">👍 {station.votes}</Text>}
-      </Flex>
+      <Text size="1">👍 {station.votes}</Text>
     </Flex>
   )
 );
@@ -190,7 +201,7 @@ const LocationSelector: React.FC<LocationSelectorProps> = memo(
                 setIsLoadingLocation(false);
               }
             },
-            async (error) => {
+            async () => {
               const defaultCountry = "IN";
               setSelectedCountry(defaultCountry);
               localStorage.setItem("radioverse-country", defaultCountry);
@@ -234,20 +245,18 @@ const LocationSelector: React.FC<LocationSelectorProps> = memo(
     }, [currentStation?.stationuuid]);
 
     const forceBlur = useCallback(() => {
-      [0, 10, 50, 100].forEach((delay) => {
-        setTimeout(() => {
-          try {
-            const focused = document.activeElement as HTMLElement;
-            if (
-              focused &&
-              (focused.hasAttribute("data-radix-select-trigger") ||
-                focused.getAttribute("role") === "combobox" ||
-                focused.tagName === "BUTTON")
-            ) {
-              focused.blur();
-            }
-          } catch (err) {}
-        }, delay);
+      requestAnimationFrame(() => {
+        try {
+          const focused = document.activeElement as HTMLElement;
+          if (
+            focused &&
+            (focused.hasAttribute("data-radix-select-trigger") ||
+              focused.getAttribute("role") === "combobox" ||
+              focused.tagName === "BUTTON")
+          ) {
+            focused.blur();
+          }
+        } catch (err) {}
       });
     }, []);
 
@@ -255,6 +264,8 @@ const LocationSelector: React.FC<LocationSelectorProps> = memo(
       async (countryCode: string) => {
         setSelectedCountry(countryCode);
         setCountryOpen(false);
+        setSearchCountry("");
+        localStorage.setItem("radioverse-country", countryCode);
         forceBlur();
         await loadStationsForCountry(countryCode);
         onCountryChange?.(countryCode);
@@ -265,6 +276,7 @@ const LocationSelector: React.FC<LocationSelectorProps> = memo(
     const handleStationChange = useCallback(
       (stationUuid: string) => {
         setStationOpen(false);
+        setSearchStation("");
         forceBlur();
 
         const station = filteredStations.find(
@@ -294,7 +306,7 @@ const LocationSelector: React.FC<LocationSelectorProps> = memo(
     return (
       <Flex gap="0" align="center" className="w-full">
         <Flex align="center" gap="2" className="relative min-w-[180px]">
-          <MapPin size={16} className="text-[#ff914d] flex-shrink-0" />
+          <MapPin size={16} className="text-accent flex-shrink-0" />
           <Select.Root
             value={selectedCountry}
             onValueChange={handleCountryChange}
@@ -303,6 +315,7 @@ const LocationSelector: React.FC<LocationSelectorProps> = memo(
             onOpenChange={(open) => {
               setCountryOpen(open);
               if (!open) {
+                setSearchCountry("");
                 requestAnimationFrame(() => {
                   try {
                     countryTriggerRef.current?.blur?.();
@@ -315,7 +328,8 @@ const LocationSelector: React.FC<LocationSelectorProps> = memo(
           >
             <Select.Trigger
               ref={countryTriggerRef}
-              className="w-full bg-[#0C1521] border border-gray-700/50 rounded-lg px-3 py-2 hover:border-[#ff914d]/50 transition-colors"
+              data-country-trigger
+              className="w-full location-country-trigger"
             >
               {isLoadingLocation && !selectedCountryData ? (
                 <Flex align="center" gap="2">
@@ -326,13 +340,19 @@ const LocationSelector: React.FC<LocationSelectorProps> = memo(
                 </Flex>
               ) : selectedCountryData ? (
                 <Flex align="center" gap="2">
-                  <Text size="2" className="truncate">
+                  <Text
+                    size="2"
+                    className="truncate text-accent"
+                    style={{
+                      textShadow: "0 0 6px rgba(255, 145, 77, 0.4)",
+                    }}
+                  >
                     {selectedCountryData.name}
                   </Text>
                 </Flex>
               ) : selectedCountry && countries.length > 0 ? (
                 <Flex align="center" gap="2">
-                  <Text size="2" className="truncate">
+                  <Text size="2" className="truncate text-accent">
                     {selectedCountry}
                   </Text>
                 </Flex>
@@ -347,14 +367,19 @@ const LocationSelector: React.FC<LocationSelectorProps> = memo(
               )}
             </Select.Trigger>
 
-            <Select.Content className="bg-[#0C1521] border border-gray-700/50 rounded-lg p-2 max-h-[300px] overflow-y-auto z-50">
-              <div className="px-2 py-2 sticky top-0 bg-[#0C1521] border-b border-gray-700/50 mb-2 z-10">
+            <Select.Content
+              data-country-content
+              className="location-country-content"
+              position="popper"
+              sideOffset={5}
+            >
+              <div className="location-search-wrapper">
                 <input
                   type="text"
                   placeholder="Search countries..."
                   value={searchCountry}
                   onChange={(e) => setSearchCountry(e.target.value)}
-                  className="w-full bg-[#16283a] border border-gray-700/50 rounded px-2 py-1 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-[#ff914d]/50"
+                  className="location-search-input"
                   onClick={(e) => e.stopPropagation()}
                 />
               </div>
@@ -363,7 +388,8 @@ const LocationSelector: React.FC<LocationSelectorProps> = memo(
                   <Select.Item
                     key={country.code}
                     value={country.code}
-                    className="px-3 py-2 rounded hover:bg-[#ff914d]/10 cursor-pointer transition-colors"
+                    data-country-item
+                    className="location-country-item"
                   >
                     <CountryItem
                       country={country}
@@ -388,9 +414,8 @@ const LocationSelector: React.FC<LocationSelectorProps> = memo(
             </Select.Content>
           </Select.Root>
         </Flex>
-
         <Flex align="center" gap="2" className="relative flex-1 min-w-0">
-          <Radio size={16} className="text-[#ff914d] flex-shrink-0" />
+          <Radio size={16} className="text-accent flex-shrink-0" />
           <Select.Root
             value={selectedStationUuid}
             onValueChange={handleStationChange}
@@ -399,6 +424,7 @@ const LocationSelector: React.FC<LocationSelectorProps> = memo(
             onOpenChange={(open) => {
               setStationOpen(open);
               if (!open) {
+                setSearchStation("");
                 requestAnimationFrame(() => {
                   try {
                     stationTriggerRef.current?.blur?.();
@@ -411,7 +437,8 @@ const LocationSelector: React.FC<LocationSelectorProps> = memo(
           >
             <Select.Trigger
               ref={stationTriggerRef}
-              className="w-full bg-[#0C1521] border border-gray-700/50 rounded-lg px-3 py-2 hover:border-[#ff914d]/50 transition-colors min-w-0"
+              data-station-trigger
+              className="w-full location-country-trigger min-w-0"
               placeholder="Select station"
             >
               {isLoadingStations ? (
@@ -423,14 +450,15 @@ const LocationSelector: React.FC<LocationSelectorProps> = memo(
                 </Flex>
               ) : selectedStationData ? (
                 <Flex align="center" gap="2" className="w-full min-w-0">
-                  <Text size="2" className="flex-1 truncate text-left">
+                  <Text
+                    size="2"
+                    className="flex-1 truncate text-left text-accent"
+                    style={{
+                      textShadow: "0 0 6px rgba(255, 145, 77, 0.4)",
+                    }}
+                  >
                     {selectedStationData.name}
                   </Text>
-                  {selectedStationData.bitrate > 0 && (
-                    <Text size="1" className="text-gray-500 flex-shrink-0">
-                      {selectedStationData.bitrate}k
-                    </Text>
-                  )}
                 </Flex>
               ) : (
                 <Text size="2" className="text-gray-400 truncate">
@@ -442,15 +470,19 @@ const LocationSelector: React.FC<LocationSelectorProps> = memo(
                 </Text>
               )}
             </Select.Trigger>
-
-            <Select.Content className="bg-[#0C1521] border border-gray-700/50 rounded-lg p-2 max-h-[400px] overflow-y-auto min-w-full w-[320px] z-50">
-              <div className="px-2 py-2 sticky top-0 bg-[#0C1521] border-b border-gray-700/50 mb-2 z-10">
+            <Select.Content
+              data-station-content
+              className="location-country-content"
+              position="popper"
+              sideOffset={5}
+            >
+              <div className="location-search-wrapper">
                 <input
                   type="text"
                   placeholder="Search stations..."
                   value={searchStation}
                   onChange={(e) => setSearchStation(e.target.value)}
-                  className="w-full bg-[#16283a] border border-gray-700/50 rounded px-2 py-1 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-[#ff914d]/50"
+                  className="location-search-input"
                   onClick={(e) => e.stopPropagation()}
                 />
               </div>
@@ -459,7 +491,8 @@ const LocationSelector: React.FC<LocationSelectorProps> = memo(
                   <Select.Item
                     key={station.stationuuid}
                     value={station.stationuuid}
-                    className="px-3 py-2 rounded hover:bg-[#ff914d]/10 cursor-pointer transition-colors"
+                    data-station-item
+                    className="location-country-item"
                   >
                     <StationItem
                       station={station}
@@ -469,7 +502,6 @@ const LocationSelector: React.FC<LocationSelectorProps> = memo(
                     />
                   </Select.Item>
                 ))}
-
                 {filteredStations.length === 0 && !isLoadingStations && (
                   <div className="px-3 py-2 text-gray-500 text-sm">
                     {selectedCountry

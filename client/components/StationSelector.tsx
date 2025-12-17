@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, memo, useCallback } from "react";
-import { Flex, Text } from "@radix-ui/themes";
+import { Text } from "@radix-ui/themes";
 import {
   useRadioStore,
   useStations,
@@ -10,7 +10,6 @@ import {
   useIsPlaying,
   useCurrentStation,
 } from "@/store/useRadiostore";
-import { radioApi } from "@/api/index";
 import { getStationQualityInfo } from "@/services/StationFilter";
 import Loader from "./Loader";
 
@@ -184,25 +183,13 @@ const StationGauge = memo(({ limit = 50 }: StationGaugeProps) => {
     [previousStation, nextStation, handleGaugeClick]
   );
 
-  if (isLoadingStations || (isInitializing && stations.length === 0)) {
+  if (isLoadingStations || stations.length === 0 || (isInitializing && stations.length === 0)) {
     return (
       <div className="flex flex-col items-center gap-4 p-8">
         <Loader variant="spinner" />
         <Text size="2" className="text-slate-500">
           Loading stations...
         </Text>
-      </div>
-    );
-  }
-
-  if (stations.length === 0) {
-    return (
-      <div className="flex flex-col items-center gap-4 p-8">
-        <div className="w-full max-w-110 aspect-square flex items-center justify-center">
-          <Text size="3" className="text-slate-400 text-center">
-            Select a region to load stations
-          </Text>
-        </div>
       </div>
     );
   }
@@ -216,14 +203,11 @@ const StationGauge = memo(({ limit = 50 }: StationGaugeProps) => {
         onKeyDown={handleKeyDown}
         tabIndex={0}
         role="button"
-        aria-label={`Radio gauge. Current station: ${
-          stationInfo.display
-        }. Quality: ${
-          stationInfo.quality || "unknown"
-        }. Use left/right arrows to change station, Enter or Space to toggle play.`}
-        title={`${stationInfo.display}${
-          stationInfo.quality ? ` (${stationInfo.quality} quality)` : ""
-        }\n\nClick to toggle play\nUse ←→ keys to change station\nEnter/Space to toggle`}
+        aria-label={`Radio gauge. Current station: ${stationInfo.display
+          }. Quality: ${stationInfo.quality || "unknown"
+          }. Use left/right arrows to change station, Enter or Space to toggle play.`}
+        title={`${stationInfo.display}${stationInfo.quality ? ` (${stationInfo.quality} quality)` : ""
+          }\n\nClick to toggle play\nUse ←→ keys to change station\nEnter/Space to toggle`}
       >
         <svg
           viewBox={`0 0 ${VIEWBOX_SIZE} ${VIEWBOX_SIZE}`}
@@ -298,9 +282,8 @@ const StationGauge = memo(({ limit = 50 }: StationGaugeProps) => {
             >
               <span
                 className="w-full block text-center text-[#ff914d] font-bungee text-sm sm:text-base md:text-lg lg:text-xl xl:text-2xl leading-normal rounded-xl px-3 py-2 bg-[rgba(12,21,33,0.8)] border border-[rgba(255,145,77,0.3)] shadow-[0_0_12px_rgba(255,145,77,0.2)] transition-all duration-150 ease-out overflow-hidden"
-                title={`${stationInfo.display}${
-                  stationInfo.country ? ` - ${stationInfo.country}` : ""
-                }`}
+                title={`${stationInfo.display}${stationInfo.country ? ` - ${stationInfo.country}` : ""
+                  }`}
                 style={{
                   textShadow: "0 0 6px rgba(255, 145, 77, 0.4)",
                 }}

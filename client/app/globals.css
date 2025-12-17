@@ -4,7 +4,7 @@
 :root {
   --background: #16283a;
   --foreground: #FAF9F6;
-  --accent: #ff914d; 
+  --accent: #ff914d;
   --secondary-dark: #0c1521;
 }
 
@@ -21,7 +21,7 @@
     --background: #16283a;
     --foreground: #f2e5c9;
     --accent: #ff914d;
-    --accent-dark: #a44a1f; 
+    --accent-dark: #a44a1f;
   }
 }
 
@@ -42,9 +42,9 @@ body {
   --color-panel-solid: #16283a !important;
 }
 
-[data-radix-heading], 
-[data-radix-typography="heading"], 
-.rt-Heading, 
+[data-radix-heading],
+[data-radix-typography="heading"],
+.rt-Heading,
 .rt-h1, .rt-h2, .rt-h3, .rt-h4, .rt-h5, .rt-h6 {
   font-family: var(--font-bungee) !important;
   color: var(--foreground) !important;
@@ -124,7 +124,7 @@ body {
   background: var(--accent)  !important;
   border: none !important;
   border-radius: 12px !important;
-  box-shadow: 
+  box-shadow:
     0 3.5px 0 rgba(255, 255, 255, 0.2),
     0 8px 12px rgba(0, 0, 0, 0.3),
     inset 0 3px 0 rgba(255, 255, 255, 0.4),
@@ -161,7 +161,7 @@ body {
 .rt-Button:not(.rt-variant-ghost):hover {
   cursor: pointer;
   transform: translateY(-1px) !important;
-  box-shadow: 
+  box-shadow:
     0 4px 0 rgba(245, 245, 245, 0.2),
     0 10px 16px rgba(0, 0, 0, 0.35),
     inset 0 2px 0 rgba(255, 255, 255, 0.5),
@@ -173,7 +173,7 @@ body {
 
 .rt-Button:not(.rt-variant-ghost):active {
   transform: translateY(2px) !important;
-  box-shadow: 
+  box-shadow:
     inset 0 2px 0 rgba(255, 255, 255, 0.4),
     inset 2px 0 0 rgba(255, 255, 255, 0.2),
     inset -2px 0 0 rgba(0, 0, 0, 0.1),
@@ -296,7 +296,7 @@ body {
   max-height: 300px !important;
   overflow-y: auto !important;
   z-index: 50 !important;
-  box-shadow: 0 10px 38px -10px rgba(0, 0, 0, 0.35), 
+  box-shadow: 0 10px 38px -10px rgba(0, 0, 0, 0.35),
               0 10px 20px -15px rgba(0, 0, 0, 0.2) !important;
 }
 /* Search Input Wrapper */
@@ -520,7 +520,7 @@ body {
   padding: 12px !important;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
   pointer-events: auto !important;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5), 
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5),
               0 0 20px rgba(255, 145, 77, 0.1) !important;
 }
 
@@ -572,7 +572,7 @@ body {
     right: 16px !important;
     padding: 10px !important;
   }
-  
+
   .vz-info-overlay {
     bottom: 28px;
     padding: 16px 32px;
@@ -585,20 +585,23 @@ body {
     right: 12px !important;
     padding: 8px !important;
   }
-  
+
   .vz-info-overlay {
     bottom: 24px;
     padding: 14px 28px;
   }
-  
+
   .vz-help-text {
     font-size: 12px;
   }
 }
 
-/* Hide Radix defaults */
 [data-radix-dialog-overlay] {
   background: transparent !important;
+}
+
+[style*="pointer-events: none"][style*="position: fixed"] {
+  pointer-events: none !important;
 }
 
 .vz-fullscreen-dialog [data-radix-dialog-content] {
@@ -616,4 +619,44 @@ body:has(.vz-wrapper) {
   transform: translateZ(0);
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
+}
+
+.location-country-content [data-radix-select-item-indicator],
+.location-station-content [data-radix-select-item-indicator] {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  visibility: hidden !important;
+}
+
+.location-country-content [role="option"]::before,
+.location-country-content [role="option"]::after,
+.location-station-content [role="option"]::before,
+.location-station-content [role="option"]::after {
+  content: none !important;
+  display: none !important;
+}
+
+.location-country-content [role="option"] svg,
+.location-station-content [role="option"] svg {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  visibility: hidden !important;
+}
+
+.location-country-content [role="option"],
+.location-station-content [role="option"] {
+  background-image: none !important;
+  mask-image: none !important;
+  -webkit-mask-image: none !important;
+}
+
+.location-country-item,
+.location-country-content [role="option"],
+.location-station-content [role="option"] {
+  padding-left: 12px !important;
 }

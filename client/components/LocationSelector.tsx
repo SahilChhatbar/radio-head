@@ -4,6 +4,7 @@ import React, { useState, useEffect, useMemo, useCallback, memo } from "react";
 import { Select, Flex, Text } from "@radix-ui/themes";
 import { MapPin, Radio, Loader2 } from "lucide-react";
 import { useRadioStore } from "@/store/useRadiostore";
+import { useQuery } from "@tanstack/react-query";
 import { radioApi } from "@/api/index";
 
 interface Country {
@@ -76,27 +77,96 @@ StationItem.displayName = "StationItem";
 
 const LocationSelector: React.FC<LocationSelectorProps> = memo(
   ({ onCountryChange, onStationChange }) => {
-    const stations = useRadioStore((state) => state.stations);
-    const currentStation = useRadioStore((state) => state.currentStation);
+    // Only subscribe to what we absolutely need
+    const currentStationUuid = useRadioStore(
+      (state) => state.currentStation?.stationuuid || ""
+    );
     const setStations = useRadioStore((state) => state.setStations);
     const play = useRadioStore((state) => state.play);
+
+    // Get stations directly from store for filtering
+    const storeStations = useRadioStore((state) => state.stations);
 
     const countryTriggerRef = React.useRef<HTMLButtonElement>(null);
     const stationTriggerRef = React.useRef<HTMLButtonElement>(null);
 
-    const [countries, setCountries] = useState<Country[]>([]);
     const [selectedCountry, setSelectedCountry] = useState("");
-
     const [isLoadingLocation, setIsLoadingLocation] = useState(true);
-    const [isLoadingCountries, setIsLoadingCountries] = useState(false);
-    const [isLoadingStations, setIsLoadingStations] = useState(false);
-    const [countriesError, setCountriesError] = useState<string | null>(null);
 
     const [searchCountry, setSearchCountry] = useState("");
     const [searchStation, setSearchStation] = useState("");
 
     const [countryOpen, setCountryOpen] = useState(false);
     const [stationOpen, setStationOpen] = useState(false);
+
+    // Fetch countries with caching
+    const {
+      data: countries = [],
+      isLoading: isLoadingCountries,
+      error: countriesError,
+    } = useQuery({
+      queryKey: ["countries"],
+      queryFn: async () => {
+        const countriesData = await radioApi.getCountries();
+        return (countriesData || []).map((c: any) => ({
+          name: c.name,
+          stationcount: c.stationcount,
+          code:
+            c.countrycode?.toUpperCase() ||
+            c.iso_3166_1?.toUpperCase() ||
+            c.code?.toUpperCase() ||
+            String(c.name).slice(0, 2).toUpperCase(),
+        }));
+      },
+      staleTime: Infinity,
+      gcTime: Infinity,
+      refetchOnWindowFocus: false,
+      refetchOnMount: false,
+      refetchOnReconnect: false,
+    });
+
+    // Fetch stations for selected country with caching
+    const {
+      data: countryStations,
+      isLoading: isLoadingStations,
+    } = useQuery({
+      queryKey: ["stations", selectedCountry],
+      queryFn: async () => {
+        if (!selectedCountry) return [];
+        try {
+          const stationsData = await radioApi.getStationsByCountry(
+            selectedCountry,
+            100
+          );
+          return stationsData || [];
+        } catch (error) {
+          console.error("Error fetching stations:", error);
+          try {
+            const popularStations = await radioApi.getPopularStations(50);
+            return popularStations || [];
+          } catch (fallbackError) {
+            return [];
+          }
+        }
+      },
+      enabled: !!selectedCountry,
+      staleTime: 10 * 60 * 1000,
+      gcTime: 30 * 60 * 1000,
+      refetchOnWindowFocus: false,
+      refetchOnMount: false,
+    });
+
+    // Update store stations when country stations change - use ref to prevent re-renders
+    const updateStationsRef = React.useRef(false);
+    useEffect(() => {
+      if (countryStations && !updateStationsRef.current) {
+        updateStationsRef.current = true;
+        setStations(countryStations);
+        requestAnimationFrame(() => {
+          updateStationsRef.current = false;
+        });
+      }
+    }, [countryStations, setStations]);
 
     const getCountryEmoji = useCallback((countryCode: string) => {
       try {
@@ -110,64 +180,17 @@ const LocationSelector: React.FC<LocationSelectorProps> = memo(
       }
     }, []);
 
+    // Initialize location on mount - only once
+    const isInitializedRef = React.useRef(false);
     useEffect(() => {
-      const fetchCountries = async () => {
-        setIsLoadingCountries(true);
-        setCountriesError(null);
-        try {
-          const countriesData = await radioApi.getCountries();
-          const normalized = (countriesData || []).map((c: any) => ({
-            name: c.name,
-            stationcount: c.stationcount,
-            code:
-              c.countrycode?.toUpperCase() ||
-              c.iso_3166_1?.toUpperCase() ||
-              c.code?.toUpperCase() ||
-              String(c.name).slice(0, 2).toUpperCase(),
-          }));
+      if (isInitializedRef.current) return;
+      isInitializedRef.current = true;
 
-          setCountries(normalized);
-        } catch (error) {
-          setCountriesError("Failed to load countries");
-          setCountries([]);
-        } finally {
-          setIsLoadingCountries(false);
-        }
-      };
-
-      fetchCountries();
-    }, []);
-
-    const loadStationsForCountry = useCallback(
-      async (countryCode: string) => {
-        setIsLoadingStations(true);
-        try {
-          const stationsData = await radioApi.getStationsByCountry(
-            countryCode,
-            100
-          );
-          setStations(stationsData || []);
-        } catch (error) {
-          try {
-            const popularStations = await radioApi.getPopularStations(50);
-            setStations(popularStations || []);
-          } catch (fallbackError) {
-            setStations([]);
-          }
-        } finally {
-          setIsLoadingStations(false);
-        }
-      },
-      [setStations]
-    );
-
-    useEffect(() => {
       const initializeLocation = async () => {
         const savedCountry = localStorage.getItem("radioverse-country");
 
         if (savedCountry) {
           setSelectedCountry(savedCountry);
-          await loadStationsForCountry(savedCountry);
           setIsLoadingLocation(false);
           return;
         }
@@ -185,18 +208,15 @@ const LocationSelector: React.FC<LocationSelectorProps> = memo(
                 if (countryCode) {
                   setSelectedCountry(countryCode);
                   localStorage.setItem("radioverse-country", countryCode);
-                  await loadStationsForCountry(countryCode);
                 } else {
                   const defaultCountry = "IN";
                   setSelectedCountry(defaultCountry);
                   localStorage.setItem("radioverse-country", defaultCountry);
-                  await loadStationsForCountry(defaultCountry);
                 }
               } catch (error) {
                 const defaultCountry = "IN";
                 setSelectedCountry(defaultCountry);
                 localStorage.setItem("radioverse-country", defaultCountry);
-                await loadStationsForCountry(defaultCountry);
               } finally {
                 setIsLoadingLocation(false);
               }
@@ -205,7 +225,6 @@ const LocationSelector: React.FC<LocationSelectorProps> = memo(
               const defaultCountry = "IN";
               setSelectedCountry(defaultCountry);
               localStorage.setItem("radioverse-country", defaultCountry);
-              await loadStationsForCountry(defaultCountry);
               setIsLoadingLocation(false);
             }
           );
@@ -213,14 +232,14 @@ const LocationSelector: React.FC<LocationSelectorProps> = memo(
           const defaultCountry = "IN";
           setSelectedCountry(defaultCountry);
           localStorage.setItem("radioverse-country", defaultCountry);
-          await loadStationsForCountry(defaultCountry);
           setIsLoadingLocation(false);
         }
       };
 
       initializeLocation();
-    }, [loadStationsForCountry]);
+    }, []);
 
+    // Memoized filtered lists - only recalculate when needed
     const filteredCountries = useMemo(() => {
       if (!searchCountry) return countries;
       const search = searchCountry.toLowerCase();
@@ -232,17 +251,13 @@ const LocationSelector: React.FC<LocationSelectorProps> = memo(
     }, [countries, searchCountry]);
 
     const filteredStations = useMemo(() => {
-      if (!stations || stations.length === 0) return [];
-      if (!searchStation) return stations;
+      if (!storeStations || storeStations.length === 0) return [];
+      if (!searchStation) return storeStations;
       const search = searchStation.toLowerCase();
-      return stations.filter((station) =>
+      return storeStations.filter((station) =>
         station.name?.toLowerCase().includes(search)
       );
-    }, [stations, searchStation]);
-
-    const selectedStationUuid = useMemo(() => {
-      return currentStation?.stationuuid || "";
-    }, [currentStation?.stationuuid]);
+    }, [storeStations, searchStation]);
 
     const forceBlur = useCallback(() => {
       requestAnimationFrame(() => {
@@ -256,21 +271,21 @@ const LocationSelector: React.FC<LocationSelectorProps> = memo(
           ) {
             focused.blur();
           }
-        } catch (err) {}
+          // Ensure body scroll is restored when dropdown closes
+          document.body.style.overflow = "";
+          document.body.style.paddingRight = "";
+        } catch (err) { }
       });
-    }, []);
-
-    const handleCountryChange = useCallback(
-      async (countryCode: string) => {
+    }, []); const handleCountryChange = useCallback(
+      (countryCode: string) => {
         setSelectedCountry(countryCode);
         setCountryOpen(false);
         setSearchCountry("");
         localStorage.setItem("radioverse-country", countryCode);
         forceBlur();
-        await loadStationsForCountry(countryCode);
         onCountryChange?.(countryCode);
       },
-      [forceBlur, loadStationsForCountry, onCountryChange]
+      [forceBlur, onCountryChange]
     );
 
     const handleStationChange = useCallback(
@@ -296,8 +311,8 @@ const LocationSelector: React.FC<LocationSelectorProps> = memo(
     );
 
     const selectedStationData = useMemo(
-      () => filteredStations.find((s) => s.stationuuid === selectedStationUuid),
-      [filteredStations, selectedStationUuid]
+      () => filteredStations.find((s) => s.stationuuid === currentStationUuid),
+      [filteredStations, currentStationUuid]
     );
 
     const isCountryDropdownDisabled =
@@ -371,7 +386,9 @@ const LocationSelector: React.FC<LocationSelectorProps> = memo(
               data-country-content
               className="location-country-content"
               position="popper"
+              avoidCollisions
               sideOffset={5}
+              onCloseAutoFocus={(e) => e.preventDefault()}
             >
               <div className="location-search-wrapper">
                 <input
@@ -414,10 +431,11 @@ const LocationSelector: React.FC<LocationSelectorProps> = memo(
             </Select.Content>
           </Select.Root>
         </Flex>
+
         <Flex align="center" gap="2" className="relative flex-1 min-w-0">
           <Radio size={16} className="text-accent flex-shrink-0" />
           <Select.Root
-            value={selectedStationUuid}
+            value={currentStationUuid}
             onValueChange={handleStationChange}
             disabled={!selectedCountry || isLoadingStations}
             open={stationOpen}
@@ -465,16 +483,19 @@ const LocationSelector: React.FC<LocationSelectorProps> = memo(
                   {!selectedCountry
                     ? "Please select region"
                     : filteredStations.length === 0
-                    ? "No stations available"
-                    : "Select station"}
+                      ? "No stations available"
+                      : "Select station"}
                 </Text>
               )}
             </Select.Trigger>
+
             <Select.Content
               data-station-content
+              avoidCollisions
               className="location-country-content"
               position="popper"
               sideOffset={5}
+              onCloseAutoFocus={(e) => e.preventDefault()}
             >
               <div className="location-search-wrapper">
                 <input
@@ -497,7 +518,7 @@ const LocationSelector: React.FC<LocationSelectorProps> = memo(
                     <StationItem
                       station={station}
                       isCurrentStation={
-                        currentStation?.stationuuid === station.stationuuid
+                        currentStationUuid === station.stationuuid
                       }
                     />
                   </Select.Item>
@@ -505,9 +526,8 @@ const LocationSelector: React.FC<LocationSelectorProps> = memo(
                 {filteredStations.length === 0 && !isLoadingStations && (
                   <div className="px-3 py-2 text-gray-500 text-sm">
                     {selectedCountry
-                      ? `No stations found in ${
-                          selectedCountryData?.name || selectedCountry
-                        }`
+                      ? `No stations found in ${selectedCountryData?.name || selectedCountry
+                      }`
                       : "Please select a country first"}
                   </div>
                 )}

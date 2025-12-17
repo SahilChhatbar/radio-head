@@ -5,12 +5,11 @@ import React, {
   useCallback,
   Suspense,
 } from "react";
-import { Button, Dialog, Text } from "@radix-ui/themes";
+import { Button, Dialog } from "@radix-ui/themes";
 import { Maximize2, X } from "lucide-react";
 import { useRadioStore } from "@/store/useRadiostore";
 import Loader from "@/components/Loader";
 
-/* ---------------------- Global audio context management --------------------- */
 let globalAudioContext: AudioContext | null = null;
 let globalAnalyser: AnalyserNode | null = null;
 let globalSourceNode: AudioNode | null = null;
@@ -176,11 +175,11 @@ const VisualizerCanvas: React.FC<VisualizerCanvasProps> = ({
             try {
               // try to disconnect any previous connection to analyser
               try {
-                (destNode as any).disconnect(analyser);
+                (destNode as AudioNode).disconnect(analyser);
               } catch {
                 // ignore
               }
-              (destNode as any).connect(analyser);
+              (destNode as AudioNode).connect(analyser);
               analyser.connect(toneCtx.destination);
               globalSourceNode = destNode as AudioNode;
               return true;
@@ -243,8 +242,8 @@ const VisualizerCanvas: React.FC<VisualizerCanvasProps> = ({
       // reset transforms and scale for crispness
       if (typeof ctx.setTransform === "function") {
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      } else if (typeof (ctx as any).resetTransform === "function") {
-        (ctx as any).resetTransform();
+      } else if (typeof (ctx).resetTransform === "function") {
+        (ctx).resetTransform();
         ctx.scale(dpr, dpr);
       } else {
         ctx.scale(dpr, dpr);
@@ -257,7 +256,7 @@ const VisualizerCanvas: React.FC<VisualizerCanvasProps> = ({
     return () => window.removeEventListener("resize", onResize);
   }, [isActive]);
 
-  // Main drawing logic - dots transform to bars
+  // Main drawing logic
   useEffect(() => {
     if (!isActive) return;
 
@@ -366,9 +365,8 @@ const VisualizerCanvas: React.FC<VisualizerCanvasProps> = ({
             ctx.strokeStyle = `rgba(250, 249, 246, ${alpha})`;
             ctx.lineWidth = 1.5 + transitionProgress * 1.5;
             ctx.shadowBlur = 4 + glowIntensity * 4;
-            ctx.shadowColor = `rgba(250, 249, 246, ${
-              0.3 * transitionProgress
-            })`;
+            ctx.shadowColor = `rgba(250, 249, 246, ${0.3 * transitionProgress
+              })`;
           }
 
           ctx.stroke();
@@ -481,7 +479,6 @@ const ImmersiveVisualizer: React.FC<ImmersiveVisualizerProps> = ({
       >
         <Maximize2 size={20} color="#FF914D" />
       </Button>
-
       <Dialog.Root open={isOpen} onOpenChange={setIsOpen}>
         <Dialog.Content
           className="vz-fullscreen-dialog"
@@ -511,7 +508,7 @@ const ImmersiveVisualizer: React.FC<ImmersiveVisualizerProps> = ({
                       zIndex: 1001,
                     }}
                   >
-                    <Loader />
+                    <Loader loadingText="Brace Yourself!" />
                   </div>
                 }
               >
@@ -525,7 +522,6 @@ const ImmersiveVisualizer: React.FC<ImmersiveVisualizerProps> = ({
                 )}
               </Suspense>
             </div>
-
             <Button
               variant="ghost"
               onClick={() => setIsOpen(false)}
@@ -533,12 +529,6 @@ const ImmersiveVisualizer: React.FC<ImmersiveVisualizerProps> = ({
             >
               <X size={28} color="#FAF9F6" />
             </Button>
-
-            <div className="vz-info-overlay">
-              <Text size="2" className="vz-help-text">
-                Press ESC or click X to exit immersive mode
-              </Text>
-            </div>
           </div>
         </Dialog.Content>
       </Dialog.Root>

@@ -59,7 +59,7 @@ export default function RootLayout({
             scaling="100%"
           >
             <div className="min-h-screen flex flex-col bg-main-gradient">
-              <Suspense fallback={<Loader />}>
+              <Suspense fallback={<Loader loadingText="Tuning In" />}>
                 <div className="flex-1 pb-20">{children}</div>
               </Suspense>
               <GlobalPlayer />

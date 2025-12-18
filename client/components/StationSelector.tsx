@@ -35,14 +35,12 @@ const StationGauge = memo(({ limit = 50 }: StationGaugeProps) => {
   const gaugeRef = useRef<SVGGElement>(null);
   const prevAngleRef = useRef<number>(180);
 
-  // Use optimized selectors
   const stations = useStations();
   const currentStationIndex = useCurrentStationIndex();
   const showPlayer = useShowPlayer();
   const isPlaying = useIsPlaying();
   const currentStation = useCurrentStation();
 
-  // Get actions
   const setStations = useRadioStore((state) => state.setStations);
   const nextStation = useRadioStore((state) => state.nextStation);
   const previousStation = useRadioStore((state) => state.previousStation);
@@ -54,9 +52,7 @@ const StationGauge = memo(({ limit = 50 }: StationGaugeProps) => {
   const [isInitializing, setIsInitializing] = React.useState(false);
   const [isLoadingStations, setIsLoadingStations] = React.useState(false);
 
-  // Don't initialize stations here - they come from LocationSelector
   useEffect(() => {
-    // Only set initializing to false if we have stations
     if (stations.length > 0 && isInitializing) {
       setIsInitializing(false);
     }
@@ -187,7 +183,7 @@ const StationGauge = memo(({ limit = 50 }: StationGaugeProps) => {
     return (
       <div className="flex flex-col items-center gap-4 p-8">
         <Loader variant="spinner" />
-        <Text size="2" className="text-slate-500">
+        <Text size="2" weight="regular" className="text-slate-500">
           Loading stations...
         </Text>
       </div>
@@ -275,13 +271,15 @@ const StationGauge = memo(({ limit = 50 }: StationGaugeProps) => {
                 width: "100%",
                 height: "100%",
                 pointerEvents: "auto",
-                padding: "8px",
+                padding: "var(--spacing-sm)",
                 boxSizing: "border-box",
-                gap: "4px",
+                gap: "var(--spacing-xs)",
               }}
             >
-              <span
-                className="w-full block text-center text-[#ff914d] font-bungee text-sm sm:text-base md:text-lg lg:text-xl xl:text-2xl leading-normal rounded-xl px-3 py-2 bg-[rgba(12,21,33,0.8)] border border-[rgba(255,145,77,0.3)] shadow-[0_0_12px_rgba(255,145,77,0.2)] transition-all duration-150 ease-out overflow-hidden"
+              <Text
+                size="2"
+                weight="bold"
+                className="w-full block text-center text-[#ff914d] font-bungee text-fluid-base rounded-xl px-3 py-2 bg-[rgba(12,21,33,0.8)] border border-[rgba(255,145,77,0.3)] shadow-[0_0_12px_rgba(255,145,77,0.2)] transition-all duration-150 ease-out overflow-hidden"
                 title={`${stationInfo.display}${stationInfo.country ? ` - ${stationInfo.country}` : ""
                   }`}
                 style={{
@@ -297,7 +295,7 @@ const StationGauge = memo(({ limit = 50 }: StationGaugeProps) => {
                       : s;
                   })()}
                 </span>
-              </span>
+              </Text>
             </div>
           </foreignObject>
         </svg>

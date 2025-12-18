@@ -6,6 +6,34 @@
   --foreground: #FAF9F6;
   --accent: #ff914d;
   --secondary-dark: #0c1521;
+
+  /* Fluid typography using clamp */
+  --font-size-base: clamp(0.875rem, 0.8rem + 0.375vw, 1rem);
+  --font-size-sm: clamp(0.75rem, 0.7rem + 0.25vw, 0.875rem);
+  --font-size-lg: clamp(1rem, 0.9rem + 0.5vw, 1.25rem);
+  --font-size-xl: clamp(1.25rem, 1.1rem + 0.75vw, 1.5rem);
+  --font-size-2xl: clamp(1.5rem, 1.3rem + 1vw, 2rem);
+  --font-size-3xl: clamp(1.875rem, 1.6rem + 1.375vw, 2.5rem);
+  --font-size-4xl: clamp(2.25rem, 1.9rem + 1.75vw, 3rem);
+
+  /* Fluid spacing using clamp */
+  --spacing-xs: clamp(0.25rem, 0.2rem + 0.25vw, 0.5rem);
+  --spacing-sm: clamp(0.5rem, 0.4rem + 0.5vw, 0.75rem);
+  --spacing-md: clamp(0.75rem, 0.6rem + 0.75vw, 1rem);
+  --spacing-lg: clamp(1rem, 0.8rem + 1vw, 1.5rem);
+  --spacing-xl: clamp(1.5rem, 1.2rem + 1.5vw, 2rem);
+  --spacing-2xl: clamp(2rem, 1.6rem + 2vw, 3rem);
+
+  /* Fluid component sizes */
+  --button-padding-sm: clamp(0.375rem, 0.3rem + 0.375vw, 0.5rem) clamp(0.75rem, 0.6rem + 0.75vw, 1rem);
+  --button-padding-md: clamp(0.5rem, 0.4rem + 0.5vw, 0.75rem) clamp(1rem, 0.8rem + 1vw, 1.25rem);
+  --button-padding-lg: clamp(0.625rem, 0.5rem + 0.625vw, 0.875rem) clamp(1.25rem, 1rem + 1.25vw, 1.5rem);
+
+  /* Fluid border radius */
+  --radius-sm: clamp(0.25rem, 0.2rem + 0.25vw, 0.375rem);
+  --radius-md: clamp(0.5rem, 0.4rem + 0.5vw, 0.75rem);
+  --radius-lg: clamp(0.75rem, 0.6rem + 0.75vw, 1rem);
+  --radius-xl: clamp(1rem, 0.8rem + 1vw, 1.5rem);
 }
 
 @theme inline {
@@ -25,10 +53,15 @@
   }
 }
 
+html {
+  font-size: var(--font-size-base);
+}
+
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-roboto), Arial, Helvetica, sans-serif;
+  font-size: 1em;
 }
 
 .radix-heading {
@@ -80,6 +113,35 @@ body {
   color: var(--accent) !important;
 }
 
+/* Fluid text sizes */
+.text-fluid-sm {
+  font-size: var(--font-size-sm);
+}
+
+.text-fluid-base {
+  font-size: var(--font-size-base);
+}
+
+.text-fluid-lg {
+  font-size: var(--font-size-lg);
+}
+
+.text-fluid-xl {
+  font-size: var(--font-size-xl);
+}
+
+.text-fluid-2xl {
+  font-size: var(--font-size-2xl);
+}
+
+.text-fluid-3xl {
+  font-size: var(--font-size-3xl);
+}
+
+.text-fluid-4xl {
+  font-size: var(--font-size-4xl);
+}
+
 /* ===============================================
    GRADIENT UTILITIES
    =============================================== */
@@ -123,7 +185,7 @@ body {
 .rt-Button:not(.rt-variant-ghost) {
   background: var(--accent)  !important;
   border: none !important;
-  border-radius: 12px !important;
+  border-radius: var(--radius-lg) !important;
   box-shadow:
     0 3.5px 0 rgba(255, 255, 255, 0.2),
     0 8px 12px rgba(0, 0, 0, 0.3),
@@ -134,6 +196,8 @@ body {
   color: var(--foreground) !important;
   font-weight: 500 !important;
   font-family: var(--font-roboto), Arial, Helvetica, sans-serif !important;
+  font-size: var(--font-size-base) !important;
+  padding: var(--button-padding-md) !important;
   transition: all 0s ease !important;
   position: relative !important;
   overflow: hidden !important;
@@ -194,47 +258,25 @@ body {
 }
 
 .rt-Button.rt-r-size-1:not(.rt-variant-ghost) {
-  padding: 6px 12px !important;
-  border-radius: 8px !important;
-  font-size: 14px !important;
-}
-
-.rt-Button.rt-r-size-1:not(.rt-variant-ghost)::before {
-  border-radius: 8px 8px 0 0 !important;
+  padding: var(--button-padding-sm) !important;
+  border-radius: var(--radius-md) !important;
+  font-size: var(--font-size-sm) !important;
 }
 
 .rt-Button.rt-r-size-2:not(.rt-variant-ghost) {
-  padding: 8px 16px !important;
-  border-radius: 10px !important;
-  font-size: 15px !important;
-}
-
-.rt-Button.rt-r-size-2:not(.rt-variant-ghost)::before {
-  border-radius: 10px 10px 0 0 !important;
+  padding: var(--button-padding-md) !important;
+  border-radius: var(--radius-lg) !important;
+  font-size: var(--font-size-base) !important;
 }
 
 .rt-Button.rt-r-size-3:not(.rt-variant-ghost) {
-  padding: 10px 20px !important;
-  border-radius: 12px !important;
-  font-size: 16px !important;
-}
-
-.rt-Button.rt-r-size-3:not(.rt-variant-ghost)::before {
-  border-radius: 12px 12px 0 0 !important;
-}
-
-.rt-Button.rt-r-size-4:not(.rt-variant-ghost) {
-  padding: 12px 24px !important;
-  border-radius: 14px !important;
-  font-size: 18px !important;
-}
-
-.rt-Button.rt-r-size-4:not(.rt-variant-ghost)::before {
-  border-radius: 14px 14px 0 0 !important;
+  padding: var(--button-padding-lg) !important;
+  border-radius: var(--radius-xl) !important;
+  font-size: var(--font-size-lg) !important;
 }
 
 .rt-Button.rt-variant-ghost {
-  border-radius: 8px !important;
+  border-radius: var(--radius-md) !important;
   transition: all 0.2s ease !important;
   background: transparent !important;
 }
@@ -264,8 +306,9 @@ body {
 /* Country Select Trigger */
 .location-country-trigger {
   background: var(--secondary-dark) !important;
-  border-radius: 8px !important;
-  padding: 8px 12px !important;
+  border-radius: var(--radius-md) !important;
+  padding: var(--spacing-sm) var(--spacing-md) !important;
+  font-size: var(--font-size-base) !important;
   transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1) !important;
   will-change: border-color, background, transform;
 }
@@ -291,22 +334,23 @@ body {
 .location-country-content {
   background: var(--secondary-dark) !important;
   border: 1px solid rgba(255, 145, 77, 0.3) !important;
-  border-radius: 10px !important;
-  padding: 8px !important;
-  max-height: 300px !important;
+  border-radius: var(--radius-lg) !important;
+  padding: var(--spacing-sm) !important;
+  max-height: clamp(250px, 40vh, 400px) !important;
   overflow-y: auto !important;
   z-index: 50 !important;
   box-shadow: 0 10px 38px -10px rgba(0, 0, 0, 0.35),
               0 10px 20px -15px rgba(0, 0, 0, 0.2) !important;
 }
+
 /* Search Input Wrapper */
 .location-search-wrapper {
-  padding: 8px;
+  padding: var(--spacing-sm);
   position: sticky;
   top: 0;
   background: var(--secondary-dark);
   border-bottom: 1px solid rgba(255, 145, 77, 0.2);
-  margin-bottom: 8px;
+  margin-bottom: var(--spacing-sm);
   z-index: 10;
 }
 
@@ -315,9 +359,9 @@ body {
   width: 100%;
   background: #16283a;
   border: 1px solid rgba(255, 145, 77, 0.3);
-  border-radius: 6px;
-  padding: 6px 10px;
-  font-size: 14px;
+  border-radius: var(--radius-sm);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  font-size: var(--font-size-sm);
   color: var(--foreground);
   transition: border-color 0.15s ease;
 }
@@ -342,9 +386,10 @@ body {
 
 /* Country Items */
 .location-country-item {
-  padding: 10px 12px !important;
-  border-radius: 6px !important;
+  padding: var(--spacing-sm) var(--spacing-md) !important;
+  border-radius: var(--radius-sm) !important;
   cursor: pointer !important;
+  font-size: var(--font-size-base) !important;
   transition: background-color 0.1s ease !important;
   outline: none !important;
 }
@@ -366,7 +411,7 @@ body {
 /* Optimize scrollbar */
 .location-country-content::-webkit-scrollbar,
 .location-station-content::-webkit-scrollbar {
-  width: 8px;
+  width: clamp(6px, 0.5vw, 10px);
 }
 
 .location-country-content::-webkit-scrollbar-track,
@@ -376,12 +421,12 @@ body {
 
 .location-country-content::-webkit-scrollbar-thumb {
   background: rgba(255, 145, 77, 0.3);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
 }
 
 .location-station-content::-webkit-scrollbar-thumb {
   background: rgba(239, 68, 68, 0.3);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
 }
 
 .location-country-content::-webkit-scrollbar-thumb:hover {
@@ -509,15 +554,15 @@ body {
 
 .vz-close-button {
   position: fixed !important;
-  top: 24px !important;
-  right: 24px !important;
+  top: clamp(16px, 2vw, 32px) !important;
+  right: clamp(16px, 2vw, 32px) !important;
   z-index: 1001 !important;
   background: rgba(0, 0, 0, 0.7) !important;
   backdrop-filter: blur(10px) !important;
   -webkit-backdrop-filter: blur(10px) !important;
   border: 1px solid rgba(255, 145, 77, 0.3) !important;
-  border-radius: 10px !important;
-  padding: 12px !important;
+  border-radius: var(--radius-lg) !important;
+  padding: var(--spacing-md) !important;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
   pointer-events: auto !important;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5),
@@ -539,13 +584,13 @@ body {
 /* Info overlay at bottom - static styling */
 .vz-info-overlay {
   position: fixed;
-  bottom: 36px;
+  bottom: clamp(24px, 3vw, 48px);
   left: 50%;
   transform: translateX(-50%);
   z-index: 1001;
   background: rgba(0, 0, 0, 0.75);
-  padding: 18px 40px;
-  border-radius: 12px;
+  padding: var(--spacing-lg) var(--spacing-2xl);
+  border-radius: var(--radius-xl);
   border: 1px solid rgba(255, 145, 77, 0.25);
   text-align: center;
   backdrop-filter: blur(12px);
@@ -559,7 +604,7 @@ body {
 .vz-help-text {
   color: var(--foreground);
   opacity: 0.9;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   display: block;
   font-family: var(--font-roboto), Arial, sans-serif;
   text-shadow: 0 0 10px rgba(255, 145, 77, 0.3);
@@ -568,31 +613,21 @@ body {
 /* Responsive */
 @media screen and (max-width: 768px) {
   .vz-close-button {
-    top: 16px !important;
-    right: 16px !important;
-    padding: 10px !important;
+    padding: var(--spacing-sm) !important;
   }
 
   .vz-info-overlay {
-    bottom: 28px;
-    padding: 16px 32px;
+    padding: var(--spacing-md) var(--spacing-xl);
   }
 }
 
 @media screen and (max-width: 480px) {
   .vz-close-button {
-    top: 12px !important;
-    right: 12px !important;
-    padding: 8px !important;
+    padding: var(--spacing-xs) !important;
   }
 
   .vz-info-overlay {
-    bottom: 24px;
-    padding: 14px 28px;
-  }
-
-  .vz-help-text {
-    font-size: 12px;
+    padding: var(--spacing-sm) var(--spacing-lg);
   }
 }
 
@@ -658,5 +693,5 @@ body:has(.vz-wrapper) {
 .location-country-item,
 .location-country-content [role="option"],
 .location-station-content [role="option"] {
-  padding-left: 12px !important;
+  padding-left: var(--spacing-md) !important;
 }

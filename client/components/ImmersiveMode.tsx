@@ -5,7 +5,7 @@ import React, {
   useCallback,
   Suspense,
 } from "react";
-import { Button, Dialog } from "@radix-ui/themes";
+import { Button, Dialog, Text } from "@radix-ui/themes";
 import { Maximize2, X } from "lucide-react";
 import { useRadioStore } from "@/store/useRadiostore";
 import Loader from "@/components/Loader";
@@ -62,7 +62,6 @@ const VisualizerCanvas: React.FC<VisualizerCanvasProps> = ({
     return globalAnalyser;
   }, []);
 
-  // Probe for audio element - more aggressive
   useEffect(() => {
     if (!isActive) return;
     let mounted = true;
@@ -74,7 +73,6 @@ const VisualizerCanvas: React.FC<VisualizerCanvasProps> = ({
       if (!mounted) return;
       attempts++;
 
-      // Try multiple sources for audio element
       const el =
         audioRefObject?.current ??
         document.querySelector<HTMLAudioElement>("audio") ??
@@ -90,7 +88,6 @@ const VisualizerCanvas: React.FC<VisualizerCanvasProps> = ({
       }
     };
 
-    // Immediate first probe
     probe();
     interval = window.setInterval(probe, 300);
 
@@ -100,7 +97,6 @@ const VisualizerCanvas: React.FC<VisualizerCanvasProps> = ({
     };
   }, [isActive, audioRefObject]);
 
-  // Connect audio source
   const connectAudioSource = useCallback((): boolean => {
     try {
       const attachAnalyserTo = (sourceNode: AudioNode, ctx: AudioContext) => {
@@ -151,7 +147,6 @@ const VisualizerCanvas: React.FC<VisualizerCanvasProps> = ({
       if (streamType === "tone" && (window as any).Tone) {
         try {
           const Tone = (window as any).Tone as any;
-          // Tone may expose a context or a getContext function
           const toneCtx: AudioContext | undefined =
             Tone.context ??
             (typeof Tone.getContext === "function" && Tone.getContext()) ??
@@ -161,7 +156,6 @@ const VisualizerCanvas: React.FC<VisualizerCanvasProps> = ({
           globalAudioContext = toneCtx;
           const analyser = ensureAnalyser(toneCtx);
 
-          // Tone.js destination detection - be permissive
           const dest =
             (typeof Tone.getDestination === "function" &&
               Tone.getDestination()) ??
@@ -173,7 +167,6 @@ const VisualizerCanvas: React.FC<VisualizerCanvasProps> = ({
 
           if (destNode && typeof destNode.connect === "function") {
             try {
-              // try to disconnect any previous connection to analyser
               try {
                 (destNode as AudioNode).disconnect(analyser);
               } catch {
@@ -199,7 +192,6 @@ const VisualizerCanvas: React.FC<VisualizerCanvasProps> = ({
     }
   }, [audioElement, streamType, ensureAnalyser]);
 
-  // Attempt attaching when we have an audio element and are active
   useEffect(() => {
     if (!isActive || !audioElement) return;
 
@@ -222,7 +214,6 @@ const VisualizerCanvas: React.FC<VisualizerCanvasProps> = ({
     };
   }, [isActive, audioElement, streamType, connectAudioSource]);
 
-  // Canvas initialization effect
   useEffect(() => {
     if (!isActive) return;
     const canvas = canvasRef.current;
@@ -239,7 +230,6 @@ const VisualizerCanvas: React.FC<VisualizerCanvasProps> = ({
       canvas.height = h;
       canvas.style.width = `${window.innerWidth}px`;
       canvas.style.height = `${window.innerHeight}px`;
-      // reset transforms and scale for crispness
       if (typeof ctx.setTransform === "function") {
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       } else if (typeof (ctx).resetTransform === "function") {
@@ -256,7 +246,6 @@ const VisualizerCanvas: React.FC<VisualizerCanvasProps> = ({
     return () => window.removeEventListener("resize", onResize);
   }, [isActive]);
 
-  // Main drawing logic
   useEffect(() => {
     if (!isActive) return;
 
@@ -284,7 +273,6 @@ const VisualizerCanvas: React.FC<VisualizerCanvasProps> = ({
     let bufferLength = globalAnalyser?.frequencyBinCount ?? 1024;
     let dataArray = new Uint8Array(bufferLength);
 
-    // Total elements around the circle
     const TOTAL_ELEMENTS = 100;
     const BAR_THRESHOLD = 45;
     const FULL_BAR_THRESHOLD = 80;
@@ -393,7 +381,6 @@ const VisualizerCanvas: React.FC<VisualizerCanvasProps> = ({
 
       ctx.restore();
 
-      // Draw center text
       const fgColor = getComputedStyle(document.documentElement)
         .getPropertyValue("--foreground")
         .trim();
@@ -402,7 +389,7 @@ const VisualizerCanvas: React.FC<VisualizerCanvasProps> = ({
       ctx.textBaseline = "middle";
 
       if (stationName) {
-        ctx.font = "bold 32px Arial";
+        ctx.font = "bold clamp(24px, 3vw, 40px) Arial";
         ctx.fillText(stationName, centerX, centerY);
       }
 
@@ -414,7 +401,7 @@ const VisualizerCanvas: React.FC<VisualizerCanvasProps> = ({
       });
       ctx.fillStyle = fgColor || "#FAF9F6";
       ctx.globalAlpha = 0.7;
-      ctx.font = "20px Arial";
+      ctx.font = "clamp(16px, 2vw, 24px) Arial";
       ctx.fillText(timeStr, centerX, centerY + 45);
       ctx.globalAlpha = 1;
 
@@ -451,7 +438,6 @@ const ImmersiveVisualizer: React.FC<ImmersiveVisualizerProps> = ({
   };
   const currentStationData = stations?.[currentStation];
 
-  // Clean up global audio references when modal closes
   useEffect(() => {
     if (!isOpen) {
       globalSourceNode = null;
@@ -529,6 +515,11 @@ const ImmersiveVisualizer: React.FC<ImmersiveVisualizerProps> = ({
             >
               <X size={28} color="#FAF9F6" />
             </Button>
+            <div className="vz-info-overlay">
+              <Text size="2" weight="regular" className="vz-help-text">
+                Click anywhere or press ESC to exit
+              </Text>
+            </div>
           </div>
         </Dialog.Content>
       </Dialog.Root>

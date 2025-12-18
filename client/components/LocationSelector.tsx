@@ -31,12 +31,12 @@ const CountryItem = memo(
   ({ country, emoji }: { country: Country; emoji: string }) => (
     <Flex align="center" justify="between" gap="2">
       <Flex align="center" gap="2">
-        <span>{emoji}</span>
-        <Text size="2" className="text-white">
+        <Text size="2" weight="regular">{emoji}</Text>
+        <Text size="2" weight="regular" className="text-white">
           {country.name}
         </Text>
       </Flex>
-      <Text size="1" className="text-white">
+      <Text size="1" weight="regular" className="text-white">
         {country.stationcount}
       </Text>
     </Flex>
@@ -61,6 +61,7 @@ const StationItem = memo(
     >
       <Text
         size="2"
+        weight="regular"
         style={{
           textShadow: isCurrentStation
             ? "0 0 8px rgba(239, 68, 68, 0.6)"
@@ -69,7 +70,7 @@ const StationItem = memo(
       >
         {station.name}
       </Text>
-      <Text size="1">👍 {station.votes}</Text>
+      <Text size="1" weight="regular">👍 {station.votes}</Text>
     </Flex>
   )
 );
@@ -77,14 +78,11 @@ StationItem.displayName = "StationItem";
 
 const LocationSelector: React.FC<LocationSelectorProps> = memo(
   ({ onCountryChange, onStationChange }) => {
-    // Only subscribe to what we absolutely need
     const currentStationUuid = useRadioStore(
       (state) => state.currentStation?.stationuuid || ""
     );
     const setStations = useRadioStore((state) => state.setStations);
     const play = useRadioStore((state) => state.play);
-
-    // Get stations directly from store for filtering
     const storeStations = useRadioStore((state) => state.stations);
 
     const countryTriggerRef = React.useRef<HTMLButtonElement>(null);
@@ -92,14 +90,11 @@ const LocationSelector: React.FC<LocationSelectorProps> = memo(
 
     const [selectedCountry, setSelectedCountry] = useState("");
     const [isLoadingLocation, setIsLoadingLocation] = useState(true);
-
     const [searchCountry, setSearchCountry] = useState("");
     const [searchStation, setSearchStation] = useState("");
-
     const [countryOpen, setCountryOpen] = useState(false);
     const [stationOpen, setStationOpen] = useState(false);
 
-    // Fetch countries with caching
     const {
       data: countries = [],
       isLoading: isLoadingCountries,
@@ -125,7 +120,6 @@ const LocationSelector: React.FC<LocationSelectorProps> = memo(
       refetchOnReconnect: false,
     });
 
-    // Fetch stations for selected country with caching
     const {
       data: countryStations,
       isLoading: isLoadingStations,
@@ -156,7 +150,6 @@ const LocationSelector: React.FC<LocationSelectorProps> = memo(
       refetchOnMount: false,
     });
 
-    // Update store stations when country stations change - use ref to prevent re-renders
     const updateStationsRef = React.useRef(false);
     useEffect(() => {
       if (countryStations && !updateStationsRef.current) {
@@ -180,7 +173,6 @@ const LocationSelector: React.FC<LocationSelectorProps> = memo(
       }
     }, []);
 
-    // Initialize location on mount - only once
     const isInitializedRef = React.useRef(false);
     useEffect(() => {
       if (isInitializedRef.current) return;
@@ -239,7 +231,6 @@ const LocationSelector: React.FC<LocationSelectorProps> = memo(
       initializeLocation();
     }, []);
 
-    // Memoized filtered lists - only recalculate when needed
     const filteredCountries = useMemo(() => {
       if (!searchCountry) return countries;
       const search = searchCountry.toLowerCase();
@@ -271,12 +262,13 @@ const LocationSelector: React.FC<LocationSelectorProps> = memo(
           ) {
             focused.blur();
           }
-          // Ensure body scroll is restored when dropdown closes
           document.body.style.overflow = "";
           document.body.style.paddingRight = "";
         } catch (err) { }
       });
-    }, []); const handleCountryChange = useCallback(
+    }, []);
+
+    const handleCountryChange = useCallback(
       (countryCode: string) => {
         setSelectedCountry(countryCode);
         setCountryOpen(false);
@@ -349,7 +341,7 @@ const LocationSelector: React.FC<LocationSelectorProps> = memo(
               {isLoadingLocation && !selectedCountryData ? (
                 <Flex align="center" gap="2">
                   <Loader2 size={14} className="animate-spin" />
-                  <Text size="2" className="text-gray-400">
+                  <Text size="2" weight="regular" className="text-gray-400">
                     Detecting...
                   </Text>
                 </Flex>
@@ -357,6 +349,7 @@ const LocationSelector: React.FC<LocationSelectorProps> = memo(
                 <Flex align="center" gap="2">
                   <Text
                     size="2"
+                    weight="regular"
                     className="truncate text-accent"
                     style={{
                       textShadow: "0 0 6px rgba(255, 145, 77, 0.4)",
@@ -367,16 +360,16 @@ const LocationSelector: React.FC<LocationSelectorProps> = memo(
                 </Flex>
               ) : selectedCountry && countries.length > 0 ? (
                 <Flex align="center" gap="2">
-                  <Text size="2" className="truncate text-accent">
+                  <Text size="2" weight="regular" className="truncate text-accent">
                     {selectedCountry}
                   </Text>
                 </Flex>
               ) : countriesError ? (
-                <Text size="2" className="text-red-400">
+                <Text size="2" weight="regular" className="text-red-400">
                   Error loading regions
                 </Text>
               ) : (
-                <Text size="2" className="text-gray-400">
+                <Text size="2" weight="regular" className="text-gray-400">
                   {isLoadingCountries ? "Loading regions..." : "Select region"}
                 </Text>
               )}
@@ -416,16 +409,20 @@ const LocationSelector: React.FC<LocationSelectorProps> = memo(
                 ))}
 
                 {filteredCountries.length === 0 && !isLoadingCountries && (
-                  <div className="px-3 py-2 text-gray-500 text-sm">
-                    No countries found
+                  <div className="px-3 py-2">
+                    <Text size="2" weight="regular" className="text-gray-500">
+                      No countries found
+                    </Text>
                   </div>
                 )}
 
                 {isLoadingCountries && (
-                  <div className="px-3 py-2 text-gray-500 text-sm flex items-center gap-2">
+                  <Flex align="center" gap="2" className="px-3 py-2">
                     <Loader2 size={14} className="animate-spin" />
-                    Loading countries...
-                  </div>
+                    <Text size="2" weight="regular" className="text-gray-500">
+                      Loading countries...
+                    </Text>
+                  </Flex>
                 )}
               </Select.Group>
             </Select.Content>
@@ -462,7 +459,7 @@ const LocationSelector: React.FC<LocationSelectorProps> = memo(
               {isLoadingStations ? (
                 <Flex align="center" gap="2">
                   <Loader2 size={14} className="animate-spin" />
-                  <Text size="2" className="text-gray-400">
+                  <Text size="2" weight="regular" className="text-gray-400">
                     Loading...
                   </Text>
                 </Flex>
@@ -470,6 +467,7 @@ const LocationSelector: React.FC<LocationSelectorProps> = memo(
                 <Flex align="center" gap="2" className="w-full min-w-0">
                   <Text
                     size="2"
+                    weight="regular"
                     className="flex-1 truncate text-left text-accent"
                     style={{
                       textShadow: "0 0 6px rgba(255, 145, 77, 0.4)",
@@ -479,7 +477,7 @@ const LocationSelector: React.FC<LocationSelectorProps> = memo(
                   </Text>
                 </Flex>
               ) : (
-                <Text size="2" className="text-gray-400 truncate">
+                <Text size="2" weight="regular" className="text-gray-400 truncate">
                   {!selectedCountry
                     ? "Please select region"
                     : filteredStations.length === 0
@@ -524,11 +522,13 @@ const LocationSelector: React.FC<LocationSelectorProps> = memo(
                   </Select.Item>
                 ))}
                 {filteredStations.length === 0 && !isLoadingStations && (
-                  <div className="px-3 py-2 text-gray-500 text-sm">
-                    {selectedCountry
-                      ? `No stations found in ${selectedCountryData?.name || selectedCountry
-                      }`
-                      : "Please select a country first"}
+                  <div className="px-3 py-2">
+                    <Text size="2" weight="regular" className="text-gray-500">
+                      {selectedCountry
+                        ? `No stations found in ${selectedCountryData?.name || selectedCountry
+                        }`
+                        : "Please select a country first"}
+                    </Text>
                   </div>
                 )}
               </Select.Group>

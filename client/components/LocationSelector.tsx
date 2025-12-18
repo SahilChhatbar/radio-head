@@ -311,9 +311,9 @@ const LocationSelector: React.FC<LocationSelectorProps> = memo(
       isLoadingCountries && countries.length === 0;
 
     return (
-      <Flex gap="0" align="center" className="w-full">
-        <Flex align="center" gap="2" className="relative min-w-[180px]">
-          <MapPin size={16} className="text-accent flex-shrink-0" />
+      <Flex gap="3" align="center" className="w-full" style={{ gap: "var(--spacing-sm)" }}>
+        <Flex align="center" gap="2" className="relative" style={{ minWidth: "clamp(140px, 20vw, 200px)", gap: "var(--spacing-xs)" }}>
+          <MapPin size={16} className="text-accent flex-shrink-0" style={{ width: "clamp(14px, 2vw, 20px)", height: "clamp(14px, 2vw, 20px)" }} />
           <Select.Root
             value={selectedCountry}
             onValueChange={handleCountryChange}
@@ -429,8 +429,8 @@ const LocationSelector: React.FC<LocationSelectorProps> = memo(
           </Select.Root>
         </Flex>
 
-        <Flex align="center" gap="2" className="relative flex-1 min-w-0">
-          <Radio size={16} className="text-accent flex-shrink-0" />
+        <Flex align="center" gap="2" className="relative flex-1 min-w-0" style={{ gap: "var(--spacing-xs)" }}>
+          <Radio size={16} className="text-accent flex-shrink-0" style={{ width: "clamp(14px, 2vw, 20px)", height: "clamp(14px, 2vw, 20px)" }} />
           <Select.Root
             value={currentStationUuid}
             onValueChange={handleStationChange}

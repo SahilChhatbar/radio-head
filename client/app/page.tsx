@@ -113,15 +113,16 @@ const Home = memo(() => {
               direction={{ initial: "column", md: "row" }}
               align="center"
               justify="center"
-              gap="10"
-              className="text-center max-w-6xl mx-auto w-full"
+              gap="9"
+              className="text-center w-full"
+              style={{ maxWidth: "var(--max-width)", margin: "0 auto" }}
             >
               <Flex direction="column" gap="6" className="flex-1 items-center">
                 <Flex direction="column" gap="4">
                   <Heading size={{ initial: "8", sm: "9" }} weight="bold">
                     {heroContent.title}
                   </Heading>
-                  <Text size={{ initial: "4", sm: "5" }}>
+                  <Text size={{ initial: "3", sm: "4" }}>
                     {heroContent.subtitle}
                   </Text>
                 </Flex>

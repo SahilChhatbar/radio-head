@@ -23,37 +23,44 @@ import ImmersiveVisualizer from "./ImmersiveMode";
 
 const ORANGE = "#FF914D";
 
-// Memoized icon component - prevents re-render on volume change
+const iconSize = "clamp(16px, 2vw, 22px)";
+const buttonSize = "clamp(2.5rem, 3vw, 3.5rem)";
+
 const StationIcon = memo(
   ({ isLoading, isPlaying }: { isLoading: boolean; isPlaying: boolean }) => {
     if (isLoading) {
       return (
-        <div className="w-6 h-6 border-2 border-[#FF914D] border-t-transparent rounded-full animate-spin" />
+        <div
+          className="border-2 border-[#FF914D] border-t-transparent rounded-full animate-spin"
+          style={{
+            width: iconSize,
+            height: iconSize
+          }}
+        />
       );
     }
     if (isPlaying) {
-      return <Disc3 size={26} className="text-[#FF914D] animate-spin" />;
+      return <Disc3 className="text-[#FF914D] animate-spin" style={{ width: iconSize, height: iconSize }} />;
     }
-    return <Unplug size={26} className="text-[#FF914D]" />;
+    return <Unplug className="text-[#FF914D]" style={{ width: iconSize, height: iconSize }} />;
   }
 );
 StationIcon.displayName = "StationIcon";
 
-// Memoized station info - prevents re-render on volume change
 const StationInfo = memo(
   ({ name, latency }: { name: string; latency: number }) => (
-    <Flex direction="column" gap="1" className="min-w-0">
+    <Flex direction="column" gap="1" className="min-w-0" style={{ gap: "var(--spacing-xs)" }}>
       <Text size="3" weight="medium" className="truncate">
         {name}
       </Text>
       {latency > 0 && (
-        <Flex gap="2" align="center" className="text-xs text-slate-400">
-          <Clock size={12} />
-          <span>
+        <Flex gap="2" align="center" style={{ fontSize: "var(--font-size-xs)", gap: "var(--spacing-xs)" }}>
+          <Clock className="text-[#FF914D]" />
+          <Text size="1" className="text-[#FF914D]">
             {latency < 1
-              ? `${Math.round(latency * 1000)}ms`
+              ? `${Math.round(latency * 1000)} ms`
               : `${latency.toFixed(1)}s`}
-          </span>
+          </Text>
         </Flex>
       )}
     </Flex>
@@ -61,7 +68,6 @@ const StationInfo = memo(
 );
 StationInfo.displayName = "StationInfo";
 
-// Memoized volume control - only this re-renders on volume change
 const VolumeControl = memo(
   ({
     isMuted,
@@ -81,34 +87,36 @@ const VolumeControl = memo(
         variant="ghost"
         onClick={onMuteToggle}
         className="hover:bg-[#FF914D]/10"
+        style={{ padding: "var(--spacing-xs)" }}
       >
         {isMuted || volume === 0 ? (
-          <VolumeX size={20} color={ORANGE} />
+          <VolumeX color={ORANGE} style={{ width: iconSize, height: iconSize }} />
         ) : (
-          <Volume2 size={20} color={ORANGE} />
+          <Volume2 color={ORANGE} style={{ width: iconSize, height: iconSize }} />
         )}
       </Button>
 
-      <div className="w-20 hidden md:block">
+      <div className="hidden md:block" style={{ width: "clamp(60px, 10vw, 100px)" }}>
         <Slider.Root
           min={0}
           max={1}
           step={0.01}
           value={[displayVolume]}
           onValueChange={onVolumeChange}
-          className="relative flex items-center w-full h-5"
+          className="relative flex items-center w-full"
+          style={{ height: "clamp(1rem, 1.5vw, 1.5rem)" }}
         >
-          <Slider.Track className="relative w-full h-1 bg-slate-700 rounded-lg">
+          <Slider.Track className="relative w-full bg-slate-700 rounded-lg" style={{ height: "clamp(3px, 0.5vw, 5px)" }}>
             <Slider.Range
               className="absolute h-full rounded-lg"
               style={{ background: ORANGE }}
             />
           </Slider.Track>
-          <Slider.Thumb className="block w-4 h-4 bg-white rounded-full shadow" />
+          <Slider.Thumb className="block bg-white rounded-full shadow" style={{ width: "clamp(12px, 2vw, 18px)", height: "clamp(12px, 2vw, 18px)" }} />
         </Slider.Root>
       </div>
 
-      <Text size="1" className="text-[#FF914D] min-w-8 hidden lg:block">
+      <Text size="1" className="text-[#FF914D] hidden lg:block" style={{ minWidth: "clamp(1.5rem, 3vw, 2.5rem)" }}>
         {Math.round(displayVolume * 100)}%
       </Text>
     </>
@@ -121,7 +129,6 @@ const GlobalPlayer: React.FC = () => {
   const isChangingStationRef = React.useRef(false);
   const isInitializedRef = React.useRef(false);
 
-  // Granular subscriptions - only subscribe to what we need
   const stations = useRadioStore((state) => state.stations);
   const currentStation = useRadioStore((state) => state.currentStation);
   const currentStationIndex = useRadioStore(
@@ -133,7 +140,6 @@ const GlobalPlayer: React.FC = () => {
   const isMuted = useRadioStore((state) => state.isMuted);
   const showPlayer = useRadioStore((state) => state.showPlayer);
 
-  // Get actions from store (these don't cause re-renders)
   const play = useRadioStore((state) => state.play);
   const nextStation = useRadioStore((state) => state.nextStation);
   const previousStation = useRadioStore((state) => state.previousStation);
@@ -183,8 +189,8 @@ const GlobalPlayer: React.FC = () => {
     setAudioControls({
       play: playAudio,
       pause: pauseAudio,
-      setVolume: () => {},
-      setMuted: () => {},
+      setVolume: () => { },
+      setMuted: () => { },
     });
 
     isInitializedRef.current = true;
@@ -341,7 +347,6 @@ const GlobalPlayer: React.FC = () => {
     [storeIsLoading, isPlaying]
   );
 
-  // Memoize volume change handler to prevent recreation
   const handleVolumeChange = useCallback(
     (v: number[]) => {
       updateVolume(+v[0].toFixed(2));
@@ -349,7 +354,6 @@ const GlobalPlayer: React.FC = () => {
     [updateVolume]
   );
 
-  // Memoize mute toggle
   const handleMuteToggle = useCallback(() => {
     updateMuted(!isMuted);
   }, [isMuted, updateMuted]);
@@ -364,11 +368,24 @@ const GlobalPlayer: React.FC = () => {
         style={{ display: "none" }}
       />
 
-      <Box className="fixed bottom-0 left-0 right-0 z-50 border-t border-gray-700/50 bg-[#0C1521]/95">
-        <Container size="4" className="py-3">
-          <Flex align="center" justify="between" gap="4">
-            <Flex align="center" gap="3" className="flex-1 min-w-0">
-              <div className="w-12 h-12 bg-[#FF914D]/20 rounded-lg flex items-center justify-center">
+      <Box
+        className="fixed bottom-0 left-0 right-0 z-50 border-t border-gray-700/50 bg-[#0C1521]/95"
+        style={{
+          backdropFilter: "blur(10px)",
+          WebkitBackdropFilter: "blur(10px)"
+        }}
+      >
+        <Container size="4" style={{ padding: "var(--spacing-md) var(--container-padding-x)" }}>
+          <Flex align="center" justify="between" gap="4" style={{ gap: "var(--spacing-md)" }}>
+            <Flex align="center" gap="3" className="flex-1 min-w-0" style={{ gap: "var(--spacing-sm)" }}>
+              <div
+                className="bg-[#FF914D]/20 rounded-lg flex items-center justify-center"
+                style={{
+                  width: buttonSize,
+                  height: buttonSize,
+                  borderRadius: "var(--radius-md)"
+                }}
+              >
                 <StationIcon isLoading={storeIsLoading} isPlaying={isPlaying} />
               </div>
 
@@ -378,25 +395,35 @@ const GlobalPlayer: React.FC = () => {
               />
             </Flex>
 
-            <Flex align="center" gap="2">
-              <Button onClick={handlePrevious}>
-                <SkipBack size={18} />
+            <Flex align="center" gap="2" style={{ gap: "var(--spacing-xs)" }}>
+              <Button onClick={handlePrevious} style={{ padding: "var(--spacing-xs)" }}>
+                <SkipBack />
               </Button>
 
               <Button
                 size="3"
                 onClick={handlePlayPause}
-                className="w-12 h-12 rounded-full bg-[#FF914D] hover:bg-[#FF914D]/90 text-white"
+                className="rounded-full bg-[#FF914D] hover:bg-[#FF914D]/90 text-white"
+                style={{
+                  padding: 0,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center"
+                }}
               >
-                {isPlaying ? <Pause size={20} /> : <Play size={20} />}
+                {isPlaying ? (
+                  <Pause />
+                ) : (
+                  <Play />
+                )}
               </Button>
 
-              <Button onClick={handleNext}>
-                <SkipForward size={18} />
+              <Button onClick={handleNext} style={{ padding: "var(--spacing-xs)" }}>
+                <SkipForward />
               </Button>
             </Flex>
 
-            <Flex align="center" gap="3">
+            <Flex align="center" gap="3" style={{ gap: "var(--spacing-sm)" }}>
               <VolumeControl
                 isMuted={isMuted}
                 volume={volume}

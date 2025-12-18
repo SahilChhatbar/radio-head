@@ -23,10 +23,10 @@ const Logo = ({
   };
 
   const textSizes = {
-    sm: "2" as const,
-    md: "3" as const,
-    lg: "4" as const,
-    xl: "6" as const,
+    sm: "1" as const,
+    md: "2" as const,
+    lg: "3" as const,
+    xl: "4" as const,
   };
 
   const imageSize = imageSizes[size];
@@ -57,7 +57,7 @@ const Logo = ({
           priority={priority}
         />
         {showText && (
-          <Flex direction="column" align="center">
+          <Flex direction="column" gap="1" align="center">
             <Heading size={textSize} weight="bold">
               Radio
             </Heading>
@@ -80,17 +80,15 @@ const Logo = ({
         priority={priority}
       />
       {showText && (
-        <Flex direction="column" align="center" gap="0">
-          <Flex direction="column" align="center" gap="0">
+        <Flex direction="column" align="center" gap="2">
+          <Heading size={textSize} weight="bold">
+            Radio
+          </Heading>
+          <div style={{ marginTop: "-4px" }}>
             <Heading size={textSize} weight="bold">
-              Radio
+              Verse
             </Heading>
-            <div style={{ marginTop: "-4px" }}>
-              <Heading size={textSize} weight="bold">
-                Verse
-              </Heading>
-            </div>
-          </Flex>
+          </div>
         </Flex>
       )}
     </Flex>

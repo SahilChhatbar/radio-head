@@ -7,33 +7,40 @@
   --accent: #ff914d;
   --secondary-dark: #0c1521;
 
-  /* Fluid typography using clamp */
-  --font-size-base: clamp(0.875rem, 0.8rem + 0.375vw, 1rem);
-  --font-size-sm: clamp(0.75rem, 0.7rem + 0.25vw, 0.875rem);
-  --font-size-lg: clamp(1rem, 0.9rem + 0.5vw, 1.25rem);
-  --font-size-xl: clamp(1.25rem, 1.1rem + 0.75vw, 1.5rem);
-  --font-size-2xl: clamp(1.5rem, 1.3rem + 1vw, 2rem);
-  --font-size-3xl: clamp(1.875rem, 1.6rem + 1.375vw, 2.5rem);
-  --font-size-4xl: clamp(2.25rem, 1.9rem + 1.75vw, 3rem);
+  /* Fluid typography using clamp - more aggressive scaling */
+  --font-size-xs: clamp(0.625rem, 0.5rem + 0.5vw, 0.75rem);
+  --font-size-sm: clamp(0.75rem, 0.625rem + 0.625vw, 0.875rem);
+  --font-size-base: clamp(0.875rem, 0.75rem + 0.625vw, 1.125rem);
+  --font-size-lg: clamp(1rem, 0.875rem + 0.625vw, 1.375rem);
+  --font-size-xl: clamp(1.25rem, 1rem + 1.25vw, 1.875rem);
+  --font-size-2xl: clamp(1.5rem, 1.125rem + 1.875vw, 2.25rem);
+  --font-size-3xl: clamp(1.875rem, 1.375rem + 2.5vw, 3rem);
+  --font-size-4xl: clamp(2.25rem, 1.5rem + 3.75vw, 2.5rem);
 
-  /* Fluid spacing using clamp */
-  --spacing-xs: clamp(0.25rem, 0.2rem + 0.25vw, 0.5rem);
-  --spacing-sm: clamp(0.5rem, 0.4rem + 0.5vw, 0.75rem);
-  --spacing-md: clamp(0.75rem, 0.6rem + 0.75vw, 1rem);
-  --spacing-lg: clamp(1rem, 0.8rem + 1vw, 1.5rem);
-  --spacing-xl: clamp(1.5rem, 1.2rem + 1.5vw, 2rem);
-  --spacing-2xl: clamp(2rem, 1.6rem + 2vw, 3rem);
+  /* Fluid spacing using clamp - more aggressive scaling */
+  --spacing-xs: clamp(0.25rem, 0.125rem + 0.625vw, 0.5rem);
+  --spacing-sm: clamp(0.5rem, 0.25rem + 1.25vw, 1rem);
+  --spacing-md: clamp(0.75rem, 0.375rem + 1.875vw, 1.5rem);
+  --spacing-lg: clamp(1rem, 0.5rem + 2.5vw, 2rem);
+  --spacing-xl: clamp(1.5rem, 0.75rem + 3.75vw, 3rem);
+  --spacing-2xl: clamp(2rem, 1rem + 5vw, 2.5rem);
+
+  /* Container padding - responsive horizontal padding */
+  --container-padding-x: clamp(1.25rem, 1.25rem + 2.5vw, 3.75rem); /* 20px -> 36px -> 60px */
+
+  /* Max width */
+  --max-width: 1600px;
 
   /* Fluid component sizes */
-  --button-padding-sm: clamp(0.375rem, 0.3rem + 0.375vw, 0.5rem) clamp(0.75rem, 0.6rem + 0.75vw, 1rem);
-  --button-padding-md: clamp(0.5rem, 0.4rem + 0.5vw, 0.75rem) clamp(1rem, 0.8rem + 1vw, 1.25rem);
-  --button-padding-lg: clamp(0.625rem, 0.5rem + 0.625vw, 0.875rem) clamp(1.25rem, 1rem + 1.25vw, 1.5rem);
+  --button-padding-sm: clamp(0.375rem, 0.25rem + 0.625vw, 0.625rem) clamp(0.75rem, 0.5rem + 1.25vw, 1.25rem);
+  --button-padding-md: clamp(0.5rem, 0.375rem + 0.625vw, 0.875rem) clamp(1rem, 0.75rem + 1.25vw, 1.5rem);
+  --button-padding-lg: clamp(0.625rem, 0.5rem + 0.625vw, 1rem) clamp(1.25rem, 1rem + 1.25vw, 2rem);
 
   /* Fluid border radius */
-  --radius-sm: clamp(0.25rem, 0.2rem + 0.25vw, 0.375rem);
-  --radius-md: clamp(0.5rem, 0.4rem + 0.5vw, 0.75rem);
-  --radius-lg: clamp(0.75rem, 0.6rem + 0.75vw, 1rem);
-  --radius-xl: clamp(1rem, 0.8rem + 1vw, 1.5rem);
+  --radius-sm: clamp(0.25rem, 0.125rem + 0.625vw, 0.5rem);
+  --radius-md: clamp(0.5rem, 0.375rem + 0.625vw, 0.875rem);
+  --radius-lg: clamp(0.75rem, 0.5rem + 1.25vw, 1.25rem);
+  --radius-xl: clamp(1rem, 0.75rem + 1.25vw, 1.75rem);
 }
 
 @theme inline {
@@ -54,14 +61,24 @@
 }
 
 html {
-  font-size: var(--font-size-base);
+  font-size: 16px; /* Base font size */
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-roboto), Arial, Helvetica, sans-serif;
-  font-size: 1em;
+  font-size: var(--font-size-base);
+}
+
+/* Container with max-width and responsive padding */
+.container,
+.rt-Container {
+  max-width: var(--max-width) !important;
+  padding-left: var(--container-padding-x) !important;
+  padding-right: var(--container-padding-x) !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
 }
 
 .radix-heading {
@@ -113,33 +130,105 @@ body {
   color: var(--accent) !important;
 }
 
-/* Fluid text sizes */
+/* Fluid text sizes - Use these classes for fluid typography */
+.text-fluid-xs {
+  font-size: var(--font-size-xs) !important;
+}
+
 .text-fluid-sm {
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-sm) !important;
 }
 
 .text-fluid-base {
-  font-size: var(--font-size-base);
+  font-size: var(--font-size-base) !important;
 }
 
 .text-fluid-lg {
-  font-size: var(--font-size-lg);
+  font-size: var(--font-size-lg) !important;
 }
 
 .text-fluid-xl {
-  font-size: var(--font-size-xl);
+  font-size: var(--font-size-xl) !important;
 }
 
 .text-fluid-2xl {
-  font-size: var(--font-size-2xl);
+  font-size: var(--font-size-2xl) !important;
 }
 
 .text-fluid-3xl {
-  font-size: var(--font-size-3xl);
+  font-size: var(--font-size-3xl) !important;
 }
 
 .text-fluid-4xl {
-  font-size: var(--font-size-4xl);
+  font-size: var(--font-size-4xl) !important;
+}
+
+/* Override Radix UI text sizes to use fluid sizing */
+.rt-Text[data-accent-color],
+.rt-Text {
+  font-size: var(--font-size-base) !important;
+}
+
+.rt-Text.rt-r-size-1 {
+  font-size: var(--font-size-sm) !important;
+}
+
+.rt-Text.rt-r-size-2 {
+  font-size: var(--font-size-base) !important;
+}
+
+.rt-Text.rt-r-size-3 {
+  font-size: var(--font-size-lg) !important;
+}
+
+.rt-Text.rt-r-size-4 {
+  font-size: var(--font-size-xl) !important;
+}
+
+.rt-Text.rt-r-size-5 {
+  font-size: var(--font-size-2xl) !important;
+}
+
+.rt-Text.rt-r-size-6 {
+  font-size: var(--font-size-3xl) !important;
+}
+
+.rt-Text.rt-r-size-7 {
+  font-size: var(--font-size-4xl) !important;
+}
+
+/* Override Radix UI heading sizes to use fluid sizing */
+.rt-Heading.rt-r-size-1,
+.rt-h6 {
+  font-size: var(--font-size-base) !important;
+}
+
+.rt-Heading.rt-r-size-2,
+.rt-h5 {
+  font-size: var(--font-size-lg) !important;
+}
+
+.rt-Heading.rt-r-size-3,
+.rt-h4 {
+  font-size: var(--font-size-xl) !important;
+}
+
+.rt-Heading.rt-r-size-4,
+.rt-h3 {
+  font-size: var(--font-size-2xl) !important;
+}
+
+.rt-Heading.rt-r-size-5,
+.rt-h2 {
+  font-size: var(--font-size-3xl) !important;
+}
+
+.rt-Heading.rt-r-size-6,
+.rt-Heading.rt-r-size-7,
+.rt-Heading.rt-r-size-8,
+.rt-Heading.rt-r-size-9,
+.rt-h1 {
+  font-size: var(--font-size-4xl) !important;
 }
 
 /* ===============================================
@@ -311,6 +400,7 @@ body {
   font-size: var(--font-size-base) !important;
   transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1) !important;
   will-change: border-color, background, transform;
+  min-height: clamp(2.25rem, 2rem + 1.25vw, 2.75rem) !important;
 }
 
 .location-country-trigger:hover:not(:disabled) {
@@ -364,6 +454,7 @@ body {
   font-size: var(--font-size-sm);
   color: var(--foreground);
   transition: border-color 0.15s ease;
+  min-height: clamp(1.75rem, 1.5rem + 1.25vw, 2.25rem);
 }
 
 .location-search-input::placeholder {
@@ -392,6 +483,7 @@ body {
   font-size: var(--font-size-base) !important;
   transition: background-color 0.1s ease !important;
   outline: none !important;
+  min-height: clamp(2rem, 1.75rem + 1.25vw, 2.5rem) !important;
 }
 
 .location-country-item[data-highlighted] {

@@ -232,8 +232,8 @@ const VisualizerCanvas: React.FC<VisualizerCanvasProps> = ({
       canvas.style.height = `${window.innerHeight}px`;
       if (typeof ctx.setTransform === "function") {
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      } else if (typeof (ctx).resetTransform === "function") {
-        (ctx).resetTransform();
+      } else if (typeof ctx.resetTransform === "function") {
+        ctx.resetTransform();
         ctx.scale(dpr, dpr);
       } else {
         ctx.scale(dpr, dpr);
@@ -353,8 +353,9 @@ const VisualizerCanvas: React.FC<VisualizerCanvasProps> = ({
             ctx.strokeStyle = `rgba(250, 249, 246, ${alpha})`;
             ctx.lineWidth = 1.5 + transitionProgress * 1.5;
             ctx.shadowBlur = 4 + glowIntensity * 4;
-            ctx.shadowColor = `rgba(250, 249, 246, ${0.3 * transitionProgress
-              })`;
+            ctx.shadowColor = `rgba(250, 249, 246, ${
+              0.3 * transitionProgress
+            })`;
           }
 
           ctx.stroke();
@@ -515,11 +516,6 @@ const ImmersiveVisualizer: React.FC<ImmersiveVisualizerProps> = ({
             >
               <X size={28} color="#FAF9F6" />
             </Button>
-            <div className="vz-info-overlay">
-              <Text size="2" weight="regular" className="vz-help-text">
-                Click anywhere or press ESC to exit
-              </Text>
-            </div>
           </div>
         </Dialog.Content>
       </Dialog.Root>

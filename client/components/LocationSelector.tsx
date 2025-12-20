@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect, useMemo, useCallback, memo } from "react";
 import { Select, Flex, Text } from "@radix-ui/themes";
-import { MapPin, Radio, Loader2 } from "lucide-react";
+import { MapPin, Radio, Loader2, FlameIcon } from "lucide-react";
+import { formatVotes } from "@/utils/formatting";
 import { useRadioStore } from "@/store/useRadiostore";
 import { useQuery } from "@tanstack/react-query";
 import { radioApi } from "@/api/index";
@@ -31,7 +32,9 @@ const CountryItem = memo(
   ({ country, emoji }: { country: Country; emoji: string }) => (
     <Flex align="center" justify="between" gap="2">
       <Flex align="center" gap="2">
-        <Text size="2" weight="regular">{emoji}</Text>
+        <Text size="2" weight="regular">
+          {emoji}
+        </Text>
         <Text size="2" weight="regular" className="text-white">
           {country.name}
         </Text>
@@ -70,7 +73,9 @@ const StationItem = memo(
       >
         {station.name}
       </Text>
-      <Text size="1" weight="regular">👍 {station.votes}</Text>
+      <Text size="1" weight="regular">
+        🔥{formatVotes(station.votes)}
+      </Text>
     </Flex>
   )
 );
@@ -120,10 +125,7 @@ const LocationSelector: React.FC<LocationSelectorProps> = memo(
       refetchOnReconnect: false,
     });
 
-    const {
-      data: countryStations,
-      isLoading: isLoadingStations,
-    } = useQuery({
+    const { data: countryStations, isLoading: isLoadingStations } = useQuery({
       queryKey: ["stations", selectedCountry],
       queryFn: async () => {
         if (!selectedCountry) return [];
@@ -235,7 +237,7 @@ const LocationSelector: React.FC<LocationSelectorProps> = memo(
       if (!searchCountry) return countries;
       const search = searchCountry.toLowerCase();
       return countries.filter(
-        (country) =>
+        (country: Country) =>
           country.name.toLowerCase().includes(search) ||
           (country.code && country.code.toLowerCase().includes(search))
       );
@@ -264,7 +266,7 @@ const LocationSelector: React.FC<LocationSelectorProps> = memo(
           }
           document.body.style.overflow = "";
           document.body.style.paddingRight = "";
-        } catch (err) { }
+        } catch (err) {}
       });
     }, []);
 
@@ -298,7 +300,7 @@ const LocationSelector: React.FC<LocationSelectorProps> = memo(
     );
 
     const selectedCountryData = useMemo(
-      () => countries.find((c) => c.code === selectedCountry),
+      () => countries.find((c: Country) => c.code === selectedCountry),
       [countries, selectedCountry]
     );
 
@@ -311,9 +313,29 @@ const LocationSelector: React.FC<LocationSelectorProps> = memo(
       isLoadingCountries && countries.length === 0;
 
     return (
-      <Flex gap="3" align="center" className="w-full" style={{ gap: "var(--spacing-sm)" }}>
-        <Flex align="center" gap="2" className="relative" style={{ minWidth: "clamp(140px, 20vw, 200px)", gap: "var(--spacing-xs)" }}>
-          <MapPin size={16} className="text-accent flex-shrink-0" style={{ width: "clamp(14px, 2vw, 20px)", height: "clamp(14px, 2vw, 20px)" }} />
+      <Flex
+        gap="3"
+        align="center"
+        className="w-full"
+        style={{ gap: "var(--spacing-sm)" }}
+      >
+        <Flex
+          align="center"
+          gap="2"
+          className="relative"
+          style={{
+            minWidth: "clamp(140px, 20vw, 200px)",
+            gap: "var(--spacing-xs)",
+          }}
+        >
+          <MapPin
+            size={16}
+            className="text-accent flex-shrink-0"
+            style={{
+              width: "clamp(14px, 2vw, 20px)",
+              height: "clamp(14px, 2vw, 20px)",
+            }}
+          />
           <Select.Root
             value={selectedCountry}
             onValueChange={handleCountryChange}
@@ -360,7 +382,11 @@ const LocationSelector: React.FC<LocationSelectorProps> = memo(
                 </Flex>
               ) : selectedCountry && countries.length > 0 ? (
                 <Flex align="center" gap="2">
-                  <Text size="2" weight="regular" className="truncate text-accent">
+                  <Text
+                    size="2"
+                    weight="regular"
+                    className="truncate text-accent"
+                  >
                     {selectedCountry}
                   </Text>
                 </Flex>
@@ -394,7 +420,7 @@ const LocationSelector: React.FC<LocationSelectorProps> = memo(
                 />
               </div>
               <Select.Group>
-                {filteredCountries.map((country) => (
+                {filteredCountries.map((country: Country) => (
                   <Select.Item
                     key={country.code}
                     value={country.code}
@@ -429,8 +455,20 @@ const LocationSelector: React.FC<LocationSelectorProps> = memo(
           </Select.Root>
         </Flex>
 
-        <Flex align="center" gap="2" className="relative flex-1 min-w-0" style={{ gap: "var(--spacing-xs)" }}>
-          <Radio size={16} className="text-accent flex-shrink-0" style={{ width: "clamp(14px, 2vw, 20px)", height: "clamp(14px, 2vw, 20px)" }} />
+        <Flex
+          align="center"
+          gap="2"
+          className="relative flex-1 min-w-0"
+          style={{ gap: "var(--spacing-xs)" }}
+        >
+          <Radio
+            size={16}
+            className="text-accent flex-shrink-0"
+            style={{
+              width: "clamp(14px, 2vw, 20px)",
+              height: "clamp(14px, 2vw, 20px)",
+            }}
+          />
           <Select.Root
             value={currentStationUuid}
             onValueChange={handleStationChange}
@@ -477,12 +515,16 @@ const LocationSelector: React.FC<LocationSelectorProps> = memo(
                   </Text>
                 </Flex>
               ) : (
-                <Text size="2" weight="regular" className="text-gray-400 truncate">
+                <Text
+                  size="2"
+                  weight="regular"
+                  className="text-gray-400 truncate"
+                >
                   {!selectedCountry
                     ? "Please select region"
                     : filteredStations.length === 0
-                      ? "No stations available"
-                      : "Select station"}
+                    ? "No stations available"
+                    : "Select station"}
                 </Text>
               )}
             </Select.Trigger>
@@ -525,8 +567,9 @@ const LocationSelector: React.FC<LocationSelectorProps> = memo(
                   <div className="px-3 py-2">
                     <Text size="2" weight="regular" className="text-gray-500">
                       {selectedCountry
-                        ? `No stations found in ${selectedCountryData?.name || selectedCountry
-                        }`
+                        ? `No stations found in ${
+                            selectedCountryData?.name || selectedCountry
+                          }`
                         : "Please select a country first"}
                     </Text>
                   </div>

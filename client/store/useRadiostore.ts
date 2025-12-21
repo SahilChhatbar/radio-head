@@ -47,6 +47,12 @@ interface RadioStore extends RadioPlayerState {
   setStreamType: (type: "hls" | "tone" | "howler" | null) => void;
 }
 
+// Get initial country from localStorage (SSR safe)
+const getInitialCountry = (): string => {
+  if (typeof window === "undefined") return "IN";
+  return localStorage.getItem("radioverse-country") || "IN";
+};
+
 export const useRadioStore = create<RadioStore>((set, get) => ({
   isPlaying: false,
   currentStation: null,
@@ -59,10 +65,7 @@ export const useRadioStore = create<RadioStore>((set, get) => ({
   currentStationIndex: 0,
 
   showPlayer: false,
-  selectedCountry:
-    typeof window !== "undefined"
-      ? localStorage.getItem("radioverse-country") || "IN"
-      : "IN",
+  selectedCountry: getInitialCountry(),
 
   streamType: null,
 
@@ -223,6 +226,7 @@ export const useRadioStore = create<RadioStore>((set, get) => ({
 
   setSelectedCountry: (country) => {
     set({ selectedCountry: country });
+    // Persist to localStorage
     if (typeof window !== "undefined") {
       localStorage.setItem("radioverse-country", country);
     }
@@ -238,3 +242,4 @@ export const useIsLoading = () => useRadioStore((state) => state.isLoading);
 export const useShowPlayer = () => useRadioStore((state) => state.showPlayer);
 export const useStations = () => useRadioStore((state) => state.stations);
 export const useCurrentStationIndex = () => useRadioStore((state) => state.currentStationIndex);
+export const useSelectedCountry = () => useRadioStore((state) => state.selectedCountry);

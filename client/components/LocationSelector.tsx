@@ -1,12 +1,21 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useCallback, memo } from "react";
+import React, {
+  useState,
+  useEffect,
+  useMemo,
+  useCallback,
+  memo,
+  useRef,
+  useDeferredValue,
+} from "react";
 import { Select, Flex, Text } from "@radix-ui/themes";
-import { MapPin, Radio, Loader2, FlameIcon } from "lucide-react";
+import { MapPin, Radio, Loader2 } from "lucide-react";
 import { formatVotes } from "@/utils/formatting";
 import { useRadioStore } from "@/store/useRadiostore";
 import { useQuery } from "@tanstack/react-query";
 import { radioApi } from "@/api/index";
+import { debounce } from "lodash";
 
 interface Country {
   name: string;
@@ -81,24 +90,59 @@ const StationItem = memo(
 );
 StationItem.displayName = "StationItem";
 
+const useDebouncedCallback = <T extends (...args: any[]) => any>(
+  callback: T,
+  delay: number
+) => {
+  const callbackRef = useRef(callback);
+
+  useEffect(() => {
+    callbackRef.current = callback;
+  }, [callback]);
+
+  const debouncedFn = useMemo(
+    () =>
+      debounce((...args: Parameters<T>) => callbackRef.current(...args), delay),
+    [delay]
+  );
+
+  useEffect(() => {
+    return () => {
+      debouncedFn.cancel();
+    };
+  }, [debouncedFn]);
+
+  return debouncedFn;
+};
+
 const LocationSelector: React.FC<LocationSelectorProps> = memo(
   ({ onCountryChange, onStationChange }) => {
     const currentStationUuid = useRadioStore(
       (state) => state.currentStation?.stationuuid || ""
     );
-    const setStations = useRadioStore((state) => state.setStations);
-    const play = useRadioStore((state) => state.play);
+    const selectedCountry = useRadioStore((state) => state.selectedCountry);
     const storeStations = useRadioStore((state) => state.stations);
+    const setStations = useRadioStore((state) => state.setStations);
+    const setSelectedCountry = useRadioStore(
+      (state) => state.setSelectedCountry
+    );
+    const play = useRadioStore((state) => state.play);
 
-    const countryTriggerRef = React.useRef<HTMLButtonElement>(null);
-    const stationTriggerRef = React.useRef<HTMLButtonElement>(null);
-
-    const [selectedCountry, setSelectedCountry] = useState("");
     const [isLoadingLocation, setIsLoadingLocation] = useState(true);
     const [searchCountry, setSearchCountry] = useState("");
     const [searchStation, setSearchStation] = useState("");
     const [countryOpen, setCountryOpen] = useState(false);
     const [stationOpen, setStationOpen] = useState(false);
+
+    // Refs to manage input focus
+    const countryInputRef = useRef<HTMLInputElement>(null);
+    const stationInputRef = useRef<HTMLInputElement>(null);
+
+    const deferredCountrySearch = useDeferredValue(searchCountry);
+    const deferredStationSearch = useDeferredValue(searchStation);
+
+    const isInitializedRef = useRef(false);
+    const updateStationsRef = useRef(false);
 
     const {
       data: countries = [],
@@ -150,14 +194,14 @@ const LocationSelector: React.FC<LocationSelectorProps> = memo(
       gcTime: 30 * 60 * 1000,
       refetchOnWindowFocus: false,
       refetchOnMount: false,
+      placeholderData: (previousData) => previousData,
     });
 
-    const updateStationsRef = React.useRef(false);
     useEffect(() => {
       if (countryStations && !updateStationsRef.current) {
         updateStationsRef.current = true;
-        setStations(countryStations);
         requestAnimationFrame(() => {
+          setStations(countryStations);
           updateStationsRef.current = false;
         });
       }
@@ -175,12 +219,16 @@ const LocationSelector: React.FC<LocationSelectorProps> = memo(
       }
     }, []);
 
-    const isInitializedRef = React.useRef(false);
     useEffect(() => {
       if (isInitializedRef.current) return;
       isInitializedRef.current = true;
 
       const initializeLocation = async () => {
+        if (selectedCountry) {
+          setIsLoadingLocation(false);
+          return;
+        }
+
         const savedCountry = localStorage.getItem("radioverse-country");
 
         if (savedCountry) {
@@ -201,16 +249,13 @@ const LocationSelector: React.FC<LocationSelectorProps> = memo(
 
                 if (countryCode) {
                   setSelectedCountry(countryCode);
-                  localStorage.setItem("radioverse-country", countryCode);
                 } else {
                   const defaultCountry = "IN";
                   setSelectedCountry(defaultCountry);
-                  localStorage.setItem("radioverse-country", defaultCountry);
                 }
               } catch (error) {
                 const defaultCountry = "IN";
                 setSelectedCountry(defaultCountry);
-                localStorage.setItem("radioverse-country", defaultCountry);
               } finally {
                 setIsLoadingLocation(false);
               }
@@ -218,55 +263,61 @@ const LocationSelector: React.FC<LocationSelectorProps> = memo(
             async () => {
               const defaultCountry = "IN";
               setSelectedCountry(defaultCountry);
-              localStorage.setItem("radioverse-country", defaultCountry);
               setIsLoadingLocation(false);
             }
           );
         } else {
           const defaultCountry = "IN";
           setSelectedCountry(defaultCountry);
-          localStorage.setItem("radioverse-country", defaultCountry);
           setIsLoadingLocation(false);
         }
       };
 
       initializeLocation();
-    }, []);
+    }, [selectedCountry, setSelectedCountry]);
 
     const filteredCountries = useMemo(() => {
-      if (!searchCountry) return countries;
-      const search = searchCountry.toLowerCase();
+      if (!deferredCountrySearch) return countries;
+      const search = deferredCountrySearch.toLowerCase();
       return countries.filter(
         (country: Country) =>
           country.name.toLowerCase().includes(search) ||
           (country.code && country.code.toLowerCase().includes(search))
       );
-    }, [countries, searchCountry]);
+    }, [countries, deferredCountrySearch]);
 
     const filteredStations = useMemo(() => {
       if (!storeStations || storeStations.length === 0) return [];
-      if (!searchStation) return storeStations;
-      const search = searchStation.toLowerCase();
+      if (!deferredStationSearch) return storeStations;
+      const search = deferredStationSearch.toLowerCase();
       return storeStations.filter((station) =>
         station.name?.toLowerCase().includes(search)
       );
-    }, [storeStations, searchStation]);
+    }, [storeStations, deferredStationSearch]);
+
+    useEffect(() => {
+      if (countryOpen && countryInputRef.current) {
+        countryInputRef.current.focus();
+      }
+    }, [filteredCountries, countryOpen]);
+
+    useEffect(() => {
+      if (stationOpen && stationInputRef.current) {
+        stationInputRef.current.focus();
+      }
+    }, [filteredStations, stationOpen]);
 
     const forceBlur = useCallback(() => {
       requestAnimationFrame(() => {
-        try {
-          const focused = document.activeElement as HTMLElement;
-          if (
-            focused &&
-            (focused.hasAttribute("data-radix-select-trigger") ||
-              focused.getAttribute("role") === "combobox" ||
-              focused.tagName === "BUTTON")
-          ) {
-            focused.blur();
-          }
-          document.body.style.overflow = "";
-          document.body.style.paddingRight = "";
-        } catch (err) {}
+        const focused = document.activeElement as HTMLElement;
+        if (
+          focused &&
+          (focused.hasAttribute("data-radix-select-trigger") ||
+            focused.getAttribute("role") === "combobox" ||
+            focused.tagName === "BUTTON")
+        ) {
+          focused.blur();
+        }
       });
     }, []);
 
@@ -275,11 +326,10 @@ const LocationSelector: React.FC<LocationSelectorProps> = memo(
         setSelectedCountry(countryCode);
         setCountryOpen(false);
         setSearchCountry("");
-        localStorage.setItem("radioverse-country", countryCode);
         forceBlur();
         onCountryChange?.(countryCode);
       },
-      [forceBlur, onCountryChange]
+      [setSelectedCountry, forceBlur, onCountryChange]
     );
 
     const handleStationChange = useCallback(
@@ -312,6 +362,33 @@ const LocationSelector: React.FC<LocationSelectorProps> = memo(
     const isCountryDropdownDisabled =
       isLoadingCountries && countries.length === 0;
 
+    const debouncedSetCountrySearch = useDebouncedCallback(
+      (value: string) => setSearchCountry(value),
+      250
+    );
+
+    const debouncedSetStationSearch = useDebouncedCallback(
+      (value: string) => setSearchStation(value),
+      250
+    );
+
+    const handleCountrySearchChange = useCallback(
+      (e: React.ChangeEvent<HTMLInputElement>) => {
+        const value = e.target.value;
+        // e.target.value = value; // Not strictly needed if uncontrolled, but okay
+        debouncedSetCountrySearch(value);
+      },
+      [debouncedSetCountrySearch]
+    );
+
+    const handleStationSearchChange = useCallback(
+      (e: React.ChangeEvent<HTMLInputElement>) => {
+        const value = e.target.value;
+        debouncedSetStationSearch(value);
+      },
+      [debouncedSetStationSearch]
+    );
+
     return (
       <Flex
         gap="3"
@@ -341,22 +418,9 @@ const LocationSelector: React.FC<LocationSelectorProps> = memo(
             onValueChange={handleCountryChange}
             disabled={isCountryDropdownDisabled}
             open={countryOpen}
-            onOpenChange={(open) => {
-              setCountryOpen(open);
-              if (!open) {
-                setSearchCountry("");
-                requestAnimationFrame(() => {
-                  try {
-                    countryTriggerRef.current?.blur?.();
-                  } catch {
-                    (document.activeElement as HTMLElement | null)?.blur?.();
-                  }
-                });
-              }
-            }}
+            onOpenChange={setCountryOpen}
           >
             <Select.Trigger
-              ref={countryTriggerRef}
               data-country-trigger
               className="w-full location-country-trigger"
             >
@@ -407,15 +471,16 @@ const LocationSelector: React.FC<LocationSelectorProps> = memo(
               position="popper"
               avoidCollisions
               sideOffset={5}
-              onCloseAutoFocus={(e) => e.preventDefault()}
             >
               <div className="location-search-wrapper">
                 <input
+                  ref={countryInputRef}
                   type="text"
                   placeholder="Search countries..."
-                  value={searchCountry}
-                  onChange={(e) => setSearchCountry(e.target.value)}
+                  defaultValue={searchCountry}
+                  onChange={handleCountrySearchChange}
                   className="location-search-input"
+                  onKeyDown={(e) => e.stopPropagation()}
                   onClick={(e) => e.stopPropagation()}
                 />
               </div>
@@ -474,22 +539,9 @@ const LocationSelector: React.FC<LocationSelectorProps> = memo(
             onValueChange={handleStationChange}
             disabled={!selectedCountry || isLoadingStations}
             open={stationOpen}
-            onOpenChange={(open) => {
-              setStationOpen(open);
-              if (!open) {
-                setSearchStation("");
-                requestAnimationFrame(() => {
-                  try {
-                    stationTriggerRef.current?.blur?.();
-                  } catch {
-                    (document.activeElement as HTMLElement | null)?.blur?.();
-                  }
-                });
-              }
-            }}
+            onOpenChange={setStationOpen}
           >
             <Select.Trigger
-              ref={stationTriggerRef}
               data-station-trigger
               className="w-full location-country-trigger min-w-0"
               placeholder="Select station"
@@ -535,15 +587,17 @@ const LocationSelector: React.FC<LocationSelectorProps> = memo(
               className="location-country-content"
               position="popper"
               sideOffset={5}
-              onCloseAutoFocus={(e) => e.preventDefault()}
             >
               <div className="location-search-wrapper">
                 <input
+                  ref={stationInputRef}
                   type="text"
                   placeholder="Search stations..."
-                  value={searchStation}
-                  onChange={(e) => setSearchStation(e.target.value)}
+                  defaultValue={searchStation}
+                  onChange={handleStationSearchChange}
                   className="location-search-input"
+                  // 2. Stop propagation
+                  onKeyDown={(e) => e.stopPropagation()}
                   onClick={(e) => e.stopPropagation()}
                 />
               </div>

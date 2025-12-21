@@ -74,6 +74,7 @@ const StationInfo = memo(
       gap="1"
       className="min-w-0"
       style={{ gap: "var(--spacing-xs)" }}
+      align="center"
     >
       <Text size="3" weight="medium" className="truncate">
         {name}
@@ -413,7 +414,7 @@ const GlobalPlayer: React.FC = () => {
     updateMuted(!isMuted);
   }, [isMuted, updateMuted]);
 
-  if (!showPlayer || stations.length === 0) return null;
+  const shouldShowUI = showPlayer && stations.length > 0;
 
   return (
     <>
@@ -422,100 +423,104 @@ const GlobalPlayer: React.FC = () => {
         crossOrigin="anonymous"
         style={{ display: "none" }}
       />
-
-      <Box
-        className="fixed bottom-0 left-0 right-0 z-50 border-t border-gray-700/50 bg-[#0C1521]/95"
-        style={{
-          backdropFilter: "blur(10px)",
-          WebkitBackdropFilter: "blur(10px)",
-        }}
-      >
-        <Container
-          size="4"
-          style={{ padding: "var(--spacing-md) var(--container-padding-x)" }}
+      {shouldShowUI && (
+        <Box
+          className="fixed bottom-0 left-0 right-0 z-50 border-t border-gray-700/50 bg-[#0C1521]/95"
+          style={{
+            backdropFilter: "blur(10px)",
+            WebkitBackdropFilter: "blur(10px)",
+          }}
         >
-          <Flex
-            align="center"
-            justify="between"
-            gap="4"
-            style={{ gap: "var(--spacing-md)" }}
+          <Container
+            size="4"
+            style={{ padding: "var(--spacing-md) var(--container-padding-x)" }}
           >
             <Flex
               align="center"
-              gap="3"
-              className="flex-1 min-w-0"
-              style={{ gap: "var(--spacing-sm)" }}
+              justify="between"
+              gap="4"
+              style={{ gap: "var(--spacing-md)" }}
             >
-              <div
-                className="bg-[#FF914D]/20 rounded-lg flex items-center justify-center"
-                style={{
-                  width: buttonSize,
-                  height: buttonSize,
-                  borderRadius: "var(--radius-md)",
-                }}
+              <Flex
+                align="center"
+                gap="3"
+                className="flex-1 min-w-0"
+                style={{ gap: "var(--spacing-sm)" }}
               >
-                <StationIcon isLoading={storeIsLoading} isPlaying={isPlaying} />
-              </div>
+                <div
+                  className="bg-[#FF914D]/20 rounded-lg flex items-center justify-center"
+                  style={{
+                    width: buttonSize,
+                    height: buttonSize,
+                    borderRadius: "var(--radius-md)",
+                  }}
+                >
+                  <StationIcon
+                    isLoading={storeIsLoading}
+                    isPlaying={isPlaying}
+                  />
+                </div>
 
-              <StationInfo
-                name={currentStation?.name ?? "No Station"}
-                latency={latency}
-                votes={currentStation?.votes}
-              />
+                <StationInfo
+                  name={currentStation?.name ?? "No Station"}
+                  latency={latency}
+                  votes={currentStation?.votes}
+                />
+              </Flex>
+
+              <Flex align="center" gap="2" style={{ gap: "var(--spacing-xs)" }}>
+                <Button
+                  onClick={handlePrevious}
+                  style={{ padding: "var(--spacing-xs)" }}
+                >
+                  <SkipBack />
+                </Button>
+
+                <Button
+                  size="3"
+                  onClick={handlePlayPause}
+                  className="rounded-full bg-[#FF914D] hover:bg-[#FF914D]/90 text-white"
+                  style={{
+                    padding: 0,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  {isPlaying ? <Pause /> : <Play />}
+                </Button>
+
+                <Button
+                  onClick={handleNext}
+                  style={{ padding: "var(--spacing-xs)" }}
+                >
+                  <SkipForward />
+                </Button>
+              </Flex>
+
+              <Flex align="center" gap="3" style={{ gap: "var(--spacing-sm)" }}>
+                <VolumeControl
+                  isMuted={isMuted}
+                  volume={volume}
+                  displayVolume={displayVolume}
+                  onMuteToggle={handleMuteToggle}
+                  onVolumeChange={handleVolumeChange}
+                />
+                <AudioVisualizer
+                  ref={visualizerRef}
+                  isLoading={visualizerState.isLoading}
+                  isPaused={visualizerState.isPaused}
+                />
+                <ImmersiveVisualizer
+                  currentStation={currentStationIndex}
+                  streamType={streamType}
+                  audioRef={audioRef}
+                />
+              </Flex>
             </Flex>
-
-            <Flex align="center" gap="2" style={{ gap: "var(--spacing-xs)" }}>
-              <Button
-                onClick={handlePrevious}
-                style={{ padding: "var(--spacing-xs)" }}
-              >
-                <SkipBack />
-              </Button>
-
-              <Button
-                size="3"
-                onClick={handlePlayPause}
-                className="rounded-full bg-[#FF914D] hover:bg-[#FF914D]/90 text-white"
-                style={{
-                  padding: 0,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                {isPlaying ? <Pause /> : <Play />}
-              </Button>
-
-              <Button
-                onClick={handleNext}
-                style={{ padding: "var(--spacing-xs)" }}
-              >
-                <SkipForward />
-              </Button>
-            </Flex>
-
-            <Flex align="center" gap="3" style={{ gap: "var(--spacing-sm)" }}>
-              <VolumeControl
-                isMuted={isMuted}
-                volume={volume}
-                displayVolume={displayVolume}
-                onMuteToggle={handleMuteToggle}
-                onVolumeChange={handleVolumeChange}
-              />
-              <AudioVisualizer
-                ref={visualizerRef}
-                isLoading={visualizerState.isLoading}
-                isPaused={visualizerState.isPaused}
-              />
-              <ImmersiveVisualizer
-                currentStation={currentStationIndex}
-                streamType={streamType}
-                audioRef={audioRef}
-              />
-            </Flex>
-          </Flex>
-        </Container>
-      </Box>
+          </Container>
+        </Box>
+      )}
     </>
   );
 };

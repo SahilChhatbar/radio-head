@@ -3,7 +3,7 @@ const cors = require('cors');
 const dotenv = require('dotenv');
 const session = require('express-session');
 const cookieParser = require('cookie-parser');
-// const connectDB = require('./config/database');
+const connectDB = require('./config/database');
 const radioRoutes = require('./routes/radio');
 const authRoutes = require('./routes/auth');
 
@@ -11,7 +11,7 @@ const authRoutes = require('./routes/auth');
 dotenv.config();
 
 // Connect to MongoDB
-// connectDB();
+connectDB();
 
 // Load passport configuration after env vars are loaded
 // const passport = require('./config/passport');
@@ -92,6 +92,7 @@ app.use((req, res, next) => {
   const ip = req.ip || req.connection.remoteAddress;
 
   if (NODE_ENV === 'development') {
+    // console.log(`[${timestamp}] ${req.method} ${req.url} - ${ip} - ${userAgent}`);
   }
 
   next();
@@ -107,6 +108,7 @@ app.use((req, res, next) => {
     res.setHeader('X-Response-Time', `${responseTime}ms`);
 
     if (responseTime > 5000) {
+      // console.warn(`[SLOW RESPONSE] ${req.method} ${req.url} took ${responseTime}ms`);
     }
 
     return originalSend.call(this, data);
@@ -115,8 +117,8 @@ app.use((req, res, next) => {
   next();
 });
 
-// // API Routes
-// app.use('/api/auth', authRoutes);
+// API Routes
+app.use('/api/auth', authRoutes);
 app.use('/api/radio', radioRoutes);
 
 // Root route

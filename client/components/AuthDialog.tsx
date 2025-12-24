@@ -38,8 +38,8 @@ export function AuthDialog({ children }: { children: React.ReactNode }) {
       setEmail("");
       setPassword("");
       setName("");
-    } catch (err: any) {
-      setError(err.message || "Authentication failed");
+    } catch (err: unknown) {
+      setError((err as Error).message || "Authentication failed");
     }
   };
 
@@ -53,7 +53,7 @@ export function AuthDialog({ children }: { children: React.ReactNode }) {
       <Dialog.Trigger>{children}</Dialog.Trigger>
 
       <Dialog.Content style={{ maxWidth: 450 }}>
-        <Dialog.Title>
+        <Dialog.Title size="4" mb="2">
           {isLogin ? "Welcome Back" : "Create Account"}
         </Dialog.Title>
         <Dialog.Description size="2" mb="4">

@@ -21,12 +21,26 @@ const userSchema = new mongoose.Schema({
     type: String,
     required: [true, 'Please add a password'],
     minlength: 6,
-    select: false // Do not return password by default
+    select: false
   },
   provider: {
     type: String,
     default: 'local'
   },
+  favoriteStations: [{
+    stationuuid: { type: String, required: true },
+    name: { type: String, required: true },
+    url: String,
+    url_resolved: String,
+    favicon: String,
+    country: String,
+    countrycode: String,
+    codec: String,
+    bitrate: Number,
+    votes: Number,
+    clickcount: Number,
+    addedAt: { type: Date, default: Date.now }
+  }],
   createdAt: {
     type: Date,
     default: Date.now
@@ -34,12 +48,22 @@ const userSchema = new mongoose.Schema({
 });
 
 // Encrypt password using bcrypt before saving
-userSchema.pre('save', async function(next) {
+userSchema.pre('save', function(next) {
+  // Only run this function if password was modified
   if (!this.isModified('password')) {
-    next();
+    return next();
   }
-  const salt = await bcrypt.genSalt(10);
-  this.password = await bcrypt.hash(this.password, salt);
+
+  // Hash the password
+  bcrypt.genSalt(10, (err, salt) => {
+    if (err) return next(err);
+
+    bcrypt.hash(this.password, salt, (err, hash) => {
+      if (err) return next(err);
+      this.password = hash;
+      next();
+    });
+  });
 });
 
 // Match user entered password to hashed password in database

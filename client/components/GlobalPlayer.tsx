@@ -22,6 +22,7 @@ import { useEnhancedAudioPlayer } from "@/hooks/useAudioPlayer";
 import AudioVisualizer, { AudioVisualizerHandle } from "./AudioVisualizer";
 import ImmersiveVisualizer from "./ImmersiveMode";
 import { formatVotes } from "@/utils/formatting";
+import FavoriteButton from "./FavoriteButton";
 
 const ORANGE = "#FF914D";
 
@@ -245,8 +246,8 @@ const GlobalPlayer: React.FC = () => {
     setAudioControls({
       play: playAudio,
       pause: pauseAudio,
-      setVolume: () => {},
-      setMuted: () => {},
+      setVolume: () => { },
+      setMuted: () => { },
     });
 
     isInitializedRef.current = true;
@@ -466,8 +467,8 @@ const GlobalPlayer: React.FC = () => {
                   latency={latency}
                   votes={currentStation?.votes}
                 />
+                <FavoriteButton station={currentStation} />
               </Flex>
-
               <Flex align="center" gap="2" style={{ gap: "var(--spacing-xs)" }}>
                 <Button
                   onClick={handlePrevious}

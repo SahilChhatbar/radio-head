@@ -1,19 +1,19 @@
 "use client";
 
-import React, { memo } from "react";
+import React, { memo, useState } from "react";
 import {
   Button,
   Flex,
   Container,
   Avatar,
-  DropdownMenu,
   Text,
 } from "@radix-ui/themes";
 import Logo from "./Logo";
 import LocationSelector from "./LocationSelector";
+import FavoritesDropdown from "./FavoritesDropdown";
 import { useAuth } from "@/contexts/AuthContext";
 import { AuthDialog } from "./AuthDialog";
-import { LogOut, User } from "lucide-react";
+import { LogOut } from "lucide-react";
 
 interface LogoProps {
   size?: "sm" | "md" | "lg" | "xl";
@@ -35,6 +35,7 @@ interface HeaderProps {
 const Header: React.FC<HeaderProps> = memo(
   ({ className = "", showSignIn = true, logoProps = {} }) => {
     const { user, logout } = useAuth();
+    const [showFavorites, setShowFavorites] = useState(false);
 
     return (
       <header className={`p-3 ${className}`}>
@@ -63,31 +64,42 @@ const Header: React.FC<HeaderProps> = memo(
               {showSignIn && (
                 <>
                   {user ? (
-                    <DropdownMenu.Root>
-                      <DropdownMenu.Trigger>
-                        <Button variant="ghost" className="cursor-pointer">
-                          <Avatar
-                            size="2"
-                            src={user.avatar}
-                            fallback={user.name?.charAt(0).toUpperCase() || "U"}
-                            radius="full"
-                          />
-                          <Text weight="medium" className="hidden sm:block">
-                            {user.name}
-                          </Text>
+                    <div className="relative">
+                      <Button
+                        variant="ghost"
+                        className="cursor-pointer"
+                        onClick={() => setShowFavorites(!showFavorites)}
+                      >
+                        <Avatar
+                          size="2"
+                          src={user.avatar}
+                          fallback={user.name?.charAt(0).toUpperCase() || "U"}
+                          radius="full"
+                        />
+                        <Text weight="medium" className="hidden sm:block">
+                          {user.name}
+                        </Text>
+                      </Button>
+
+                      {/* Favorites Dropdown */}
+                      <FavoritesDropdown
+                        isOpen={showFavorites}
+                        onClose={() => setShowFavorites(false)}
+                      />
+
+                      {/* Logout Button  */}
+                      <div className="absolute top-full right-0 mt-1">
+                        <Button
+                          variant="ghost"
+                          size="1"
+                          onClick={logout}
+                          className="text-red-400 hover:text-red-300 hover:bg-red-400/10"
+                        >
+                          <LogOut size={14} />
+                          <Text size="1">Sign Out</Text>
                         </Button>
-                      </DropdownMenu.Trigger>
-                      <DropdownMenu.Content>
-                        <DropdownMenu.Label>My Account</DropdownMenu.Label>
-                        <DropdownMenu.Item color="gray">
-                          <User size={14} className="mr-2" /> Profile
-                        </DropdownMenu.Item>
-                        <DropdownMenu.Separator />
-                        <DropdownMenu.Item color="red" onClick={logout}>
-                          <LogOut size={14} className="mr-2" /> Sign Out
-                        </DropdownMenu.Item>
-                      </DropdownMenu.Content>
-                    </DropdownMenu.Root>
+                      </div>
+                    </div>
                   ) : (
                     <AuthDialog>
                       <Button size="2">Sign In</Button>

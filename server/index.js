@@ -6,6 +6,7 @@ const cookieParser = require('cookie-parser');
 const connectDB = require('./config/database');
 const radioRoutes = require('./routes/radio');
 const authRoutes = require('./routes/auth');
+const favoritesRoutes = require('./routes/favorites');
 
 // Load passport AFTER dotenv config
 dotenv.config();
@@ -92,7 +93,7 @@ app.use((req, res, next) => {
   const ip = req.ip || req.connection.remoteAddress;
 
   if (NODE_ENV === 'development') {
-    // console.log(`[${timestamp}] ${req.method} ${req.url} - ${ip} - ${userAgent}`);
+  //  console.log(`[${timestamp}] ${req.method} ${req.url} - ${ip}`);
   }
 
   next();
@@ -108,7 +109,7 @@ app.use((req, res, next) => {
     res.setHeader('X-Response-Time', `${responseTime}ms`);
 
     if (responseTime > 5000) {
-      // console.warn(`[SLOW RESPONSE] ${req.method} ${req.url} took ${responseTime}ms`);
+      //console.warn(`[SLOW RESPONSE] ${req.method} ${req.url} took ${responseTime}ms`);
     }
 
     return originalSend.call(this, data);
@@ -120,6 +121,7 @@ app.use((req, res, next) => {
 // API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/radio', radioRoutes);
+app.use('/api/favorites', favoritesRoutes);
 
 // Root route
 app.get('/', (req, res) => {
@@ -137,7 +139,8 @@ app.get('/', (req, res) => {
       search: '/api/radio/search',
       popular: '/api/radio/popular',
       countries: '/api/radio/countries',
-      tags: '/api/radio/tags'
+      tags: '/api/radio/tags',
+      favorites: '/api/favorites'
     },
     documentation: {
       baseUrl: req.protocol + '://' + req.get('host'),
@@ -231,6 +234,36 @@ app.get('/api/docs', (req, res) => {
             path: '/auth/logout',
             method: 'POST',
             description: 'Logout user'
+          }
+        ]
+      },
+      {
+        category: 'Favorites',
+        routes: [
+          {
+            path: '/favorites',
+            method: 'GET',
+            description: 'Get user favorite stations',
+            headers: { Authorization: 'Bearer <token>' }
+          },
+          {
+            path: '/favorites',
+            method: 'POST',
+            description: 'Add station to favorites',
+            headers: { Authorization: 'Bearer <token>' },
+            body: { station: 'RadioStation object' }
+          },
+          {
+            path: '/favorites/:stationUuid',
+            method: 'DELETE',
+            description: 'Remove station from favorites',
+            headers: { Authorization: 'Bearer <token>' }
+          },
+          {
+            path: '/favorites/check/:stationUuid',
+            method: 'GET',
+            description: 'Check if station is favorited',
+            headers: { Authorization: 'Bearer <token>' }
           }
         ]
       },
@@ -349,6 +382,9 @@ app.use((req, res, next) => {
       'POST /api/auth/login',
       'GET /api/auth/google',
       'GET /api/auth/me',
+      'GET /api/favorites',
+      'POST /api/favorites',
+      'DELETE /api/favorites/:stationUuid',
       'GET /api/radio/stations',
       'GET /api/radio/search',
       'GET /api/radio/popular',
@@ -378,10 +414,12 @@ app.use((err, req, res, next) => {
 
 // Start server
 const server = app.listen(PORT, () => {
+  console.log("server running on port", PORT);
 });
 
 // Graceful shutdown
 const gracefulShutdown = (signal) => {
+
   server.close(async (err) => {
     if (err) {
       process.exit(1);

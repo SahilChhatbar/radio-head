@@ -375,7 +375,6 @@ const LocationSelector: React.FC<LocationSelectorProps> = memo(
     const handleCountrySearchChange = useCallback(
       (e: React.ChangeEvent<HTMLInputElement>) => {
         const value = e.target.value;
-        // e.target.value = value; // Not strictly needed if uncontrolled, but okay
         debouncedSetCountrySearch(value);
       },
       [debouncedSetCountrySearch]
@@ -391,15 +390,16 @@ const LocationSelector: React.FC<LocationSelectorProps> = memo(
 
     return (
       <Flex
+        direction={{ initial: "column", sm: "row" }}
+        align={{ initial: "stretch", sm: "center" }}
         gap="3"
-        align="center"
         className="w-full"
         style={{ gap: "var(--spacing-sm)" }}
       >
         <Flex
           align="center"
           gap="2"
-          className="relative"
+          className="relative w-full sm:w-auto"
           style={{
             minWidth: "clamp(140px, 20vw, 200px)",
             gap: "var(--spacing-xs)",
@@ -523,7 +523,7 @@ const LocationSelector: React.FC<LocationSelectorProps> = memo(
         <Flex
           align="center"
           gap="2"
-          className="relative flex-1 min-w-0"
+          className="relative flex-1 min-w-0 w-full sm:w-auto"
           style={{ gap: "var(--spacing-xs)" }}
         >
           <Radio
@@ -596,7 +596,6 @@ const LocationSelector: React.FC<LocationSelectorProps> = memo(
                   defaultValue={searchStation}
                   onChange={handleStationSearchChange}
                   className="location-search-input"
-                  // 2. Stop propagation
                   onKeyDown={(e) => e.stopPropagation()}
                   onClick={(e) => e.stopPropagation()}
                 />

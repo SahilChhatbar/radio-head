@@ -10,11 +10,12 @@ import {
   Callout,
 } from "@radix-ui/themes";
 import { useAuth } from "@/contexts/AuthContext";
-import { AlertCircle, Mail, Lock, User } from "lucide-react";
+import { AlertCircle, Mail, Lock, User, Eye, EyeOff } from "lucide-react";
 
 export function AuthDialog({ children }: { children: React.ReactNode }) {
   const [isLogin, setIsLogin] = useState(true);
   const [open, setOpen] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const { login, register, loading } = useAuth();
 
   // Form State
@@ -109,14 +110,12 @@ export function AuthDialog({ children }: { children: React.ReactNode }) {
                 </TextField.Slot>
               </TextField.Root>
             </label>
-
-            {/* Password Field */}
             <label>
               <Text as="div" size="2" mb="1" weight="bold">
                 Password
               </Text>
               <TextField.Root
-                type="password"
+                type={showPassword ? "text" : "password"}
                 placeholder="••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -125,9 +124,20 @@ export function AuthDialog({ children }: { children: React.ReactNode }) {
                 <TextField.Slot>
                   <Lock height="16" width="16" />
                 </TextField.Slot>
+                <TextField.Slot side="right">
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((prev) => !prev)}
+                    className="text-gray-500 hover:text-gray-700 focus:outline-none"
+                    aria-label={
+                      showPassword ? "Hide password" : "Show password"
+                    }
+                  >
+                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </TextField.Slot>
               </TextField.Root>
             </label>
-
             <Flex gap="3" mt="4" justify="end">
               <Dialog.Close>
                 <Button variant="soft" color="gray">

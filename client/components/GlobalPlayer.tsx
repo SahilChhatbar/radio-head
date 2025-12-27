@@ -246,8 +246,8 @@ const GlobalPlayer: React.FC = () => {
     setAudioControls({
       play: playAudio,
       pause: pauseAudio,
-      setVolume: () => { },
-      setMuted: () => { },
+      setVolume: () => {},
+      setMuted: () => {},
     });
 
     isInitializedRef.current = true;
@@ -434,18 +434,19 @@ const GlobalPlayer: React.FC = () => {
         >
           <Container
             size="4"
-            style={{ padding: "var(--spacing-md) var(--container-padding-x)" }}
+            style={{ padding: "var(--spacing-xs) var(--container-padding-x)" }}
           >
             <Flex
               align="center"
               justify="between"
-              gap="4"
-              style={{ gap: "var(--spacing-md)" }}
+              className="flex-wrap sm:flex-nowrap w-full"
+              gap="2"
+              style={{ gap: "var(--spacing-sm)" }}
             >
               <Flex
                 align="center"
                 gap="3"
-                className="flex-1 min-w-0"
+                className="flex-1 min-w-0 order-1 sm:order-1"
                 style={{ gap: "var(--spacing-sm)" }}
               >
                 <div
@@ -469,7 +470,14 @@ const GlobalPlayer: React.FC = () => {
                 />
                 <FavoriteButton station={currentStation} />
               </Flex>
-              <Flex align="center" gap="2" style={{ gap: "var(--spacing-xs)" }}>
+
+              <Flex
+                align="center"
+                justify="center"
+                gap="2"
+                className="order-3 w-full sm:order-2 sm:w-auto pt-2 sm:pt-0"
+                style={{ gap: "var(--spacing-xs)" }}
+              >
                 <Button
                   onClick={handlePrevious}
                   style={{ padding: "var(--spacing-xs)" }}
@@ -499,7 +507,13 @@ const GlobalPlayer: React.FC = () => {
                 </Button>
               </Flex>
 
-              <Flex align="center" gap="3" style={{ gap: "var(--spacing-sm)" }}>
+              <Flex
+                align="center"
+                justify="end"
+                gap="3"
+                className="order-2 sm:order-3 sm:flex-1"
+                style={{ gap: "var(--spacing-sm)" }}
+              >
                 <VolumeControl
                   isMuted={isMuted}
                   volume={volume}

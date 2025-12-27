@@ -7,40 +7,40 @@
   --accent: #ff914d;
   --secondary-dark: #0c1521;
 
-  /* Fluid typography using clamp - more aggressive scaling */
+  /* Fluid typography - Reduced minimums for mobile */
   --font-size-xs: clamp(0.625rem, 0.5rem + 0.5vw, 0.75rem);
-  --font-size-sm: clamp(0.75rem, 0.625rem + 0.625vw, 0.875rem);
-  --font-size-base: clamp(0.875rem, 0.75rem + 0.625vw, 1.125rem);
-  --font-size-lg: clamp(1rem, 0.875rem + 0.625vw, 1.375rem);
-  --font-size-xl: clamp(1.25rem, 1rem + 1.25vw, 1.875rem);
-  --font-size-2xl: clamp(1.5rem, 1.125rem + 1.875vw, 2.25rem);
-  --font-size-3xl: clamp(1.875rem, 1.375rem + 2.5vw, 3rem);
-  --font-size-4xl: clamp(2.25rem, 1.5rem + 3.75vw, 2.5rem);
+  --font-size-sm: clamp(0.7rem, 0.6rem + 0.6vw, 0.875rem); /* Slightly smaller base */
+  --font-size-base: clamp(0.8125rem, 0.75rem + 0.625vw, 1.125rem); /* ~13px start */
+  --font-size-lg: clamp(0.95rem, 0.875rem + 0.625vw, 1.375rem);
+  --font-size-xl: clamp(1.1rem, 1rem + 1.25vw, 1.875rem);
+  --font-size-2xl: clamp(1.25rem, 1.125rem + 1.875vw, 2.25rem);
+  --font-size-3xl: clamp(1.5rem, 1.375rem + 2.5vw, 3rem);
+  --font-size-4xl: clamp(1.75rem, 1.5rem + 3.75vw, 2.5rem); /* Reduced from 2.25rem */
 
-  /* Fluid spacing using clamp - more aggressive scaling */
-  --spacing-xs: clamp(0.25rem, 0.125rem + 0.625vw, 0.5rem);
-  --spacing-sm: clamp(0.5rem, 0.25rem + 1.25vw, 1rem);
-  --spacing-md: clamp(0.75rem, 0.375rem + 1.875vw, 1.5rem);
-  --spacing-lg: clamp(1rem, 0.5rem + 2.5vw, 2rem);
-  --spacing-xl: clamp(1.5rem, 0.75rem + 3.75vw, 3rem);
-  --spacing-2xl: clamp(2rem, 1rem + 5vw, 2.5rem);
+  /* Fluid spacing - Tighter gaps on mobile */
+  --spacing-xs: clamp(0.125rem, 0.1rem + 0.5vw, 0.5rem);
+  --spacing-sm: clamp(0.375rem, 0.25rem + 1vw, 1rem);
+  --spacing-md: clamp(0.625rem, 0.375rem + 1.5vw, 1.5rem);
+  --spacing-lg: clamp(0.875rem, 0.5rem + 2vw, 2rem);
+  --spacing-xl: clamp(1.25rem, 0.75rem + 3vw, 3rem);
+  --spacing-2xl: clamp(1.75rem, 1rem + 4vw, 2.5rem);
 
-  /* Container padding - responsive horizontal padding */
-  --container-padding-x: clamp(1.25rem, 1.25rem + 2.5vw, 3.75rem); /* 20px -> 36px -> 60px */
+  /* Container padding - significantly reduced for small screens */
+  --container-padding-x: clamp(0.75rem, 0.5rem + 2.5vw, 3.75rem); /* Starts at 12px */
 
   /* Max width */
   --max-width: 1600px;
 
-  /* Fluid component sizes */
-  --button-padding-sm: clamp(0.375rem, 0.25rem + 0.625vw, 0.625rem) clamp(0.75rem, 0.5rem + 1.25vw, 1.25rem);
-  --button-padding-md: clamp(0.5rem, 0.375rem + 0.625vw, 0.875rem) clamp(1rem, 0.75rem + 1.25vw, 1.5rem);
-  --button-padding-lg: clamp(0.625rem, 0.5rem + 0.625vw, 1rem) clamp(1.25rem, 1rem + 1.25vw, 2rem);
+  /* Fluid component sizes - Smaller buttons on mobile */
+  --button-padding-sm: clamp(0.25rem, 0.2rem + 0.5vw, 0.625rem) clamp(0.5rem, 0.4rem + 1vw, 1.25rem);
+  --button-padding-md: clamp(0.375rem, 0.3rem + 0.5vw, 0.875rem) clamp(0.75rem, 0.6rem + 1vw, 1.5rem);
+  --button-padding-lg: clamp(0.5rem, 0.4rem + 0.5vw, 1rem) clamp(1rem, 0.8rem + 1vw, 2rem);
 
   /* Fluid border radius */
-  --radius-sm: clamp(0.25rem, 0.125rem + 0.625vw, 0.5rem);
-  --radius-md: clamp(0.5rem, 0.375rem + 0.625vw, 0.875rem);
-  --radius-lg: clamp(0.75rem, 0.5rem + 1.25vw, 1.25rem);
-  --radius-xl: clamp(1rem, 0.75rem + 1.25vw, 1.75rem);
+  --radius-sm: clamp(0.2rem, 0.125rem + 0.625vw, 0.5rem);
+  --radius-md: clamp(0.375rem, 0.3rem + 0.625vw, 0.875rem);
+  --radius-lg: clamp(0.5rem, 0.4rem + 1vw, 1.25rem);
+  --radius-xl: clamp(0.75rem, 0.6rem + 1vw, 1.75rem);
 }
 
 @theme inline {
@@ -61,7 +61,7 @@
 }
 
 html {
-  font-size: 16px; /* Base font size */
+  font-size: 16px; 
 }
 
 body {
@@ -131,103 +131,32 @@ body {
 }
 
 /* Fluid text sizes - Use these classes for fluid typography */
-.text-fluid-xs {
-  font-size: var(--font-size-xs) !important;
-}
-
-.text-fluid-sm {
-  font-size: var(--font-size-sm) !important;
-}
-
-.text-fluid-base {
-  font-size: var(--font-size-base) !important;
-}
-
-.text-fluid-lg {
-  font-size: var(--font-size-lg) !important;
-}
-
-.text-fluid-xl {
-  font-size: var(--font-size-xl) !important;
-}
-
-.text-fluid-2xl {
-  font-size: var(--font-size-2xl) !important;
-}
-
-.text-fluid-3xl {
-  font-size: var(--font-size-3xl) !important;
-}
-
-.text-fluid-4xl {
-  font-size: var(--font-size-4xl) !important;
-}
+.text-fluid-xs { font-size: var(--font-size-xs) !important; }
+.text-fluid-sm { font-size: var(--font-size-sm) !important; }
+.text-fluid-base { font-size: var(--font-size-base) !important; }
+.text-fluid-lg { font-size: var(--font-size-lg) !important; }
+.text-fluid-xl { font-size: var(--font-size-xl) !important; }
+.text-fluid-2xl { font-size: var(--font-size-2xl) !important; }
+.text-fluid-3xl { font-size: var(--font-size-3xl) !important; }
+.text-fluid-4xl { font-size: var(--font-size-4xl) !important; }
 
 /* Override Radix UI text sizes to use fluid sizing */
-.rt-Text[data-accent-color],
-.rt-Text {
-  font-size: var(--font-size-base) !important;
-}
-
-.rt-Text.rt-r-size-1 {
-  font-size: var(--font-size-sm) !important;
-}
-
-.rt-Text.rt-r-size-2 {
-  font-size: var(--font-size-base) !important;
-}
-
-.rt-Text.rt-r-size-3 {
-  font-size: var(--font-size-lg) !important;
-}
-
-.rt-Text.rt-r-size-4 {
-  font-size: var(--font-size-xl) !important;
-}
-
-.rt-Text.rt-r-size-5 {
-  font-size: var(--font-size-2xl) !important;
-}
-
-.rt-Text.rt-r-size-6 {
-  font-size: var(--font-size-3xl) !important;
-}
-
-.rt-Text.rt-r-size-7 {
-  font-size: var(--font-size-4xl) !important;
-}
+.rt-Text[data-accent-color], .rt-Text { font-size: var(--font-size-base) !important; }
+.rt-Text.rt-r-size-1 { font-size: var(--font-size-sm) !important; }
+.rt-Text.rt-r-size-2 { font-size: var(--font-size-base) !important; }
+.rt-Text.rt-r-size-3 { font-size: var(--font-size-lg) !important; }
+.rt-Text.rt-r-size-4 { font-size: var(--font-size-xl) !important; }
+.rt-Text.rt-r-size-5 { font-size: var(--font-size-2xl) !important; }
+.rt-Text.rt-r-size-6 { font-size: var(--font-size-3xl) !important; }
+.rt-Text.rt-r-size-7 { font-size: var(--font-size-4xl) !important; }
 
 /* Override Radix UI heading sizes to use fluid sizing */
-.rt-Heading.rt-r-size-1,
-.rt-h6 {
-  font-size: var(--font-size-base) !important;
-}
-
-.rt-Heading.rt-r-size-2,
-.rt-h5 {
-  font-size: var(--font-size-lg) !important;
-}
-
-.rt-Heading.rt-r-size-3,
-.rt-h4 {
-  font-size: var(--font-size-xl) !important;
-}
-
-.rt-Heading.rt-r-size-4,
-.rt-h3 {
-  font-size: var(--font-size-2xl) !important;
-}
-
-.rt-Heading.rt-r-size-5,
-.rt-h2 {
-  font-size: var(--font-size-3xl) !important;
-}
-
-.rt-Heading.rt-r-size-6,
-.rt-Heading.rt-r-size-7,
-.rt-Heading.rt-r-size-8,
-.rt-Heading.rt-r-size-9,
-.rt-h1 {
+.rt-Heading.rt-r-size-1, .rt-h6 { font-size: var(--font-size-base) !important; }
+.rt-Heading.rt-r-size-2, .rt-h5 { font-size: var(--font-size-lg) !important; }
+.rt-Heading.rt-r-size-3, .rt-h4 { font-size: var(--font-size-xl) !important; }
+.rt-Heading.rt-r-size-4, .rt-h3 { font-size: var(--font-size-2xl) !important; }
+.rt-Heading.rt-r-size-5, .rt-h2 { font-size: var(--font-size-3xl) !important; }
+.rt-Heading.rt-r-size-6, .rt-Heading.rt-r-size-7, .rt-Heading.rt-r-size-8, .rt-Heading.rt-r-size-9, .rt-h1 {
   font-size: var(--font-size-4xl) !important;
 }
 
@@ -243,10 +172,7 @@ body {
 .bg-main-gradient::after {
   content: '';
   position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  top: 0; left: 0; right: 0; bottom: 0;
   background-image: repeating-linear-gradient(
     to bottom,
     rgba(255, 255, 255, 0.02),
@@ -400,7 +326,7 @@ body {
   font-size: var(--font-size-base) !important;
   transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1) !important;
   will-change: border-color, background, transform;
-  min-height: clamp(2.25rem, 2rem + 1.25vw, 2.75rem) !important;
+  min-height: clamp(2rem, 1.75rem + 1vw, 2.75rem) !important; /* Reduced min height */
 }
 
 .location-country-trigger:hover:not(:disabled) {
@@ -483,7 +409,7 @@ body {
   font-size: var(--font-size-base) !important;
   transition: background-color 0.1s ease !important;
   outline: none !important;
-  min-height: clamp(2rem, 1.75rem + 1.25vw, 2.5rem) !important;
+  min-height: clamp(1.75rem, 1.5rem + 1vw, 2.5rem) !important; /* Reduced min height */
 }
 
 .location-country-item[data-highlighted] {
@@ -503,7 +429,7 @@ body {
 /* Optimize scrollbar */
 .location-country-content::-webkit-scrollbar,
 .location-station-content::-webkit-scrollbar {
-  width: clamp(6px, 0.5vw, 10px);
+  width: clamp(4px, 0.5vw, 8px); /* Thinner scrollbar */
 }
 
 .location-country-content::-webkit-scrollbar-track,
@@ -532,7 +458,6 @@ body {
 /* ===============================================
    SCROLLING TEXT ANIMATION
    =============================================== */
-
 .scrolling-text-container {
   overflow: hidden;
   white-space: nowrap;
@@ -545,12 +470,8 @@ body {
 }
 
 @keyframes scroll-left-to-right {
-  0% {
-    transform: translateX(-110%);
-  }
-  100% {
-    transform: translateX(120%);
-  }
+  0% { transform: translateX(-110%); }
+  100% { transform: translateX(120%); }
 }
 
 /* ===============================================
@@ -581,7 +502,6 @@ body {
 /* ===============================================
    IMMERSIVE VISUALIZER - EXACT REFERENCE MATCH
    =============================================== */
-
 .vz-fullscreen-dialog {
   background: transparent !important;
 }
@@ -605,10 +525,7 @@ body {
 .vz-wrapper::before {
   content: '';
   position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  top: 0; left: 0; right: 0; bottom: 0;
   background: radial-gradient(
     circle at 50% 50%,
     rgba(57, 99, 98, 0.15) 0%,
@@ -622,10 +539,7 @@ body {
 /* Canvas container - full screen */
 .vz-wrapper.-canvas {
   position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  top: 0; left: 0; right: 0; bottom: 0;
   width: 100%;
   height: 100%;
   background: transparent;
@@ -637,8 +551,7 @@ body {
 /* Canvas element */
 .vz-canvas {
   position: absolute;
-  top: 0;
-  left: 0;
+  top: 0; left: 0;
   width: 100%;
   height: 100%;
   will-change: transform;
@@ -646,15 +559,15 @@ body {
 
 .vz-close-button {
   position: fixed !important;
-  top: clamp(16px, 2vw, 32px) !important;
-  right: clamp(16px, 2vw, 32px) !important;
+  top: clamp(12px, 2vw, 32px) !important; /* Smaller offset */
+  right: clamp(12px, 2vw, 32px) !important;
   z-index: 1001 !important;
   background: rgba(0, 0, 0, 0.7) !important;
   backdrop-filter: blur(10px) !important;
   -webkit-backdrop-filter: blur(10px) !important;
   border: 1px solid rgba(255, 145, 77, 0.3) !important;
   border-radius: var(--radius-lg) !important;
-  padding: var(--spacing-md) !important;
+  padding: var(--spacing-sm) !important; /* Smaller padding */
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
   pointer-events: auto !important;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5),
@@ -673,15 +586,15 @@ body {
   transform: scale(0.95) !important;
 }
 
-/* Info overlay at bottom - static styling */
+/* Info overlay at bottom */
 .vz-info-overlay {
   position: fixed;
-  bottom: clamp(24px, 3vw, 48px);
+  bottom: clamp(16px, 3vw, 48px); /* Smaller offset */
   left: 50%;
   transform: translateX(-50%);
   z-index: 1001;
   background: rgba(0, 0, 0, 0.75);
-  padding: var(--spacing-lg) var(--spacing-2xl);
+  padding: var(--spacing-md) var(--spacing-lg); /* Smaller padding */
   border-radius: var(--radius-xl);
   border: 1px solid rgba(255, 145, 77, 0.25);
   text-align: center;
@@ -704,32 +617,17 @@ body {
 
 /* Responsive */
 @media screen and (max-width: 768px) {
-  .vz-close-button {
-    padding: var(--spacing-sm) !important;
-  }
-
-  .vz-info-overlay {
-    padding: var(--spacing-md) var(--spacing-xl);
-  }
+  .vz-close-button { padding: var(--spacing-xs) !important; }
+  .vz-info-overlay { padding: var(--spacing-sm) var(--spacing-md); }
 }
 
 @media screen and (max-width: 480px) {
-  .vz-close-button {
-    padding: var(--spacing-xs) !important;
-  }
-
-  .vz-info-overlay {
-    padding: var(--spacing-sm) var(--spacing-lg);
-  }
+  .vz-close-button { padding: var(--spacing-xs) !important; }
+  .vz-info-overlay { padding: var(--spacing-xs) var(--spacing-sm); }
 }
 
-[data-radix-dialog-overlay] {
-  background: transparent !important;
-}
-
-[style*="pointer-events: none"][style*="position: fixed"] {
-  pointer-events: none !important;
-}
+[data-radix-dialog-overlay] { background: transparent !important; }
+[style*="pointer-events: none"][style*="position: fixed"] { pointer-events: none !important; }
 
 .vz-fullscreen-dialog [data-radix-dialog-content] {
   background: transparent !important;
@@ -737,12 +635,9 @@ body {
   padding: 0 !important;
 }
 
-body:has(.vz-wrapper) {
-  overflow: hidden;
-}
+body:has(.vz-wrapper) { overflow: hidden; }
 
-.vz-canvas,
-.vz-wrapper::before {
+.vz-canvas, .vz-wrapper::before {
   transform: translateZ(0);
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;

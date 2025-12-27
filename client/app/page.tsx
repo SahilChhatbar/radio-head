@@ -107,14 +107,15 @@ const Home = memo(() => {
     <div className="flex flex-col min-h-screen">
       <Header />
       <Flex direction="column" className="flex-1">
-        <Section className="flex-1 flex items-center justify-center py-20 relative">
+        {/* Adjusted py from 20 to responsive py-10 md:py-20 */}
+        <Section className="flex-1 flex items-center justify-center py-10 md:py-20 relative">
           <Container size="4" className="relative z-10 w-full">
             <Flex
               direction={{ initial: "column", md: "row" }}
               align="center"
               justify="center"
-              gap="9"
-              className="text-center w-full"
+              gap="5" /* Reduced gap from 9 to 5 for mobile */
+              className="text-center w-full md:gap-9"
               style={{ maxWidth: "var(--max-width)", margin: "0 auto" }}
             >
               <Flex direction="column" gap="6" className="flex-1 items-center">

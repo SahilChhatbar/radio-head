@@ -1,13 +1,7 @@
 "use client";
 
 import React, { memo, useState } from "react";
-import {
-  Button,
-  Flex,
-  Container,
-  Avatar,
-  Text,
-} from "@radix-ui/themes";
+import { Button, Flex, Container, Avatar, Text } from "@radix-ui/themes";
 import Logo from "./Logo";
 import LocationSelector from "./LocationSelector";
 import FavoritesDropdown from "./FavoritesDropdown";

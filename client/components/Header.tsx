@@ -34,7 +34,7 @@ const Header: React.FC<HeaderProps> = memo(
     return (
       <header className={`p-3 ${className}`}>
         <Container size="4">
-          <Flex align="center" justify="between" className="h-16 px-6">
+          <Flex align="center" justify="between" className="h-16 sm:px-6">
             {/* Logo Section */}
             <Flex align="center">
               <div className="block md:hidden">
@@ -48,7 +48,7 @@ const Header: React.FC<HeaderProps> = memo(
             {/* Middle Section - Location Selector */}
             <Flex
               align="center"
-              className="hidden sm:flex flex-1 justify-center mx-4 max-w-md"
+              className="hidden sm:flex flex-1 justify-center mx-4 max-w-fit"
             >
               <LocationSelector />
             </Flex>
@@ -59,40 +59,46 @@ const Header: React.FC<HeaderProps> = memo(
                 <>
                   {user ? (
                     <div className="relative">
-                      <Button
-                        variant="ghost"
-                        className="cursor-pointer"
-                        onClick={() => setShowFavorites(!showFavorites)}
-                      >
-                        <Avatar
-                          size="2"
-                          src={user.avatar}
-                          fallback={user.name?.charAt(0).toUpperCase() || "U"}
-                          radius="full"
+                      <Flex align="center" gap="2" direction="column">
+                        <Button
+                          variant="ghost"
+                          className="cursor-pointer"
+                          onClick={() => setShowFavorites(!showFavorites)}
+                        >
+                          <Avatar
+                            size="2"
+                            src={user.avatar}
+                            fallback={user.name?.charAt(0).toUpperCase() || "U"}
+                            radius="full"
+                          />
+                          <Text
+                            weight="medium"
+                            className="hidden sm:block text-[var(--accent)]"
+                            style={{ color: "var(--foreground)" }}
+                          >
+                            {user.name}
+                          </Text>
+                        </Button>
+                        {/* Favorites Dropdown */}
+                        <FavoritesDropdown
+                          isOpen={showFavorites}
+                          onClose={() => setShowFavorites(false)}
                         />
-                        <Text weight="medium" className="hidden sm:block">
-                          {user.name}
-                        </Text>
-                      </Button>
-
-                      {/* Favorites Dropdown */}
-                      <FavoritesDropdown
-                        isOpen={showFavorites}
-                        onClose={() => setShowFavorites(false)}
-                      />
-
-                      {/* Logout Button  */}
-                      <div className="absolute top-full right-0 mt-1">
                         <Button
                           variant="ghost"
                           size="1"
                           onClick={logout}
                           className="text-red-400 hover:text-red-300 hover:bg-red-400/10"
                         >
-                          <LogOut size={14} />
-                          <Text size="1">Sign Out</Text>
+                          <LogOut
+                            size={15}
+                            style={{ color: "var(--accent  )" }}
+                          />
+                          <Text size="1" style={{ color: "var(--accent)" }}>
+                            Sign Out
+                          </Text>
                         </Button>
-                      </div>
+                      </Flex>
                     </div>
                   ) : (
                     <AuthDialog>

@@ -86,16 +86,18 @@ const StationInfo = memo(
           align="center"
           style={{ fontSize: "var(--font-size-xs)", gap: "var(--spacing-xs)" }}
         >
-          <Clock className="text-[#FF914D]" />
-          <Text size="2" className="text-[#FF914D]">
-            {latency < 1
-              ? `${Math.round(latency * 1000)} ms`
-              : `${latency.toFixed(1)}s`}
-          </Text>
-          <FlameIcon className="text-[#FF914D]" />
-          <Text size="2" className="text-[#FF914D]">
-            {formatVotes(votes)}
-          </Text>
+          <div className="sm:flex gap-2.5 items-center hidden w-full">
+            <Clock className="text-[#FF914D]" />
+            <Text size="2" className="text-[#FF914D]">
+              {latency < 1
+                ? `${Math.round(latency * 1000)} ms`
+                : `${latency.toFixed(1)}s`}
+            </Text>
+            <FlameIcon className="text-[#FF914D]" />
+            <Text size="2" className="text-[#FF914D]">
+              {formatVotes(votes)}
+            </Text>
+          </div>
         </Flex>
       )}
     </Flex>
@@ -462,7 +464,6 @@ const GlobalPlayer: React.FC = () => {
                     isPlaying={isPlaying}
                   />
                 </div>
-
                 <StationInfo
                   name={currentStation?.name ?? "No Station"}
                   latency={latency}
@@ -470,7 +471,6 @@ const GlobalPlayer: React.FC = () => {
                 />
                 <FavoriteButton station={currentStation} />
               </Flex>
-
               <Flex
                 align="center"
                 justify="center"

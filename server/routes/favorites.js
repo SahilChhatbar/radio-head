@@ -5,8 +5,7 @@ const router = express.Router();
 
 // @desc    Get user's favorite stations
 // @route   GET /api/favorites
-// @access  Private
-router.get('/', protect, async (req, res) => {
+router.get('/', protect, async (req, res, next) => {
   try {
     const user = await User.findById(req.user._id).select('favoriteStations');
 
@@ -35,8 +34,7 @@ router.get('/', protect, async (req, res) => {
 
 // @desc    Add station to favorites
 // @route   POST /api/favorites
-// @access  Private
-router.post('/', protect, async (req, res) => {
+router.post('/', protect, async (req, res, next) => {
   try {
     const { station } = req.body;
 
@@ -56,7 +54,6 @@ router.post('/', protect, async (req, res) => {
       });
     }
 
-    // Check if station already exists in favorites
     const existingIndex = user.favoriteStations.findIndex(
       fav => fav.stationuuid === station.stationuuid
     );
@@ -68,7 +65,6 @@ router.post('/', protect, async (req, res) => {
       });
     }
 
-    // Use updateOne to avoid triggering password hash middleware
     await User.updateOne(
       { _id: req.user._id },
       {
@@ -91,7 +87,6 @@ router.post('/', protect, async (req, res) => {
       }
     );
 
-    // Fetch updated favorites
     const updatedUser = await User.findById(req.user._id).select('favoriteStations');
 
     res.status(201).json({
@@ -103,7 +98,6 @@ router.post('/', protect, async (req, res) => {
     });
   } catch (error) {
     console.error('Add favorite error:', error);
-    console.error('Error stack:', error.stack);
     res.status(500).json({
       success: false,
       message: 'Failed to add station to favorites',
@@ -114,8 +108,7 @@ router.post('/', protect, async (req, res) => {
 
 // @desc    Remove station from favorites
 // @route   DELETE /api/favorites/:stationUuid
-// @access  Private
-router.delete('/:stationUuid', protect, async (req, res) => {
+router.delete('/:stationUuid', protect, async (req, res, next) => {
   try {
     const { stationUuid } = req.params;
 
@@ -128,7 +121,6 @@ router.delete('/:stationUuid', protect, async (req, res) => {
       });
     }
 
-    // Check if station exists in favorites
     const exists = user.favoriteStations.some(
       fav => fav.stationuuid === stationUuid
     );
@@ -140,7 +132,6 @@ router.delete('/:stationUuid', protect, async (req, res) => {
       });
     }
 
-    // Use updateOne to avoid triggering password hash middleware
     await User.updateOne(
       { _id: req.user._id },
       {
@@ -150,7 +141,6 @@ router.delete('/:stationUuid', protect, async (req, res) => {
       }
     );
 
-    // Fetch updated favorites
     const updatedUser = await User.findById(req.user._id).select('favoriteStations');
 
     res.json({
@@ -172,8 +162,7 @@ router.delete('/:stationUuid', protect, async (req, res) => {
 
 // @desc    Check if station is favorited
 // @route   GET /api/favorites/check/:stationUuid
-// @access  Private
-router.get('/check/:stationUuid', protect, async (req, res) => {
+router.get('/check/:stationUuid', protect, async (req, res, next) => {
   try {
     const { stationUuid } = req.params;
     const user = await User.findById(req.user._id).select('favoriteStations');

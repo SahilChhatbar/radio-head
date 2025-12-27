@@ -12,13 +12,17 @@ const generateToken = (id) => {
 
 // @desc    Register new user
 // @route   POST /api/auth/register
-router.post('/register', async (req, res) => {
+router.post('/register', async (req, res, next) => {
   try {
-    const { name, email, password } = req.body;
+    let { name, email, password } = req.body;
 
     if (!name || !email || !password) {
       return res.status(400).json({ success: false, message: 'Please provide all fields' });
     }
+
+    // Sanitize inputs
+    name = name.trim();
+    email = email.trim().toLowerCase();
 
     // Check if user exists (by email or name)
     const userExists = await User.findOne({ $or: [{ email }, { name }] });
@@ -27,7 +31,7 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ success: false, message: 'User already exists with that email or name' });
     }
 
-    // Create user
+    // Create user - This triggers the async pre('save') hook in User.js
     const user = await User.create({
       name,
       email,
@@ -49,25 +53,27 @@ router.post('/register', async (req, res) => {
       res.status(400).json({ success: false, message: 'Invalid user data' });
     }
   } catch (error) {
+    console.error('Register Error:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 });
 
 // @desc    Authenticate a user
 // @route   POST /api/auth/login
-router.post('/login', async (req, res) => {
+router.post('/login', async (req, res, next) => {
   try {
-    const { email, password } = req.body;
+    let { email, password } = req.body;
 
-    // The client might send 'email' field, but it could contain a username.
-    // We validate that at least some identifier is present.
     if (!email || !password) {
       return res.status(400).json({ success: false, message: 'Please provide email/username and password' });
     }
 
-    // Check for user by email OR name
+    // Trim whitespace
+    const identifier = email.trim().toLowerCase();
+
+    // Check for user by email OR name (case insensitive for name)
     const user = await User.findOne({ 
-      $or: [{ email: email }, { name: email }] 
+      $or: [{ email: identifier }, { name: new RegExp(`^${identifier}$`, 'i') }] 
     }).select('+password');
 
     if (user && (await user.matchPassword(password))) {
@@ -85,13 +91,14 @@ router.post('/login', async (req, res) => {
       res.status(401).json({ success: false, message: 'Invalid credentials' });
     }
   } catch (error) {
+    console.error('Login Error:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 });
 
 // @desc    Get current user data
 // @route   GET /api/auth/me
-router.get('/me', protect, async (req, res) => {
+router.get('/me', protect, async (req, res, next) => {
   try {
     res.json({
       success: true,
@@ -107,8 +114,7 @@ router.get('/me', protect, async (req, res) => {
   }
 });
 
-// @desc    Google OAuth Placeholder (optional)
-// @route   GET /api/auth/google
+// @desc    Google OAuth Placeholder
 router.get('/google', (req, res) => {
   res.status(501).json({ success: false, message: 'Google Auth not implemented yet' });
 });

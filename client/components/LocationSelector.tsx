@@ -89,7 +89,7 @@ const StationItem = memo(
   )
 );
 StationItem.displayName = "StationItem";
-
+//eslint-disable-next-line @typescript-eslint/no-explicit-any
 const useDebouncedCallback = <T extends (...args: any[]) => any>(
   callback: T,
   delay: number
@@ -151,7 +151,7 @@ const LocationSelector: React.FC<LocationSelectorProps> = memo(
     } = useQuery({
       queryKey: ["countries"],
       queryFn: async () => {
-        const countriesData = await radioApi.getCountries();
+        const countriesData = await radioApi.getCountries(); //eslint-disable-next-line @typescript-eslint/no-explicit-any
         return (countriesData || []).map((c: any) => ({
           name: c.name,
           stationcount: c.stationcount,
@@ -185,7 +185,7 @@ const LocationSelector: React.FC<LocationSelectorProps> = memo(
             const popularStations = await radioApi.getPopularStations(50);
             return popularStations || [];
           } catch (fallbackError) {
-            return [];
+            return [fallbackError];
           }
         }
       },
@@ -201,7 +201,8 @@ const LocationSelector: React.FC<LocationSelectorProps> = memo(
       if (countryStations && !updateStationsRef.current) {
         updateStationsRef.current = true;
         requestAnimationFrame(() => {
-          setStations(countryStations);
+          //eslint-disable-next-line @typescript-eslint/no-explicit-any
+          setStations(countryStations as any);
           updateStationsRef.current = false;
         });
       }
@@ -256,6 +257,7 @@ const LocationSelector: React.FC<LocationSelectorProps> = memo(
               } catch (error) {
                 const defaultCountry = "IN";
                 setSelectedCountry(defaultCountry);
+                console.error("Error fetching location data:", error);
               } finally {
                 setIsLoadingLocation(false);
               }

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, memo, useMemo } from "react";
-import { Container, Flex, Heading, Text, Section, Box } from "@radix-ui/themes";
+import { Container, Flex, Text, Section, Box } from "@radix-ui/themes";
 import Header from "@/components/Header";
 import StationSelector from "@/components/StationSelector";
 import {

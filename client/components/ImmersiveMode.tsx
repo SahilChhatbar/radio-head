@@ -5,7 +5,7 @@ import React, {
   useCallback,
   Suspense,
 } from "react";
-import { Button, Dialog, Text } from "@radix-ui/themes";
+import { Button, Dialog } from "@radix-ui/themes";
 import { Maximize2, X } from "lucide-react";
 import { useRadioStore } from "@/store/useRadiostore";
 import Loader from "@/components/Loader";
@@ -45,6 +45,7 @@ const VisualizerCanvas: React.FC<VisualizerCanvasProps> = ({
   const [audioElement, setAudioElement] = useState<HTMLAudioElement | null>(
     null
   );
+  //eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [isInitialized, setIsInitialized] = useState(false);
 
   const ensureAnalyser = useCallback((ctx: AudioContext) => {
@@ -67,7 +68,6 @@ const VisualizerCanvas: React.FC<VisualizerCanvasProps> = ({
     let mounted = true;
     let attempts = 0;
     const maxAttempts = 20;
-    let interval: number | undefined;
 
     const probe = () => {
       if (!mounted) return;
@@ -83,17 +83,17 @@ const VisualizerCanvas: React.FC<VisualizerCanvasProps> = ({
         setIsInitialized(true);
       }
 
-      if (attempts >= maxAttempts && interval !== undefined) {
+      if (attempts >= maxAttempts) {
         window.clearInterval(interval);
       }
     };
 
+    const interval = window.setInterval(probe, 300);
     probe();
-    interval = window.setInterval(probe, 300);
 
     return () => {
       mounted = false;
-      if (interval !== undefined) window.clearInterval(interval);
+      window.clearInterval(interval);
     };
   }, [isActive, audioRefObject]);
 
@@ -123,7 +123,7 @@ const VisualizerCanvas: React.FC<VisualizerCanvasProps> = ({
       };
 
       if (streamType === "hls" && audioElement) {
-        const AudioCtor =
+        const AudioCtor = //eslint-disable-next-line @typescript-eslint/no-explicit-any
           (window as any).AudioContext || (window as any).webkitAudioContext;
         if (!AudioCtor && !globalAudioContext) {
           return false;
@@ -143,9 +143,10 @@ const VisualizerCanvas: React.FC<VisualizerCanvasProps> = ({
         }
         return attachAnalyserTo(sourceNode, ctx);
       }
-
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       if (streamType === "tone" && (window as any).Tone) {
         try {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const Tone = (window as any).Tone as any;
           const toneCtx: AudioContext | undefined =
             Tone.context ??

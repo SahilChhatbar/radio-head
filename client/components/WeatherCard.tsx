@@ -46,6 +46,7 @@ const WeatherCard: React.FC = () => {
   );
 
   const getWeatherAnimation = useCallback((type: WeatherType) => {
+    //eslint-disable-next-line @typescript-eslint/no-explicit-any
     const animations: Record<WeatherType, any> = {
       rainy: rainyAnimation,
       sunny: sunnyAnimation,

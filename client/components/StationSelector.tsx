@@ -13,10 +13,6 @@ import {
 import { getStationQualityInfo } from "@/services/StationFilter";
 import Loader from "./Loader";
 
-interface StationGaugeProps {
-  limit?: number;
-}
-
 interface Tick {
   x1?: number;
   y1?: number;
@@ -26,7 +22,7 @@ interface Tick {
   visible: boolean;
 }
 
-const StationGauge = memo(({ limit = 50 }: StationGaugeProps) => {
+const StationGauge = memo(() => {
   const VIEWBOX_SIZE = 800;
   const CENTER = VIEWBOX_SIZE / 2;
   const INNER_R = 300;
@@ -40,17 +36,13 @@ const StationGauge = memo(({ limit = 50 }: StationGaugeProps) => {
   const showPlayer = useShowPlayer();
   const isPlaying = useIsPlaying();
   const currentStation = useCurrentStation();
-
-  const setStations = useRadioStore((state) => state.setStations);
   const nextStation = useRadioStore((state) => state.nextStation);
   const previousStation = useRadioStore((state) => state.previousStation);
   const play = useRadioStore((state) => state.play);
   const stop = useRadioStore((state) => state.stop);
   const setShowPlayer = useRadioStore((state) => state.setShowPlayer);
-  const selectedCountry = useRadioStore((state) => state.selectedCountry);
-
   const [isInitializing, setIsInitializing] = React.useState(false);
-  const [isLoadingStations, setIsLoadingStations] = React.useState(false);
+  const [isLoadingStations] = React.useState(false);
 
   useEffect(() => {
     if (stations.length > 0 && isInitializing) {
@@ -143,6 +135,7 @@ const StationGauge = memo(({ limit = 50 }: StationGaugeProps) => {
               setShowPlayer(true);
             }, 500);
           }
+          console.error("Error playing station:", error);
         }
       }
     }
@@ -179,7 +172,11 @@ const StationGauge = memo(({ limit = 50 }: StationGaugeProps) => {
     [previousStation, nextStation, handleGaugeClick]
   );
 
-  if (isLoadingStations || stations.length === 0 || (isInitializing && stations.length === 0)) {
+  if (
+    isLoadingStations ||
+    stations.length === 0 ||
+    (isInitializing && stations.length === 0)
+  ) {
     return (
       <div className="flex flex-col items-center gap-4 p-8">
         <Loader variant="spinner" />
@@ -199,11 +196,14 @@ const StationGauge = memo(({ limit = 50 }: StationGaugeProps) => {
         onKeyDown={handleKeyDown}
         tabIndex={0}
         role="button"
-        aria-label={`Radio gauge. Current station: ${stationInfo.display
-          }. Quality: ${stationInfo.quality || "unknown"
-          }. Use left/right arrows to change station, Enter or Space to toggle play.`}
-        title={`${stationInfo.display}${stationInfo.quality ? ` (${stationInfo.quality} quality)` : ""
-          }\n\nClick to toggle play\nUse ←→ keys to change station\nEnter/Space to toggle`}
+        aria-label={`Radio gauge. Current station: ${
+          stationInfo.display
+        }. Quality: ${
+          stationInfo.quality || "unknown"
+        }. Use left/right arrows to change station, Enter or Space to toggle play.`}
+        title={`${stationInfo.display}${
+          stationInfo.quality ? ` (${stationInfo.quality} quality)` : ""
+        }\n\nClick to toggle play\nUse ←→ keys to change station\nEnter/Space to toggle`}
       >
         <svg
           viewBox={`0 0 ${VIEWBOX_SIZE} ${VIEWBOX_SIZE}`}
@@ -280,8 +280,9 @@ const StationGauge = memo(({ limit = 50 }: StationGaugeProps) => {
                 size="2"
                 weight="bold"
                 className="w-full block text-center text-[#ff914d] font-bungee text-fluid-base rounded-xl px-3 py-2 bg-[rgba(12,21,33,0.8)] border border-[rgba(255,145,77,0.3)] shadow-[0_0_12px_rgba(255,145,77,0.2)] transition-all duration-150 ease-out overflow-hidden"
-                title={`${stationInfo.display}${stationInfo.country ? ` - ${stationInfo.country}` : ""
-                  }`}
+                title={`${stationInfo.display}${
+                  stationInfo.country ? ` - ${stationInfo.country}` : ""
+                }`}
                 style={{
                   textShadow: "0 0 6px rgba(255, 145, 77, 0.4)",
                 }}

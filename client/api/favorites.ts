@@ -2,7 +2,7 @@
 import axios from "axios";
 import { RadioStation } from "@/types/index";
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 
 const getAuthHeader = () => {
   const token = localStorage.getItem("radioverse_token");

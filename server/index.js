@@ -115,6 +115,7 @@ app.use((req, res, next) => {
 });
 
 // API Routes
+app.set("trust proxy", 1);
 app.use('/api/auth', authRoutes);
 app.use('/api/radio', radioRoutes);
 app.use('/api/favorites', favoritesRoutes);

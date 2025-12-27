@@ -18,8 +18,8 @@ connectDB();
 // const passport = require('./config/passport');
 
 const app = express();
-const PORT = process.env.PORT || 5000;
-const NODE_ENV = process.env.NODE_ENV || 'development';
+const PORT = process.env.PORT;
+const NODE_ENV = process.env.NODE_ENV ;
 
 app.set('trust proxy', 1);
 
@@ -39,11 +39,7 @@ const corsOptions = {
     if (!origin) return callback(null, true);
 
     const allowedOrigins = [
-      process.env.CLIENT_URL || 'http://localhost:3000',
-      'http://127.0.0.1:3000',
-      'https://127.0.0.1:3000',
-      'http://localhost:3001',
-      'http://127.0.0.1:3001',
+      process.env.CLIENT_URL
     ];
 
     if (process.env.ALLOWED_ORIGINS) {

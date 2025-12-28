@@ -93,7 +93,7 @@ const StationInfo = memo(
                 ? `${Math.round(latency * 1000)} ms`
                 : `${latency.toFixed(1)}s`}
             </Text>
-            <FlameIcon className="text-[#FF914D]" />
+            <FlameIcon fill="#FF914D" className="text-[#FF914D]" />
             <Text size="2" className="text-[#FF914D]">
               {formatVotes(votes)}
             </Text>

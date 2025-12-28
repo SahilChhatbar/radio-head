@@ -9,8 +9,8 @@ import React, {
   useRef,
   useDeferredValue,
 } from "react";
-import { Select, Flex, Text } from "@radix-ui/themes";
-import { MapPin, Radio, Loader2 } from "lucide-react";
+import { Select, Flex, Text, Separator } from "@radix-ui/themes";
+import { MapPin, Radio, Loader2, SeparatorVertical } from "lucide-react";
 import { formatVotes } from "@/utils/formatting";
 import { useRadioStore } from "@/store/useRadiostore";
 import { useQuery } from "@tanstack/react-query";
@@ -82,8 +82,9 @@ const StationItem = memo(
       >
         {station.name}
       </Text>
+      <SeparatorVertical />
       <Text size="1" weight="regular">
-        🔥{formatVotes(station.votes)}
+        —{formatVotes(station.votes)} upvotes
       </Text>
     </Flex>
   )

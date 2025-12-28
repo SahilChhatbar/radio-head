@@ -20,7 +20,7 @@ const mediaElementSourceMap = new WeakMap<
 
 const createAnalyserForContext = (ctx: AudioContext) => {
   const analyser = ctx.createAnalyser();
-  analyser.fftSize = 2048;
+  analyser.fftSize = 1024;
   analyser.smoothingTimeConstant = 0.75;
   analyser.minDecibels = -100;
   analyser.maxDecibels = -20;
@@ -274,9 +274,9 @@ const VisualizerCanvas: React.FC<VisualizerCanvasProps> = ({
     let bufferLength = globalAnalyser?.frequencyBinCount ?? 1024;
     let dataArray = new Uint8Array(bufferLength);
 
-    const TOTAL_ELEMENTS = 100;
-    const BAR_THRESHOLD = 45;
-    const FULL_BAR_THRESHOLD = 80;
+    const TOTAL_ELEMENTS = 80;
+    const BAR_THRESHOLD = 40;
+    const FULL_BAR_THRESHOLD = 70;
 
     function draw() {
       if (!ctx) return;
@@ -342,7 +342,7 @@ const VisualizerCanvas: React.FC<VisualizerCanvasProps> = ({
           if (value > 200) {
             ctx.strokeStyle = accentColor || "#FF914D";
             ctx.lineWidth = 2.5 + transitionProgress * 1.5;
-            ctx.shadowBlur = 10 + glowIntensity * 8;
+            ctx.shadowBlur = 10 + glowIntensity * 4;
             ctx.shadowColor = accentColor || "#FF914D";
           } else if (value > 150) {
             ctx.strokeStyle = fgColor || "#FAF9F6";

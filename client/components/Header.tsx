@@ -94,7 +94,11 @@ const Header: React.FC<HeaderProps> = memo(
                             size={15}
                             style={{ color: "var(--accent  )" }}
                           />
-                          <Text size="1" style={{ color: "var(--accent)" }}>
+                          <Text
+                            size="1"
+                            style={{ color: "var(--accent)" }}
+                            className="text-nowrap"
+                          >
                             Sign Out
                           </Text>
                         </Button>

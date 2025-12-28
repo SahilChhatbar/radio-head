@@ -448,7 +448,7 @@ const GlobalPlayer: React.FC = () => {
               <Flex
                 align="center"
                 gap="3"
-                className="flex-1 min-w-0 order-1 sm:order-1"
+                className="flex-1 min-w-0 order-2 sm:order-1"
                 style={{ gap: "var(--spacing-sm)" }}
               >
                 <div
@@ -475,7 +475,7 @@ const GlobalPlayer: React.FC = () => {
                 align="center"
                 justify="center"
                 gap="2"
-                className="order-3 w-full sm:order-2 sm:w-auto pt-2 sm:pt-0"
+                className="order-1 w-full sm:order-2 sm:w-auto pt-2 sm:pt-0"
                 style={{ gap: "var(--spacing-xs)" }}
               >
                 <Button

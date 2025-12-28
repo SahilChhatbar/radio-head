@@ -316,7 +316,7 @@ const WeatherCard: React.FC = () => {
           }}
         >
           {isNightTime()
-            ? `${weatherInfo.description} • Night`
+            ? `${weatherInfo.description}`
             : weatherInfo.description}
         </Text>
       </Flex>

@@ -20,7 +20,7 @@ const mediaElementSourceMap = new WeakMap<
 
 const createAnalyserForContext = (ctx: AudioContext) => {
   const analyser = ctx.createAnalyser();
-  analyser.fftSize = 1024;
+  analyser.fftSize = 256;
   analyser.smoothingTimeConstant = 0.75;
   analyser.minDecibels = -100;
   analyser.maxDecibels = -20;

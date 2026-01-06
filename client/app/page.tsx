@@ -33,10 +33,10 @@ const StatusText = memo(
       }
 
       if (showPlayer && currentStation) {
-        return isPlaying ? "" : "PAUSED - Click gauge again to stop";
+        return isPlaying ? "" : "PAUSED - Click Radio Meter again to stop";
       }
 
-      return "Select a region and station to start listening →";
+      return "Click the Radio Meter to start playing →";
     }, [showPlayer, currentStation, isPlaying, isLoading]);
 
     return (

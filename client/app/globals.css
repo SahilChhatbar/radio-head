@@ -511,13 +511,7 @@ body {
   position: relative;
   height: 100vh;
   width: 100vw;
-  background: radial-gradient(
-    circle at center,
-    #396362 0%,
-    var(--color-cyan-900) 30%,
-    var(--color-background) 60%,
-    var(--secondary-dark) 100%
-  );
+  background: linear-gradient(to bottom, #010310, rgba(20, 38, 98, 1), #010310);
   cursor: pointer;
   overflow: hidden;
 }

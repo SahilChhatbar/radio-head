@@ -42,7 +42,7 @@ const StatusText = memo(
     return (
       <Text
         size="3"
-        className="mt-4 transition-colors duration-300 text-[var(--foreground)]"
+        className="mt-4 transition-colors duration-300 text-[var(--accent)]"
         role="status"
         aria-live="polite"
       >
@@ -125,6 +125,14 @@ const Home = memo(() => {
               <Box className="flex-1 flex justify-center md:justify-end w-full">
                 <StationSelector />
               </Box>
+              <div className="sm:hidden w-full flex justify-center">
+                <StatusText
+                  showPlayer={showPlayer}
+                  currentStation={currentStation}
+                  isPlaying={isPlaying}
+                  isLoading={isLoading}
+                />
+              </div>
             </Flex>
           </Container>
         </Section>

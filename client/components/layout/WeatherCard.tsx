@@ -236,6 +236,9 @@ const WeatherCard: React.FC = () => {
     isNightTime() ? "night" : weatherInfo.type
   );
 
+  // Conditions & Derived UI values extracted for cleaner JSX
+  const weatherDescription = weatherInfo.description;
+
   return (
     <Flex
       direction="column"
@@ -315,9 +318,7 @@ const WeatherCard: React.FC = () => {
             whiteSpace: "nowrap",
           }}
         >
-          {isNightTime()
-            ? `${weatherInfo.description}`
-            : weatherInfo.description}
+          {weatherDescription}
         </Text>
       </Flex>
       <Flex

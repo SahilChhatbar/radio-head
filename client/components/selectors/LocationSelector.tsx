@@ -63,30 +63,36 @@ const StationItem = memo(
   }: {
     station: Station;
     isCurrentStation: boolean;
-  }) => (
-    <Flex
-      direction="row"
-      gap="1"
-      align="center"
-      justify="between"
-      className="w-full"
-    >
-      <Text
-        size="2"
-        weight="regular"
-        style={{
-          textShadow: isCurrentStation
-            ? "0 0 8px rgba(239, 68, 68, 0.6)"
-            : "0 0 4px rgba(239, 68, 68, 0.3)",
-        }}
+  }) => {
+    // Conditions & Derived UI values extracted for cleaner JSX
+    const textShadowValue = isCurrentStation
+      ? "0 0 8px rgba(239, 68, 68, 0.6)"
+      : "0 0 4px rgba(239, 68, 68, 0.3)";
+    const votesTextValue = `—${formatVotes(station.votes)} upvotes`;
+
+    return (
+      <Flex
+        direction="row"
+        gap="1"
+        align="center"
+        justify="between"
+        className="w-full"
       >
-        {station.name}
-      </Text>
-      <Text size="1" weight="regular">
-        —{formatVotes(station.votes)} upvotes
-      </Text>
-    </Flex>
-  )
+        <Text
+          size="2"
+          weight="regular"
+          style={{
+            textShadow: textShadowValue,
+          }}
+        >
+          {station.name}
+        </Text>
+        <Text size="1" weight="regular">
+          {votesTextValue}
+        </Text>
+      </Flex>
+    );
+  }
 );
 StationItem.displayName = "StationItem";
 //eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -390,6 +396,112 @@ const LocationSelector: React.FC<LocationSelectorProps> = memo(
       [debouncedSetStationSearch]
     );
 
+    // Conditions & Derived UI values extracted for cleaner JSX
+    const showNoCountriesFound = filteredCountries.length === 0 && !isLoadingCountries;
+    const showNoStationsFound = filteredStations.length === 0 && !isLoadingStations;
+
+    const noStationsFoundText = selectedCountry
+      ? `No stations found in ${selectedCountryData?.name || selectedCountry}`
+      : "Please select a country first";
+
+    const countryTriggerContent = (() => {
+      if (isLoadingLocation && !selectedCountryData) {
+        return (
+          <Flex align="center" gap="2">
+            <Loader2 size={14} className="animate-spin" />
+            <Text size="2" weight="regular" className="text-gray-400">
+              Detecting...
+            </Text>
+          </Flex>
+        );
+      }
+      if (selectedCountryData) {
+        return (
+          <Flex align="center" gap="2">
+            <Text
+              size="2"
+              weight="regular"
+              className="truncate text-accent"
+              style={{
+                textShadow: "0 0 6px rgba(255, 145, 77, 0.4)",
+              }}
+            >
+              {selectedCountryData.name}
+            </Text>
+          </Flex>
+        );
+      }
+      if (selectedCountry && countries.length > 0) {
+        return (
+          <Flex align="center" gap="2">
+            <Text
+              size="2"
+              weight="regular"
+              className="truncate text-accent"
+            >
+              {selectedCountry}
+            </Text>
+          </Flex>
+        );
+      }
+      if (countriesError) {
+        return (
+          <Text size="2" weight="regular" className="text-red-400">
+            Error loading regions
+          </Text>
+        );
+      }
+      return (
+        <Text size="2" weight="regular" className="text-gray-400">
+          {isLoadingCountries ? "Loading regions..." : "Select region"}
+        </Text>
+      );
+    })();
+
+    const stationTriggerContent = (() => {
+      if (isLoadingStations) {
+        return (
+          <Flex align="center" gap="2">
+            <Loader2 size={14} className="animate-spin" />
+            <Text size="2" weight="regular" className="text-gray-400">
+              Loading...
+            </Text>
+          </Flex>
+        );
+      }
+      if (selectedStationData) {
+        return (
+          <Flex align="center" gap="2" className="w-full min-w-0">
+            <Text
+              size="2"
+              weight="regular"
+              className="flex-1 truncate text-left text-accent"
+              style={{
+                textShadow: "0 0 6px rgba(255, 145, 77, 0.4)",
+              }}
+            >
+              {selectedStationData.name}
+            </Text>
+          </Flex>
+        );
+      }
+      const fallbackText = !selectedCountry
+        ? "Please select region"
+        : filteredStations.length === 0
+        ? "No stations available"
+        : "Select station";
+
+      return (
+        <Text
+          size="2"
+          weight="regular"
+          className="text-gray-400 truncate"
+        >
+          {fallbackText}
+        </Text>
+      );
+    })();
+
     return (
       <Flex
         direction={{ initial: "column", sm: "row" }}
@@ -426,45 +538,7 @@ const LocationSelector: React.FC<LocationSelectorProps> = memo(
               data-country-trigger
               className="w-full location-country-trigger"
             >
-              {isLoadingLocation && !selectedCountryData ? (
-                <Flex align="center" gap="2">
-                  <Loader2 size={14} className="animate-spin" />
-                  <Text size="2" weight="regular" className="text-gray-400">
-                    Detecting...
-                  </Text>
-                </Flex>
-              ) : selectedCountryData ? (
-                <Flex align="center" gap="2">
-                  <Text
-                    size="2"
-                    weight="regular"
-                    className="truncate text-accent"
-                    style={{
-                      textShadow: "0 0 6px rgba(255, 145, 77, 0.4)",
-                    }}
-                  >
-                    {selectedCountryData.name}
-                  </Text>
-                </Flex>
-              ) : selectedCountry && countries.length > 0 ? (
-                <Flex align="center" gap="2">
-                  <Text
-                    size="2"
-                    weight="regular"
-                    className="truncate text-accent"
-                  >
-                    {selectedCountry}
-                  </Text>
-                </Flex>
-              ) : countriesError ? (
-                <Text size="2" weight="regular" className="text-red-400">
-                  Error loading regions
-                </Text>
-              ) : (
-                <Text size="2" weight="regular" className="text-gray-400">
-                  {isLoadingCountries ? "Loading regions..." : "Select region"}
-                </Text>
-              )}
+              {countryTriggerContent}
             </Select.Trigger>
 
             <Select.Content
@@ -501,7 +575,7 @@ const LocationSelector: React.FC<LocationSelectorProps> = memo(
                   </Select.Item>
                 ))}
 
-                {filteredCountries.length === 0 && !isLoadingCountries && (
+                {showNoCountriesFound && (
                   <div className="px-3 py-2">
                     <Text size="2" weight="regular" className="text-gray-500">
                       No countries found
@@ -548,39 +622,7 @@ const LocationSelector: React.FC<LocationSelectorProps> = memo(
               className="w-full location-country-trigger min-w-0"
               placeholder="Select station"
             >
-              {isLoadingStations ? (
-                <Flex align="center" gap="2">
-                  <Loader2 size={14} className="animate-spin" />
-                  <Text size="2" weight="regular" className="text-gray-400">
-                    Loading...
-                  </Text>
-                </Flex>
-              ) : selectedStationData ? (
-                <Flex align="center" gap="2" className="w-full min-w-0">
-                  <Text
-                    size="2"
-                    weight="regular"
-                    className="flex-1 truncate text-left text-accent"
-                    style={{
-                      textShadow: "0 0 6px rgba(255, 145, 77, 0.4)",
-                    }}
-                  >
-                    {selectedStationData.name}
-                  </Text>
-                </Flex>
-              ) : (
-                <Text
-                  size="2"
-                  weight="regular"
-                  className="text-gray-400 truncate"
-                >
-                  {!selectedCountry
-                    ? "Please select region"
-                    : filteredStations.length === 0
-                    ? "No stations available"
-                    : "Select station"}
-                </Text>
-              )}
+              {stationTriggerContent}
             </Select.Trigger>
 
             <Select.Content
@@ -618,14 +660,10 @@ const LocationSelector: React.FC<LocationSelectorProps> = memo(
                     />
                   </Select.Item>
                 ))}
-                {filteredStations.length === 0 && !isLoadingStations && (
+                {showNoStationsFound && (
                   <div className="px-3 py-2">
                     <Text size="2" weight="regular" className="text-gray-500">
-                      {selectedCountry
-                        ? `No stations found in ${
-                            selectedCountryData?.name || selectedCountry
-                          }`
-                        : "Please select a country first"}
+                      {noStationsFoundText}
                     </Text>
                   </div>
                 )}

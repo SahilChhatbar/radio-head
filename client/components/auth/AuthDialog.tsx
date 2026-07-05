@@ -49,24 +49,44 @@ export function AuthDialog({ children }: { children: React.ReactNode }) {
     setError(null);
   };
 
+  // Conditions & Derived UI values extracted for cleaner JSX
+  const isRegisterMode = !isLogin;
+  const hasError = !!error;
+  const dialogTitle = isLogin ? "Welcome Back" : "Create Account";
+
+  const dialogDescription = isLogin
+    ? "Enter your credentials to access your account."
+    : "Sign up to start saving your favorite stations.";
+
+  const emailLabel = isLogin ? "Email or Username" : "Email";
+  const emailPlaceholder = "john@example.com";
+
+  const passwordInputType = showPassword ? "text" : "password";
+  const passwordAriaLabel = showPassword ? "Hide password" : "Show password";
+  const PasswordIcon = showPassword ? EyeOff : Eye;
+
+  const submitButtonText = isLogin ? "Sign In" : "Sign Up";
+  const footerQuestionText = isLogin
+    ? "Don't have an account? "
+    : "Already have an account? ";
+  const footerToggleText = isLogin ? "Sign Up" : "Log In";
+
   return (
     <Dialog.Root open={open} onOpenChange={setOpen}>
       <Dialog.Trigger>{children}</Dialog.Trigger>
 
       <Dialog.Content style={{ maxWidth: 450 }}>
         <Dialog.Title size="4" mb="2">
-          {isLogin ? "Welcome Back" : "Create Account"}
+          {dialogTitle}
         </Dialog.Title>
         <Dialog.Description size="2" mb="4">
-          {isLogin
-            ? "Enter your credentials to access your account."
-            : "Sign up to start saving your favorite stations."}
+          {dialogDescription}
         </Dialog.Description>
 
         <form onSubmit={handleSubmit}>
           <Flex direction="column" gap="3">
             {/* Error Message */}
-            {error && (
+            {hasError && (
               <Callout.Root color="red" size="1">
                 <Callout.Icon>
                   <AlertCircle size={16} />
@@ -76,7 +96,7 @@ export function AuthDialog({ children }: { children: React.ReactNode }) {
             )}
 
             {/* Name Field (Register only) */}
-            {!isLogin && (
+            {isRegisterMode && (
               <label>
                 <Text as="div" size="2" mb="1" weight="bold">
                   Name
@@ -85,7 +105,7 @@ export function AuthDialog({ children }: { children: React.ReactNode }) {
                   placeholder="Your Name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  required={!isLogin}
+                  required={isRegisterMode}
                 >
                   <TextField.Slot>
                     <User height="16" width="16" />
@@ -97,10 +117,10 @@ export function AuthDialog({ children }: { children: React.ReactNode }) {
             {/* Email/Username Field */}
             <label>
               <Text as="div" size="2" mb="1" weight="bold">
-                {isLogin ? "Email or Username" : "Email"}
+                {emailLabel}
               </Text>
               <TextField.Root
-                placeholder={isLogin ? "john@example.com" : "john@example.com"}
+                placeholder={emailPlaceholder}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
@@ -115,7 +135,7 @@ export function AuthDialog({ children }: { children: React.ReactNode }) {
                 Password
               </Text>
               <TextField.Root
-                type={showPassword ? "text" : "password"}
+                type={passwordInputType}
                 placeholder="••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -129,11 +149,9 @@ export function AuthDialog({ children }: { children: React.ReactNode }) {
                     type="button"
                     onClick={() => setShowPassword((prev) => !prev)}
                     className="text-gray-500 hover:text-gray-700 focus:outline-none"
-                    aria-label={
-                      showPassword ? "Hide password" : "Show password"
-                    }
+                    aria-label={passwordAriaLabel}
                   >
-                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    <PasswordIcon size={16} />
                   </button>
                 </TextField.Slot>
               </TextField.Root>
@@ -145,7 +163,7 @@ export function AuthDialog({ children }: { children: React.ReactNode }) {
                 </Button>
               </Dialog.Close>
               <Button type="submit" loading={loading}>
-                {isLogin ? "Sign In" : "Sign Up"}
+                {submitButtonText}
               </Button>
             </Flex>
           </Flex>
@@ -153,12 +171,12 @@ export function AuthDialog({ children }: { children: React.ReactNode }) {
 
         <Flex justify="center" mt="4">
           <Text size="2" color="gray">
-            {isLogin ? "Don't have an account? " : "Already have an account? "}
+            {footerQuestionText}
             <span
               className="text-blue-500 cursor-pointer hover:underline"
               onClick={toggleMode}
             >
-              {isLogin ? "Sign Up" : "Log In"}
+              {footerToggleText}
             </span>
           </Text>
         </Flex>

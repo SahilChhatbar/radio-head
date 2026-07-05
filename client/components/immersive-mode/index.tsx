@@ -8,7 +8,7 @@ import React, {
 import { Button, Dialog } from "@radix-ui/themes";
 import { Maximize2, X } from "lucide-react";
 import { useRadioStore } from "@/store/useRadiostore";
-import Loader from "@/components/Loader";
+import Loader from "@/components/layout/Loader";
 
 let globalAudioContext: AudioContext | null = null;
 let globalAnalyser: AnalyserNode | null = null;
@@ -43,7 +43,7 @@ const VisualizerCanvas: React.FC<VisualizerCanvasProps> = ({
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const animRef = useRef<number | null>(null);
   const [audioElement, setAudioElement] = useState<HTMLAudioElement | null>(
-    null
+    null,
   );
   //eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [isInitialized, setIsInitialized] = useState(false);
@@ -313,7 +313,7 @@ const VisualizerCanvas: React.FC<VisualizerCanvasProps> = ({
         if (value > BAR_THRESHOLD) {
           const transitionProgress = Math.min(
             1,
-            (value - BAR_THRESHOLD) / (FULL_BAR_THRESHOLD - BAR_THRESHOLD)
+            (value - BAR_THRESHOLD) / (FULL_BAR_THRESHOLD - BAR_THRESHOLD),
           );
 
           const maxBarLength = 70;
@@ -439,6 +439,9 @@ const ImmersiveVisualizer: React.FC<ImmersiveVisualizerProps> = ({
     stations: Array<{ name?: string }>;
   };
   const currentStationData = stations?.[currentStation];
+  
+  // Conditions & Derived UI values extracted for cleaner JSX
+  const stationName = currentStationData?.name ?? "";
 
   useEffect(() => {
     if (!isOpen) {
@@ -505,7 +508,7 @@ const ImmersiveVisualizer: React.FC<ImmersiveVisualizerProps> = ({
                     isActive={isOpen}
                     streamType={streamType ?? null}
                     audioRefObject={audioRef}
-                    stationName={currentStationData?.name ?? ""}
+                    stationName={stationName}
                   />
                 )}
               </Suspense>

@@ -4,9 +4,9 @@ import { Bungee, Roboto } from "next/font/google";
 import { Theme } from "@radix-ui/themes";
 import "./globals.css";
 import React, { Suspense } from "react";
-import Loader from "@/components/Loader";
+import Loader from "@/components/layout/Loader";
 import Providers from "@/providers";
-import GlobalPlayer from "@/components/GlobalPlayer";
+import GlobalPlayer from "@/components/player";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",

@@ -2,8 +2,8 @@
 
 import React, { useState, useEffect, memo, useMemo } from "react";
 import { Container, Flex, Text, Section, Box } from "@radix-ui/themes";
-import Header from "@/components/Header";
-import StationSelector from "@/components/StationSelector";
+import Header from "@/components/layout/Header";
+import StationSelector from "@/components/selectors/StationSelector";
 import {
   useShowPlayer,
   useIsPlaying,
@@ -11,9 +11,9 @@ import {
   useIsLoading,
   useStations,
 } from "@/store/useRadiostore";
-import Loader from "@/components/Loader";
+import Loader from "@/components/layout/Loader";
 import { RadioStation } from "@/types";
-import WeatherCard from "@/components/WeatherCard";
+import WeatherCard from "@/components/layout/WeatherCard";
 
 const StatusText = memo(
   ({
@@ -49,7 +49,7 @@ const StatusText = memo(
         {text}
       </Text>
     );
-  }
+  },
 );
 StatusText.displayName = "StatusText";
 

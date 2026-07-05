@@ -11,7 +11,7 @@ import {
   useCurrentStation,
 } from "@/store/useRadiostore";
 import { getStationQualityInfo } from "@/services/StationFilter";
-import Loader from "./Loader";
+import Loader from "../layout/Loader";
 
 interface Tick {
   x1?: number;
@@ -55,7 +55,7 @@ const StationGauge = memo(() => {
       if (stations.length === 0) return 180;
       return 180 + (index / Math.max(stations.length - 1, 1)) * 270;
     },
-    [stations.length]
+    [stations.length],
   );
 
   useEffect(() => {
@@ -114,6 +114,19 @@ const StationGauge = memo(() => {
     };
   }, [stations, currentStationIndex]);
 
+  // Conditions & Derived UI values extracted for cleaner JSX
+  const formattedStationDisplay = React.useMemo(() => {
+    const s = stationInfo.display || "";
+    const chunk = 20;
+    return s.length > chunk
+      ? s.replace(new RegExp(`(.{${chunk}})`, "g"), "$1\u200B")
+      : s;
+  }, [stationInfo.display]);
+
+  const stationTitleText = `${stationInfo.display}${
+    stationInfo.country ? ` - ${stationInfo.country}` : ""
+  }`;
+
   const handleGaugeClick = useCallback(async () => {
     if (stations.length > 0) {
       const currentStationData = stations[currentStationIndex];
@@ -169,7 +182,7 @@ const StationGauge = memo(() => {
           break;
       }
     },
-    [previousStation, nextStation, handleGaugeClick]
+    [previousStation, nextStation, handleGaugeClick],
   );
 
   if (
@@ -234,7 +247,7 @@ const StationGauge = memo(() => {
                 strokeWidth={strokeWidth}
                 opacity={0.8}
               />
-            ) : null
+            ) : null,
           )}
           <circle
             cx={CENTER}
@@ -280,21 +293,13 @@ const StationGauge = memo(() => {
                 size="2"
                 weight="bold"
                 className="w-full block text-center text-[#ff914d] font-bungee text-fluid-base rounded-xl px-3 py-2 bg-[rgba(12,21,33,0.8)] border border-[rgba(255,145,77,0.3)] shadow-[0_0_12px_rgba(255,145,77,0.2)] transition-all duration-150 ease-out overflow-hidden"
-                title={`${stationInfo.display}${
-                  stationInfo.country ? ` - ${stationInfo.country}` : ""
-                }`}
+                title={stationTitleText}
                 style={{
                   textShadow: "0 0 6px rgba(255, 145, 77, 0.4)",
                 }}
               >
                 <span className="scrolling-text inline-block whitespace-nowrap">
-                  {(() => {
-                    const s = stationInfo.display || "";
-                    const chunk = 20;
-                    return s.length > chunk
-                      ? s.replace(new RegExp(`(.{${chunk}})`, "g"), "$1\u200B")
-                      : s;
-                  })()}
+                  {formattedStationDisplay}
                 </span>
               </Text>
             </div>

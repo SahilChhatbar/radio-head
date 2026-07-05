@@ -3,10 +3,10 @@
 import React, { memo, useState } from "react";
 import { Button, Flex, Container, Avatar, Text } from "@radix-ui/themes";
 import Logo from "./Logo";
-import LocationSelector from "./LocationSelector";
-import FavoritesDropdown from "./FavoritesDropdown";
+import LocationSelector from "../selectors/LocationSelector";
+import FavoritesDropdown from "../favourites/FavoritesDropdown";
 import { useAuth } from "@/contexts/AuthContext";
-import { AuthDialog } from "./AuthDialog";
+import { AuthDialog } from "../auth/AuthDialog";
 import { LogOut } from "lucide-react";
 
 interface LogoProps {
@@ -30,6 +30,10 @@ const Header: React.FC<HeaderProps> = memo(
   ({ className = "", showSignIn = true, logoProps = {} }) => {
     const { user, logout } = useAuth();
     const [showFavorites, setShowFavorites] = useState(false);
+
+    // Conditions & Derived UI values extracted for cleaner JSX
+    const isUserLoggedIn = !!user;
+    const avatarFallback = user?.name ? user.name.charAt(0).toUpperCase() : "U";
 
     return (
       <header className={`p-3 ${className}`}>
@@ -57,7 +61,7 @@ const Header: React.FC<HeaderProps> = memo(
             <Flex align="center" gap="3">
               {showSignIn && (
                 <>
-                  {user ? (
+                  {isUserLoggedIn ? (
                     <div className="relative">
                       <Flex align="center" gap="2" direction="column">
                         <Button
@@ -68,7 +72,7 @@ const Header: React.FC<HeaderProps> = memo(
                           <Avatar
                             size="2"
                             src={user.avatar}
-                            fallback={user.name?.charAt(0).toUpperCase() || "U"}
+                            fallback={avatarFallback}
                             radius="full"
                           />
                           <Text
@@ -116,7 +120,7 @@ const Header: React.FC<HeaderProps> = memo(
         </Container>
       </header>
     );
-  }
+  },
 );
 
 Header.displayName = "Header";

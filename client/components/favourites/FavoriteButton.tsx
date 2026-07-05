@@ -64,6 +64,12 @@ const FavoriteButton: React.FC<FavoriteButtonProps> = ({
 
   if (!user || !station) return null;
 
+  // Conditions & Derived UI values extracted for cleaner JSX
+  const buttonTitle = isFavorited ? "Remove from favorites" : "Add to favorites";
+  const heartClassName = isFavorited
+    ? "fill-[#FF914D] text-[#FF914D]"
+    : "text-[#FF914D]";
+
   return (
     <Button
       size={size}
@@ -72,16 +78,14 @@ const FavoriteButton: React.FC<FavoriteButtonProps> = ({
       disabled={loading}
       className="hover:bg-[#FF914D]/10 transition-colors"
       style={{ padding: "var(--spacing-xs)" }}
-      title={isFavorited ? "Remove from favorites" : "Add to favorites"}
+      title={buttonTitle}
     >
       {loading ? (
         <Loader2 size={18} className="animate-spin" />
       ) : (
         <Heart
           size={18}
-          className={
-            isFavorited ? "fill-[#FF914D] text-[#FF914D]" : "text-[#FF914D]"
-          }
+          className={heartClassName}
         />
       )}
     </Button>

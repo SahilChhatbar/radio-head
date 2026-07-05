@@ -1,187 +1,22 @@
 "use client";
 
 import React, { useMemo, useCallback, memo } from "react";
-import { Button, Flex, Text, Box, Container } from "@radix-ui/themes";
-import {
-  SkipBack,
-  SkipForward,
-  Play,
-  Pause,
-  Volume2,
-  VolumeX,
-  Disc3,
-  Unplug,
-  Clock,
-  FlameIcon,
-} from "lucide-react";
-import * as Slider from "@radix-ui/react-slider";
+import { Button, Flex, Box, Container } from "@radix-ui/themes";
+import { SkipBack, SkipForward, Play, Pause } from "lucide-react";
 import { useHotkeys } from "react-hotkeys-hook";
 
 import { useRadioStore } from "@/store/useRadiostore";
 import { useEnhancedAudioPlayer } from "@/hooks/useAudioPlayer";
-import AudioVisualizer, { AudioVisualizerHandle } from "./AudioVisualizer";
-import ImmersiveVisualizer from "./ImmersiveMode";
-import { formatVotes } from "@/utils/formatting";
-import FavoriteButton from "./FavoriteButton";
+import AudioVisualizer, {
+  AudioVisualizerHandle,
+} from "@/components/player/AudioVisualizer";
+import ImmersiveVisualizer from "@/components/immersive-mode";
+import FavoriteButton from "@/components/favourites/FavoriteButton";
 
-const ORANGE = "#FF914D";
-
-const iconSize = "clamp(16px, 2vw, 2.5rem)";
-const buttonSize = "clamp(2.5rem, 3vw, 3.5rem)";
-
-const StationIcon = memo(
-  ({ isLoading, isPlaying }: { isLoading: boolean; isPlaying: boolean }) => {
-    if (isLoading) {
-      return (
-        <div
-          className="border-2 border-[#FF914D] border-t-transparent rounded-full animate-spin"
-          style={{
-            width: iconSize,
-            height: iconSize,
-          }}
-        />
-      );
-    }
-    if (isPlaying) {
-      return (
-        <Disc3
-          className="text-[#FF914D] animate-spin"
-          style={{ width: iconSize, height: iconSize }}
-        />
-      );
-    }
-    return (
-      <Unplug
-        className="text-[#FF914D]"
-        style={{ width: iconSize, height: iconSize }}
-      />
-    );
-  }
-);
-StationIcon.displayName = "StationIcon";
-
-const StationInfo = memo(
-  ({
-    name,
-    latency,
-    votes,
-  }: {
-    name: string;
-    latency: number;
-    votes?: number;
-  }) => (
-    <Flex
-      direction="column"
-      gap="1"
-      className="min-w-0"
-      style={{ gap: "var(--spacing-xs)" }}
-      align="center"
-    >
-      <Text size="3" weight="medium" className="truncate">
-        {name}
-      </Text>
-      {latency > 0 && (
-        <Flex
-          gap="2"
-          align="center"
-          style={{ fontSize: "var(--font-size-xs)", gap: "var(--spacing-xs)" }}
-        >
-          <div className="sm:flex gap-2.5 items-center hidden w-full">
-            <Clock className="text-[#FF914D]" />
-            <Text size="2" className="text-[#FF914D]">
-              {latency < 1
-                ? `${Math.round(latency * 1000)} ms`
-                : `${latency.toFixed(1)}s`}
-            </Text>
-            <FlameIcon fill="#FF914D" className="text-[#FF914D]" />
-            <Text size="2" className="text-[#FF914D]">
-              {formatVotes(votes)}
-            </Text>
-          </div>
-        </Flex>
-      )}
-    </Flex>
-  )
-);
-StationInfo.displayName = "StationInfo";
-
-const VolumeControl = memo(
-  ({
-    isMuted,
-    volume,
-    displayVolume,
-    onMuteToggle,
-    onVolumeChange,
-  }: {
-    isMuted: boolean;
-    volume: number;
-    displayVolume: number;
-    onMuteToggle: () => void;
-    onVolumeChange: (v: number[]) => void;
-  }) => (
-    <>
-      <Button
-        variant="ghost"
-        onClick={onMuteToggle}
-        className="hover:bg-[#FF914D]/10"
-        style={{ padding: "var(--spacing-xs)" }}
-      >
-        {isMuted || volume === 0 ? (
-          <VolumeX
-            color={ORANGE}
-            style={{ width: iconSize, height: iconSize }}
-          />
-        ) : (
-          <Volume2
-            color={ORANGE}
-            style={{ width: iconSize, height: iconSize }}
-          />
-        )}
-      </Button>
-
-      <div
-        className="hidden md:block"
-        style={{ width: "clamp(60px, 10vw, 100px)" }}
-      >
-        <Slider.Root
-          min={0}
-          max={1}
-          step={0.01}
-          value={[displayVolume]}
-          onValueChange={onVolumeChange}
-          className="relative flex items-center w-full"
-          style={{ height: "clamp(1rem, 1.5vw, 1.5rem)" }}
-        >
-          <Slider.Track
-            className="relative w-full bg-slate-700 rounded-lg"
-            style={{ height: "clamp(3px, 0.5vw, 5px)" }}
-          >
-            <Slider.Range
-              className="absolute h-full rounded-lg"
-              style={{ background: ORANGE }}
-            />
-          </Slider.Track>
-          <Slider.Thumb
-            className="block bg-white rounded-full shadow"
-            style={{
-              width: "clamp(12px, 2vw, 18px)",
-              height: "clamp(12px, 2vw, 18px)",
-            }}
-          />
-        </Slider.Root>
-      </div>
-
-      <Text
-        size="1"
-        className="text-[#FF914D] hidden lg:block"
-        style={{ minWidth: "clamp(1.5rem, 3vw, 2.5rem)" }}
-      >
-        {Math.round(displayVolume * 100)}%
-      </Text>
-    </>
-  )
-);
-VolumeControl.displayName = "VolumeControl";
+import StationIcon from "./StationIcon";
+import StationInfo from "./StationInfo";
+import VolumeControl from "./VolumeControl";
+import { buttonSize } from "./constants";
 
 const GlobalPlayer: React.FC = () => {
   const visualizerRef = React.useRef<AudioVisualizerHandle>(null);
@@ -191,7 +26,7 @@ const GlobalPlayer: React.FC = () => {
   const stations = useRadioStore((state) => state.stations);
   const currentStation = useRadioStore((state) => state.currentStation);
   const currentStationIndex = useRadioStore(
-    (state) => state.currentStationIndex
+    (state) => state.currentStationIndex,
   );
   const isPlaying = useRadioStore((state) => state.isPlaying);
   const storeIsLoading = useRadioStore((state) => state.isLoading);
@@ -238,7 +73,7 @@ const GlobalPlayer: React.FC = () => {
         setIsPlaying(false);
         visualizerRef.current?.pause();
       },
-      [setError, setIsPlaying]
+      [setError, setIsPlaying],
     ),
   });
 
@@ -335,7 +170,7 @@ const GlobalPlayer: React.FC = () => {
       handlePlayPause();
     },
     { enabled: isDesktop },
-    [handlePlayPause]
+    [handlePlayPause],
   );
 
   useHotkeys(
@@ -346,7 +181,7 @@ const GlobalPlayer: React.FC = () => {
       handlePrevious();
     },
     { enabled: isDesktop },
-    [handlePrevious]
+    [handlePrevious],
   );
 
   useHotkeys(
@@ -357,7 +192,7 @@ const GlobalPlayer: React.FC = () => {
       handleNext();
     },
     { enabled: isDesktop },
-    [handleNext]
+    [handleNext],
   );
 
   useHotkeys(
@@ -368,7 +203,7 @@ const GlobalPlayer: React.FC = () => {
       updateVolume(Math.min(1, +(volume + 0.1).toFixed(2)));
     },
     { enabled: isDesktop },
-    [volume, updateVolume]
+    [volume, updateVolume],
   );
 
   useHotkeys(
@@ -379,7 +214,7 @@ const GlobalPlayer: React.FC = () => {
       updateVolume(Math.max(0, +(volume - 0.1).toFixed(2)));
     },
     { enabled: isDesktop },
-    [volume, updateVolume]
+    [volume, updateVolume],
   );
 
   useHotkeys(
@@ -390,12 +225,12 @@ const GlobalPlayer: React.FC = () => {
       updateMuted(!isMuted);
     },
     { enabled: isDesktop },
-    [isMuted, updateMuted]
+    [isMuted, updateMuted],
   );
 
   const displayVolume = useMemo(
     () => (isMuted ? 0 : volume),
-    [isMuted, volume]
+    [isMuted, volume],
   );
 
   const visualizerState = useMemo(
@@ -403,21 +238,25 @@ const GlobalPlayer: React.FC = () => {
       isLoading: storeIsLoading,
       isPaused: !isPlaying || storeIsLoading,
     }),
-    [storeIsLoading, isPlaying]
+    [storeIsLoading, isPlaying],
   );
 
   const handleVolumeChange = useCallback(
     (v: number[]) => {
       updateVolume(+v[0].toFixed(2));
     },
-    [updateVolume]
+    [updateVolume],
   );
 
   const handleMuteToggle = useCallback(() => {
     updateMuted(!isMuted);
   }, [isMuted, updateMuted]);
 
+  // Conditions & Derived UI values extracted for cleaner JSX
   const shouldShowUI = showPlayer && stations.length > 0;
+  const PlayPauseIcon = isPlaying ? Pause : Play;
+  const stationName = currentStation?.name ?? "No Station";
+  const stationVotes = currentStation?.votes;
 
   return (
     <>
@@ -465,9 +304,9 @@ const GlobalPlayer: React.FC = () => {
                   />
                 </div>
                 <StationInfo
-                  name={currentStation?.name ?? "No Station"}
+                  name={stationName}
                   latency={latency}
-                  votes={currentStation?.votes}
+                  votes={stationVotes}
                 />
                 <FavoriteButton station={currentStation} />
               </Flex>
@@ -496,7 +335,7 @@ const GlobalPlayer: React.FC = () => {
                     justifyContent: "center",
                   }}
                 >
-                  {isPlaying ? <Pause /> : <Play />}
+                  <PlayPauseIcon />
                 </Button>
 
                 <Button

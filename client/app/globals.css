@@ -60,6 +60,22 @@
   }
 }
 
+button,
+[role="button"],
+.cursor-pointer,
+.rt-Button,
+[data-radix-select-trigger] {
+  cursor: pointer !important;
+}
+
+button:disabled,
+button[disabled],
+.rt-Button:disabled,
+.rt-Button[disabled],
+[data-radix-select-trigger][data-disabled] {
+  cursor: not-allowed !important;
+}
+
 html {
   font-size: 16px; 
 }

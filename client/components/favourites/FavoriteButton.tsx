@@ -1,11 +1,11 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React from "react";
 import { Button } from "@radix-ui/themes";
 import { Heart, Loader2 } from "lucide-react";
 import { RadioStation } from "@/types";
-import { favoritesApi } from "@/api/favorites";
 import { useAuth } from "@/contexts/AuthContext";
+import { useFavorite } from "@/hooks/useFavorites";
 
 interface FavoriteButtonProps {
   station: RadioStation | null;
@@ -19,50 +19,14 @@ const FavoriteButton: React.FC<FavoriteButtonProps> = ({
   variant = "ghost",
 }) => {
   const { user } = useAuth();
-  const [isFavorited, setIsFavorited] = useState(false);
-  const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    if (user && station) {
-      checkFavoriteStatus();
-    } else {
-      setIsFavorited(false);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, station]);
-
-  const checkFavoriteStatus = async () => {
-    if (!station) return;
-    try {
-      const status = await favoritesApi.checkFavorite(station.stationuuid);
-      setIsFavorited(status);
-    } catch (error) {
-      console.error("Failed to check favorite status:", error);
-    }
-  };
-
-  const handleToggleFavorite = async (e: React.MouseEvent) => {
-    e.stopPropagation();
-
-    if (!user || !station) return;
-
-    setLoading(true);
-    try {
-      if (isFavorited) {
-        await favoritesApi.removeFavorite(station.stationuuid);
-        setIsFavorited(false);
-      } else {
-        await favoritesApi.addFavorite(station);
-        setIsFavorited(true);
-      }
-    } catch (error) {
-      console.error("Failed to toggle favorite:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const { isFavorited, loading, toggleFavorite } = useFavorite(station);
 
   if (!user || !station) return null;
+
+  const handleToggleFavorite = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    toggleFavorite();
+  };
 
   // Conditions & Derived UI values extracted for cleaner JSX
   const buttonTitle = isFavorited ? "Remove from favorites" : "Add to favorites";
@@ -76,7 +40,7 @@ const FavoriteButton: React.FC<FavoriteButtonProps> = ({
       variant={variant}
       onClick={handleToggleFavorite}
       disabled={loading}
-      className="hover:bg-[#FF914D]/10 transition-colors"
+      className="cursor-pointer hover:bg-[#FF914D]/10 transition-colors"
       style={{ padding: "var(--spacing-xs)" }}
       title={buttonTitle}
     >
@@ -93,3 +57,4 @@ const FavoriteButton: React.FC<FavoriteButtonProps> = ({
 };
 
 export default FavoriteButton;
+

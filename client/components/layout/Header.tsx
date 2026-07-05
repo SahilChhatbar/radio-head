@@ -92,7 +92,7 @@ const Header: React.FC<HeaderProps> = memo(
                           variant="ghost"
                           size="1"
                           onClick={logout}
-                          className="text-red-400 hover:text-red-300 hover:bg-red-400/10"
+                          className="text-red-400 hover:text-red-300 hover:bg-red-400/10 cursor-pointer"
                         >
                           <LogOut
                             size={15}

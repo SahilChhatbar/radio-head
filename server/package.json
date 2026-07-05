@@ -31,7 +31,6 @@
     "passport-google-oauth20": "^2.0.0"
   },
   "devDependencies": {
-    "jest": "^29.7.0",
     "nodemon": "^3.1.10",
     "supertest": "^7.0.0"
   },

@@ -32,7 +32,7 @@ const VolumeControl = memo(
         <Button
           variant="ghost"
           onClick={onMuteToggle}
-          className="hover:bg-[#FF914D]/10"
+          className="cursor-pointer hover:bg-[#FF914D]/10"
           style={{ padding: "var(--spacing-xs)" }}
         >
           <VolumeIcon
@@ -51,7 +51,7 @@ const VolumeControl = memo(
             step={0.01}
             value={[displayVolume]}
             onValueChange={onVolumeChange}
-            className="relative flex items-center w-full"
+            className="relative flex items-center w-full cursor-pointer"
             style={{ height: "clamp(1rem, 1.5vw, 1.5rem)" }}
           >
             <Slider.Track
@@ -64,7 +64,7 @@ const VolumeControl = memo(
               />
             </Slider.Track>
             <Slider.Thumb
-              className="block bg-white rounded-full shadow"
+              className="block bg-white rounded-full shadow cursor-pointer"
               style={{
                 width: "clamp(12px, 2vw, 18px)",
                 height: "clamp(12px, 2vw, 18px)",

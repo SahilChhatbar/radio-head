@@ -4,9 +4,10 @@ import React, { useState, useEffect, useRef, memo } from "react";
 import { Flex, Text, ScrollArea } from "@radix-ui/themes";
 import { Heart, Loader2 } from "lucide-react";
 import { RadioStation } from "@/types";
-import { favoritesApi } from "@/api/favorites";
 import { useRadioStore } from "@/store/useRadiostore";
 import { formatVotes } from "@/utils/formatting";
+import { useFavorites } from "@/hooks/useFavorites";
+
 
 interface FavoritesDropdownProps {
   isOpen: boolean;
@@ -35,7 +36,7 @@ const StationItem = memo(
     return (
       <button
         onClick={onClick}
-        className="w-full px-3 py-2 hover:bg-[rgba(255,145,77,0.12)] rounded-md transition-colors text-left"
+        className="w-full px-3 py-2 hover:bg-[rgba(255,145,77,0.12)] rounded-md transition-colors text-left cursor-pointer"
         style={{
           backgroundColor: itemBgColor,
         }}
@@ -66,8 +67,7 @@ const FavoritesDropdown: React.FC<FavoritesDropdownProps> = ({
   isOpen,
   onClose,
 }) => {
-  const [favorites, setFavorites] = useState<RadioStation[]>([]);
-  const [loading, setLoading] = useState(false);
+  const { favorites, loading, loadFavorites } = useFavorites();
   const [searchQuery, setSearchQuery] = useState("");
   const dropdownRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -84,7 +84,7 @@ const FavoritesDropdown: React.FC<FavoritesDropdownProps> = ({
     } else {
       setSearchQuery("");
     }
-  }, [isOpen]);
+  }, [isOpen, loadFavorites]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -105,18 +105,6 @@ const FavoritesDropdown: React.FC<FavoritesDropdownProps> = ({
     };
   }, [isOpen, onClose]);
 
-  const loadFavorites = async () => {
-    setLoading(true);
-    try {
-      const data = await favoritesApi.getFavorites();
-      setFavorites(data);
-    } catch (error) {
-      console.error("Failed to load favorites:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleStationClick = (station: RadioStation) => {
     play(station);
     onClose();
@@ -127,6 +115,7 @@ const FavoritesDropdown: React.FC<FavoritesDropdownProps> = ({
   );
 
   if (!isOpen) return null;
+
 
   // Conditions & Derived UI values extracted for cleaner JSX
   const hasFavorites = favorites.length > 0;

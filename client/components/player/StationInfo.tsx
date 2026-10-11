@@ -1,7 +1,7 @@
 "use client";
 
 import React, { memo } from "react";
-import { Flex, Text } from "@radix-ui/themes";
+import { Flex, Text, Tooltip } from "@radix-ui/themes";
 import { Clock, FlameIcon } from "lucide-react";
 import { formatVotes } from "@/utils/formatting";
 
@@ -28,9 +28,17 @@ const StationInfo = memo(({ name, latency, votes }: StationInfoProps) => {
       style={{ gap: "var(--spacing-xs)" }}
       align="center"
     >
-      <Text size="3" weight="medium" className="truncate">
-        {name}
-      </Text>
+      <Tooltip content={name}>
+        <Text
+          size="3"
+          weight="medium"
+          className="truncate max-w-[130px] xs:max-w-[200px] sm:max-w-none sm:overflow-visible sm:whitespace-nowrap sm:text-clip cursor-pointer sm:cursor-default focus:outline-none"
+          tabIndex={0}
+          title={name}
+        >
+          {name}
+        </Text>
+      </Tooltip>
       {hasLatency && (
         <Flex
           gap="2"

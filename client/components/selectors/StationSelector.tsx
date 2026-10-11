@@ -5,14 +5,6 @@ import { Text } from "@radix-ui/themes";
 import { useStationSelector } from "@/hooks/useStationSelector";
 import Loader from "../layout/Loader";
 
-interface Tick {
-  x1?: number;
-  y1?: number;
-  x2?: number;
-  y2?: number;
-  strokeWidth?: number;
-  visible: boolean;
-}
 
 const StationGauge = memo(() => {
   const VIEWBOX_SIZE = 800;

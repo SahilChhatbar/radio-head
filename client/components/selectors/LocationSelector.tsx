@@ -1,7 +1,7 @@
 "use client";
 
 import React, { memo } from "react";
-import { Select, Flex, Text } from "@radix-ui/themes";
+import { Select, Flex, Text, Tooltip } from "@radix-ui/themes";
 import { MapPin, Radio, Loader2 } from "lucide-react";
 import { formatVotes } from "@/utils/formatting";
 import { useLocationSelector } from "@/hooks/useLocationSelector";
@@ -65,18 +65,22 @@ const StationItem = memo(
         gap="1"
         align="center"
         justify="between"
-        className="w-full"
+        className="w-full min-w-0"
       >
-        <Text
-          size="2"
-          weight="regular"
-          style={{
-            textShadow: textShadowValue,
-          }}
-        >
-          {station.name}
-        </Text>
-        <Text size="1" weight="regular">
+        <Tooltip content={station.name}>
+          <Text
+            size="2"
+            weight="regular"
+            className="truncate max-w-[150px] xs:max-w-[200px] sm:max-w-none sm:overflow-visible sm:whitespace-nowrap sm:text-clip"
+            style={{
+              textShadow: textShadowValue,
+            }}
+            title={station.name}
+          >
+            {station.name}
+          </Text>
+        </Tooltip>
+        <Text size="1" weight="regular" className="flex-shrink-0 ml-2">
           {votesTextValue}
         </Text>
       </Flex>
@@ -186,16 +190,19 @@ const LocationSelector: React.FC<LocationSelectorProps> = memo(
       if (selectedStationData) {
         return (
           <Flex align="center" gap="2" className="w-full min-w-0">
-            <Text
-              size="2"
-              weight="regular"
-              className="flex-1 truncate text-left text-accent"
-              style={{
-                textShadow: "0 0 6px rgba(255, 145, 77, 0.4)",
-              }}
-            >
-              {selectedStationData.name}
-            </Text>
+            <Tooltip content={selectedStationData.name}>
+              <Text
+                size="2"
+                weight="regular"
+                className="flex-1 truncate sm:overflow-visible sm:whitespace-nowrap sm:text-clip text-left text-accent"
+                style={{
+                  textShadow: "0 0 6px rgba(255, 145, 77, 0.4)",
+                }}
+                title={selectedStationData.name}
+              >
+                {selectedStationData.name}
+              </Text>
+            </Tooltip>
           </Flex>
         );
       }

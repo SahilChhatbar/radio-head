@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, memo } from "react";
-import { Flex, Text, ScrollArea } from "@radix-ui/themes";
+import { Flex, Text, ScrollArea, Tooltip } from "@radix-ui/themes";
 import { Heart, Loader2 } from "lucide-react";
 import { RadioStation } from "@/types";
 import { useRadioStore } from "@/store/useRadiostore";
@@ -41,19 +41,22 @@ const StationItem = memo(
           backgroundColor: itemBgColor,
         }}
       >
-        <Flex direction="row" gap="1" align="center" justify="between">
-          <Text
-            size="2"
-            weight="regular"
-            className="truncate"
-            style={{
-              textShadow: titleTextShadow,
-              color: titleColor,
-            }}
-          >
-            {station.name}
-          </Text>
-          <Text size="1" weight="regular" className="text-gray-400">
+        <Flex direction="row" gap="1" align="center" justify="between" className="w-full min-w-0">
+          <Tooltip content={station.name}>
+            <Text
+              size="2"
+              weight="regular"
+              className="truncate max-w-[170px] xs:max-w-[220px] sm:max-w-none sm:overflow-visible sm:whitespace-normal sm:text-clip"
+              style={{
+                textShadow: titleTextShadow,
+                color: titleColor,
+              }}
+              title={station.name}
+            >
+              {station.name}
+            </Text>
+          </Tooltip>
+          <Text size="1" weight="regular" className="text-gray-400 flex-shrink-0 ml-2">
             🔥{formatVotes(station.votes)}
           </Text>
         </Flex>
